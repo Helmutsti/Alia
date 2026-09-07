@@ -15,7 +15,8 @@
     "dev": "concurrently -k -n renderer,electron -c blue,green \"npm:dev:renderer\" \"node electron/wait-and-launch.js\"",
     "build:renderer": "vite build --config renderer/vite.config.js",
     "start": "npm run build:renderer && electron .",
-    "electron": "electron ."
+    "electron": "electron .",
+    "seed": "node scripts/seed.js"
   },
   "engines": {
     "node": ">=22.13.0"

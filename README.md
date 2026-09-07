@@ -82,6 +82,18 @@ Il contenuto originale e i dati di provenienza vengono definiti alla creazione e
 node --test
 ```
 
+## Dati di esempio (seed)
+
+```powershell
+npm run seed
+```
+
+Popola `./data/scheduler.sqlite` (percorso di default) con qualche item di esempio, utile per provare l'interfaccia senza partire da un database vuoto. Per popolare invece il database reale usato dall'app Electron, passa il percorso esplicito:
+
+```powershell
+node scripts/seed.js "$env:APPDATA\scheduler-core\scheduler.sqlite"
+```
+
 ## Interfaccia grafica
 
 L'app Electron vive in `electron/` (main process + preload, che aprono il core reale e lo espongono al renderer solo tramite IPC) e in `renderer/` (React + Vite, stile Nocturne portato dal progetto Alia in Claude Design). Copre per ora Inbox, Oggi, Tutti i task, composer e dettaglio task — Kanban/Calendario/Gantt/progetti/tag arriveranno quando il core avrà quei concetti.
