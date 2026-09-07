@@ -1,0 +1,8 @@
+node_modules/
+renderer/dist/
+electron/debug.log
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite-journal
+.playwright-mcp/

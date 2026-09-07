@@ -1,0 +1,204 @@
+/* Design system "Nocturne" (Claude Design, progetto Alia) con l'override
+   blu locale usato in tutti gli artboard del mockup. Trascritto staticamente:
+   non è un import del design system remoto. */
+
+:root {
+  --color-bg: #17191a;
+  --color-surface: #212426;
+  --color-text: #e9eaea;
+  --color-divider: color-mix(in srgb, #e9eaea 16%, transparent);
+
+  --color-neutral-100: #f4f5f5;
+  --color-neutral-200: #e6e7e8;
+  --color-neutral-300: #d1d3d4;
+  --color-neutral-400: #b3b5b7;
+  --color-neutral-500: #94979a;
+  --color-neutral-600: #767a7d;
+  --color-neutral-700: #5a5e61;
+  --color-neutral-800: #3f4245;
+  --color-neutral-900: #292b2c;
+
+  --color-accent: #45aeee;
+  --color-accent-100: #eff8ff;
+  --color-accent-200: #d7ecfd;
+  --color-accent-300: #b0dcfa;
+  --color-accent-400: #79c5f5;
+  --color-accent-500: #45aeee;
+  --color-accent-600: #2f8fca;
+  --color-accent-700: #25709e;
+  --color-accent-800: #1d4f6e;
+  --color-accent-900: #173340;
+
+  --font-heading: "Inter", system-ui, sans-serif;
+  --font-heading-weight: 500;
+  --font-body: "Inter", system-ui, sans-serif;
+
+  --space-1: 2.8px;
+  --space-2: 5.6px;
+  --space-3: 8.4px;
+  --space-4: 11.2px;
+  --space-6: 16.8px;
+  --space-8: 22.4px;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+
+  --shadow-sm: 0 0 0 1px #3f4245;
+  --shadow-md: 0 0 0 1px #5a5e61, 0 6px 18px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 0 0 1px #94979a, 0 16px 40px rgba(0, 0, 0, 0.65);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 400;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  margin: 0 0 var(--space-2);
+}
+h1 { font-size: 42px; }
+h2 { font-size: 32px; }
+h3 { font-size: 25px; }
+h4 { font-size: 20px; }
+
+p { margin: 0 0 var(--space-3); }
+a { color: var(--color-accent); text-underline-offset: 3px; }
+
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
+
+* { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+*:hover { scrollbar-color: color-mix(in srgb, var(--color-text) 26%, transparent) transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; background: transparent; }
+*::-webkit-scrollbar-track { background: transparent; border: none; }
+*::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+  transition: background 160ms ease;
+}
+*:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-text) 24%, transparent);
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-text) 40%, transparent);
+  background-clip: content-box;
+}
+
+/* — bottoni — */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: var(--space-2) calc(var(--space-3) * 1.2);
+  border-radius: var(--radius-md);
+}
+.btn svg { display: block; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { color: var(--color-accent); border-color: var(--color-accent); }
+.btn-primary:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
+.btn-primary:active { background: color-mix(in srgb, var(--color-accent) 22%, transparent); }
+.btn-secondary { border-color: var(--color-divider); }
+.btn-secondary:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+.btn-secondary:active { background: color-mix(in srgb, var(--color-text) 14%, transparent); }
+.btn-ghost { color: var(--color-accent); padding-inline: var(--space-1); }
+.btn-ghost:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.btn-ghost:active { background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
+.btn-icon { width: 36px; height: 36px; padding: 0; }
+
+/* — form — */
+.input {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  caret-color: var(--color-accent);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+.input::placeholder { color: color-mix(in srgb, var(--color-text) 56%, transparent); }
+.input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+.input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+textarea.input { min-height: 90px; resize: vertical; }
+.composer-title:focus-visible,
+.composer-desc:focus-visible { outline: none; }
+
+/* — card — */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.elev-sm { box-shadow: var(--shadow-sm); }
+.elev-md { box-shadow: var(--shadow-md); }
+.elev-lg { box-shadow: var(--shadow-lg); }
+
+/* — tag — */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: calc(var(--radius-md) * 0.75);
+}
+.tag-accent { background: var(--color-accent-800); color: var(--color-accent-100); }
+.tag-neutral { background: var(--color-neutral-800); color: var(--color-neutral-100); }
+.tag-outline { border: 1px solid var(--color-accent); color: var(--color-accent); }
+
+/* — righe interattive — */
+.nav-row:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
+.row:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+.ghost-send:hover { background: color-mix(in srgb, var(--color-text) 8%, transparent); }
+.ghost-send:disabled { opacity: 0.4; cursor: not-allowed; }
+.chip:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+.menu-item:hover { background: color-mix(in srgb, var(--color-accent) 14%, transparent); }
+
+.text-muted { color: color-mix(in srgb, var(--color-text) 60%, transparent); }

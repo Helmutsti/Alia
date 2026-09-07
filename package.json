@@ -1,0 +1,33 @@
+{
+  "name": "scheduler-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Core locale e interfaccia grafica per la gestione degli item di Scheduler",
+  "main": "electron/main.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/index.js && node --check src/core/item-core.js && node --check src/core/database.js",
+    "dev:renderer": "vite --config renderer/vite.config.js",
+    "dev": "concurrently -k -n renderer,electron -c blue,green \"npm:dev:renderer\" \"node electron/wait-and-launch.js\"",
+    "build:renderer": "vite build --config renderer/vite.config.js",
+    "start": "npm run build:renderer && electron .",
+    "electron": "electron ."
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "electron": "^44.2.0",
+    "vite": "^6.0.7"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}
