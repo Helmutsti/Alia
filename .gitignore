@@ -6,3 +6,5 @@ electron/debug.log
 *.sqlite-wal
 *.sqlite-journal
 .playwright-mcp/
+dist-app/
+*.tgz
