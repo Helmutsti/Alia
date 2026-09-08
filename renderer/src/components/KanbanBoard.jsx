@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import TaskRow from "./TaskRow.jsx";
 
 const AddIcon = (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flex: "0 0 auto" }}>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flex: "0 0 auto" }}>
     <path d="M12 5v14M5 12h14" />
   </svg>
 );
@@ -161,16 +161,16 @@ export default function KanbanBoard({ groups, groupingField, onOpen, onToggle, o
   }
 
   return (
-    <div ref={trackRef} className="ktrack" style={{ display: "flex", gap: 14, alignItems: "flex-start", marginTop: 16, overflowX: "auto", overflowY: "visible", paddingBottom: 10 }}>
+    <div ref={trackRef} className="ktrack" style={{ display: "flex", gap: 12, alignItems: "flex-start", marginTop: 16, overflowX: "auto", overflowY: "visible", paddingBottom: 10 }}>
       {groups.map((g) => (
         <div
           key={g.key}
           data-col={g.key}
-          style={{ display: "flex", flexDirection: "column", flex: "0 0 288px", width: 288, padding: "12px 10px 10px", borderRadius: "var(--radius-md)", background: "color-mix(in srgb, var(--color-text) 3.5%, transparent)", border: "1px solid transparent" }}
+          style={{ display: "flex", flexDirection: "column", flex: "0 0 288px", width: 288, padding: "12px", borderRadius: "var(--radius-md)", background: "color-mix(in srgb, var(--color-text) 3.5%, transparent)", border: "1px solid transparent" }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 2px", marginBottom: 14 }}>
-            <span style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "var(--font-heading)", fontWeight: 500, color: g.color }}>{g.label}</span>
-            <span style={{ marginLeft: "auto", fontSize: 11, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{g.rows.length}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 2px", marginBottom: 16 }}>
+            <span style={{ fontSize: "var(--text-sm)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "var(--font-heading)", fontWeight: 500, color: g.color }}>{g.label}</span>
+            <span style={{ marginLeft: "auto", fontSize: "var(--text-sm)", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{g.rows.length}</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {g.rows.map((item) => (
@@ -186,12 +186,12 @@ export default function KanbanBoard({ groups, groupingField, onOpen, onToggle, o
               </div>
             ))}
             {g.rows.length === 0 && !(draft && draft.key === g.key) && (
-              <div style={{ padding: "8px 2px", fontSize: 11, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>Nessun task</div>
+              <div style={{ padding: "8px 2px", fontSize: "var(--text-sm)", color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>Nessun task</div>
             )}
             {draft && draft.key === g.key ? (
               <div
                 className="card"
-                style={{ padding: 8, borderRadius: "var(--radius-md)", border: "1px solid var(--color-accent)", background: "var(--color-surface)", display: "flex", alignItems: "center", gap: 6 }}
+                style={{ padding: 8, borderRadius: "var(--radius-md)", border: "1px solid var(--color-accent)", background: "var(--color-surface)", display: "flex", alignItems: "center", gap: 8 }}
               >
                 <input
                   autoFocus
@@ -208,7 +208,7 @@ export default function KanbanBoard({ groups, groupingField, onOpen, onToggle, o
                       commitDraft(g.value);
                     }
                   }}
-                  style={{ flex: 1, minWidth: 0, height: 30, minHeight: 30, padding: "0 8px", fontSize: 12.5, border: "none", background: "transparent" }}
+                  style={{ flex: 1, minWidth: 0, height: 30, minHeight: 30, padding: "0 8px", fontSize: "var(--text-base-sm)", border: "none", background: "transparent" }}
                 />
                 <button
                   type="button"
@@ -227,7 +227,7 @@ export default function KanbanBoard({ groups, groupingField, onOpen, onToggle, o
                 type="button"
                 className="kadd"
                 onClick={() => startDraft(g.key)}
-                style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", marginTop: 2, padding: "9px 11px", border: "1px dashed color-mix(in srgb, var(--color-text) 15%, transparent)", borderRadius: "var(--radius-md)", background: "transparent", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: 12, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}
+                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", marginTop: 2, padding: "8px 12px", border: "1px dashed color-mix(in srgb, var(--color-text) 15%, transparent)", borderRadius: "var(--radius-md)", background: "transparent", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: "var(--text-base-sm)", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}
               >
                 {AddIcon}
                 <span>Aggiungi una nota</span>

@@ -60,10 +60,10 @@ export default function CalendarScreen({ reloadKey, onOpen }) {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 24, marginBottom: 24 }}>
         <div>
-          <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent)", marginBottom: 8 }}>{cursor.getFullYear()}</div>
-          <h2 style={{ margin: 0, fontSize: 38 }}>{MONTH_LABELS_IT[cursor.getMonth()]}</h2>
+          <div style={{ fontSize: "var(--text-sm)", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent)", marginBottom: 8 }}>{cursor.getFullYear()}</div>
+          <h2 style={{ margin: 0 }}>{MONTH_LABELS_IT[cursor.getMonth()]}</h2>
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button type="button" className="btn btn-secondary btn-icon" style={{ width: 32, height: 32 }} aria-label="Mese precedente" onClick={() => shiftMonth(-1)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 6l-6 6 6 6" /></svg>
           </button>
@@ -73,9 +73,9 @@ export default function CalendarScreen({ reloadKey, onOpen }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,minmax(0,1fr))", gap: "1px 0", marginBottom: 6 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,minmax(0,1fr))", gap: "1px 0", marginBottom: 8 }}>
         {WEEKDAY_LABELS_IT.map((w) => (
-          <div key={w} style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 56%, transparent)", paddingBottom: 6 }}>{w}</div>
+          <div key={w} style={{ fontSize: "var(--text-xs)", letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 56%, transparent)", paddingBottom: 6 }}>{w}</div>
         ))}
       </div>
 
@@ -93,9 +93,9 @@ export default function CalendarScreen({ reloadKey, onOpen }) {
           >
             {cell && (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                  <span style={{ fontSize: 11.5, color: cell.isToday ? "var(--color-accent-200)" : "color-mix(in srgb, var(--color-text) 62%, transparent)" }}>{cell.num}</span>
-                  {cell.isToday && <span style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--color-accent)" }}>oggi</span>}
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 8 }}>
+                  <span style={{ fontSize: "var(--text-sm)", color: cell.isToday ? "var(--color-accent-200)" : "color-mix(in srgb, var(--color-text) 62%, transparent)" }}>{cell.num}</span>
+                  {cell.isToday && <span style={{ fontSize: "var(--text-2xs)", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--color-accent)" }}>oggi</span>}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                   {cell.items.slice(0, 3).map((item) => {
@@ -106,9 +106,9 @@ export default function CalendarScreen({ reloadKey, onOpen }) {
                         onClick={() => onOpen(item)}
                         title={item.title}
                         style={{
-                          fontSize: 10.5,
+                          fontSize: "var(--text-xs)",
                           lineHeight: 1.35,
-                          padding: "3px 6px",
+                          padding: "3px 8px",
                           borderRadius: "var(--radius-sm)",
                           whiteSpace: "nowrap",
                           overflow: "hidden",
@@ -125,7 +125,7 @@ export default function CalendarScreen({ reloadKey, onOpen }) {
                     );
                   })}
                   {cell.items.length > 3 && (
-                    <div style={{ fontSize: 10, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>+{cell.items.length - 3} altri</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>+{cell.items.length - 3} altri</div>
                   )}
                 </div>
               </>

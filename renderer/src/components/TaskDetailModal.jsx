@@ -42,18 +42,18 @@ const DUE_PRESETS = [
 const TABS = ["Allegati", "Sottotask", "Attività"];
 
 const FlagIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <path d="M5 21V4h9l-1 3 1 3H5" />
   </svg>
 );
 const MailIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="5" width="18" height="14" rx="2" />
     <path d="M3 7l9 6 9-6" />
   </svg>
 );
 const KebabIcon = (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <circle cx="12" cy="5" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="12" cy="19" r="1.4" />
   </svg>
 );
@@ -61,38 +61,38 @@ const CloseIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
 );
 const PencilIcon = (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
   </svg>
 );
 const CalendarIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 11h18" />
   </svg>
 );
 const BellIcon = (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" /><path d="M9.5 20a2.5 2.5 0 0 0 5 0" />
   </svg>
 );
 const ChevronDownIcon = (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
     <path d="M6 9l6 6 6-6" />
   </svg>
 );
 const PlusIcon = (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
 );
 const TrashIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" /></svg>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" /></svg>
 );
 const ArchiveIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="4" width="18" height="4" rx="1" /><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8" /><path d="M10 13h4" />
   </svg>
 );
 const OutputIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M14 3h7v7" /><path d="M21 3l-9 9" /><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />
   </svg>
 );
@@ -100,7 +100,7 @@ const CheckIcon = (
   <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="var(--color-bg)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
 );
 const SendIcon = (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21.5 2.5L2.8 9.6c-.7.3-.7 1.2 0 1.5l7.1 2.7c.2.1.4.3.5.5l2.7 7.1c.3.7 1.2.7 1.5 0z" />
     <path d="M10.4 13.6l5.6-5.6" />
   </svg>
@@ -338,7 +338,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
       style={{ position: "fixed", inset: 0, background: "color-mix(in srgb, #0a0b0b 64%, transparent)", zIndex: 20 }}
       onClick={onClose}
     >
-      <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 224, display: "grid", placeItems: "start center", paddingTop: 56 }}>
+      <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 252, display: "grid", placeItems: "start center", paddingTop: 56 }}>
         <div
           className="card elev-lg"
           style={{ width: 660, maxWidth: "92vw", maxHeight: "calc(100vh - 96px)", gap: 0, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}
@@ -365,12 +365,12 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                       type="button"
                       className="menu-item"
                       onClick={() => setPriority(o.value)}
-                      style={{ display: "flex", alignItems: "flex-start", gap: 9, width: "100%", border: "none", background: "transparent", cursor: "pointer", textAlign: "left", fontFamily: "var(--font-body)", padding: "7px 9px", borderRadius: "var(--radius-sm)", color: item.priority === o.value ? "var(--color-accent-300)" : "var(--color-text)" }}
+                      style={{ display: "flex", alignItems: "flex-start", gap: 8, width: "100%", border: "none", background: "transparent", cursor: "pointer", textAlign: "left", fontFamily: "var(--font-body)", padding: "8px", borderRadius: "var(--radius-sm)", color: item.priority === o.value ? "var(--color-accent-300)" : "var(--color-text)" }}
                     >
                       <span style={{ marginTop: 3, color: o.value === "none" ? "color-mix(in srgb, var(--color-text) 55%, transparent)" : PRIORITY_COLORS[o.value] }}>{FlagIcon}</span>
                       <span style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5 }}>{o.label}</div>
-                        <div style={{ fontSize: 11, marginTop: 1, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{o.desc}</div>
+                        <div style={{ fontSize: "var(--text-base-sm)" }}>{o.label}</div>
+                        <div style={{ fontSize: "var(--text-sm)", marginTop: 1, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{o.desc}</div>
                       </span>
                     </button>
                   ))}
@@ -383,7 +383,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                 type="button"
                 className="dpill"
                 onClick={() => setProjectOpen((v) => !v)}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 27, padding: "0 10px", borderRadius: "var(--radius-md)", cursor: "pointer", background: "transparent", fontFamily: "var(--font-body)", fontSize: 12, border: `1px solid ${projectOpen ? "var(--color-accent)" : "transparent"}`, color: item.project ? "color-mix(in srgb, var(--color-text) 82%, transparent)" : "color-mix(in srgb, var(--color-text) 60%, transparent)" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 4, height: 27, padding: "0 12px", borderRadius: "var(--radius-md)", cursor: "pointer", background: "transparent", fontFamily: "var(--font-body)", fontSize: "var(--text-base-sm)", border: `1px solid ${projectOpen ? "var(--color-accent)" : "transparent"}`, color: item.project ? "color-mix(in srgb, var(--color-text) 82%, transparent)" : "color-mix(in srgb, var(--color-text) 60%, transparent)" }}
               >
                 {item.project ? (
                   <>
@@ -402,14 +402,14 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
               </button>
               {projectOpen && (
                 <div style={{ position: "absolute", left: 0, top: "calc(100% + 4px)", zIndex: 8, minWidth: 190, padding: 6, borderRadius: "var(--radius-md)", background: "var(--color-surface)", boxShadow: "var(--shadow-md)" }}>
-                  <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 6px" }}>Progetto</div>
+                  <div style={{ fontSize: "var(--text-xs)", letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 8px" }}>Progetto</div>
                   {dbProjects.map((p) => (
                     <DetailMenuItem key={p.id} label={p.name} dot={p.color} active={item.project === p.name} onClick={() => setProject(p.name)} />
                   ))}
                   <DetailMenuItem label="Nessuno" active={!item.project} onClick={() => setProject(null)} />
                   {item.project && (
                     <>
-                      <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "8px 8px 6px", borderTop: "1px solid var(--color-divider)", marginTop: 4 }}>Lista</div>
+                      <div style={{ fontSize: "var(--text-xs)", letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "8px", borderTop: "1px solid var(--color-divider)", marginTop: 4 }}>Lista</div>
                       {listsForProject(item.project).map((l) => (
                         <DetailMenuItem key={l} label={l} active={item.list === l} onClick={() => setList(l)} />
                       ))}
@@ -424,7 +424,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                 type="button"
                 className="dpill"
                 onClick={() => {}}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 27, padding: "0 10px", borderRadius: "var(--radius-md)", cursor: "pointer", background: "transparent", border: "1px solid transparent", fontFamily: "var(--font-body)", fontSize: 12, color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 4, height: 27, padding: "0 12px", borderRadius: "var(--radius-md)", cursor: "pointer", background: "transparent", border: "1px solid transparent", fontFamily: "var(--font-body)", fontSize: "var(--text-base-sm)", color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}
               >
                 {MailIcon}
                 <span>da {item.sourceType.charAt(0).toUpperCase() + item.sourceType.slice(1)} · email</span>
@@ -463,7 +463,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
           </div>
 
           {/* ---- body ---- */}
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "4px 16px 16px" }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "4px 16px 22px" }}>
             {editingTitle ? (
               <input
                 ref={titleRef}
@@ -475,12 +475,12 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                   if (e.key === "Enter") { e.preventDefault(); saveTitle(); }
                   else if (e.key === "Escape") { e.stopPropagation(); setTitleDraft(item.title); setEditingTitle(false); }
                 }}
-                style={{ width: "100%", border: "1px solid var(--color-accent)", background: "transparent", padding: "4px 8px", marginBottom: 12, fontFamily: "var(--font-heading)", fontWeight: 500, fontSize: 22, letterSpacing: "-0.015em" }}
+                style={{ width: "100%", border: "1px solid var(--color-accent)", background: "transparent", padding: "4px 8px", marginBottom: 12, fontFamily: "var(--font-heading)", fontWeight: 500, fontSize: "var(--text-lg)", letterSpacing: "-0.015em" }}
               />
             ) : (
               <h4
                 onClick={() => { setTitleDraft(item.title); setEditingTitle(true); }}
-                style={{ margin: "4px 0 12px", padding: "4px 8px", marginLeft: -8, borderRadius: "var(--radius-sm)", cursor: "text", fontSize: 22, letterSpacing: "-0.015em", textDecoration: done ? "line-through" : "none" }}
+                style={{ margin: "4px 0 12px", padding: "4px 8px", marginLeft: -8, borderRadius: "var(--radius-sm)", cursor: "text", fontSize: "var(--text-lg)", letterSpacing: "-0.015em", textDecoration: done ? "line-through" : "none" }}
               >
                 {item.title}
               </h4>
@@ -495,7 +495,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                     value={descDraft}
                     onChange={(e) => setDescDraft(e.target.value)}
                     autoFocus
-                    style={{ width: "100%", border: "1px solid var(--color-accent)", borderRadius: "var(--radius-md)", background: "transparent", padding: "8px 10px", fontFamily: "inherit", fontSize: 13.5, lineHeight: 1.45, color: "var(--color-text)", resize: "none", maxHeight: 112, overflowY: "auto", minHeight: 40 }}
+                    style={{ width: "100%", border: "1px solid var(--color-accent)", borderRadius: "var(--radius-md)", background: "transparent", padding: "8px 12px", fontFamily: "inherit", fontSize: "var(--text-md)", lineHeight: 1.45, color: "var(--color-text)", resize: "none", maxHeight: 112, overflowY: "auto", minHeight: 40 }}
                   />
                   <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                     <button type="button" className="btn btn-primary" onClick={saveDesc}>Salva</button>
@@ -504,7 +504,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                 </div>
               ) : (
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                  <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, lineHeight: 1.5, color: item.description ? "color-mix(in srgb, var(--color-text) 78%, transparent)" : "color-mix(in srgb, var(--color-text) 50%, transparent)", whiteSpace: "pre-wrap" }}>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: "var(--text-md)", lineHeight: 1.5, color: item.description ? "color-mix(in srgb, var(--color-text) 78%, transparent)" : "color-mix(in srgb, var(--color-text) 50%, transparent)", whiteSpace: "pre-wrap" }}>
                     {item.description || "Nessuna descrizione"}
                   </div>
                   <button
@@ -521,7 +521,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
             </div>
 
             {/* ---- properties panel ---- */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: 14, borderRadius: "var(--radius-lg)", background: "color-mix(in srgb, var(--color-text) 4%, transparent)", marginBottom: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 14, borderRadius: "var(--radius-lg)", background: "color-mix(in srgb, var(--color-text) 4%, transparent)", marginBottom: 16 }}>
               <div>
                 <PropLabel>{item.startAt ? "Durata" : "Scadenza"}</PropLabel>
                 {!item.startAt ? (
@@ -543,7 +543,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                 ) : (
                   <div style={{ display: "flex", gap: 8 }}>
                     <span ref={startRef} style={{ position: "relative", display: "flex", flex: 1, flexDirection: "column", gap: 3 }}>
-                      <span style={{ fontSize: 10.5, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>Inizio</span>
+                      <span style={{ fontSize: "var(--text-xs)", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>Inizio</span>
                       <button type="button" className="dpill" onClick={() => setStartOpen((v) => !v)} style={dueBoxStyle(startOpen, true)}>
                         {CalendarIcon}
                         {formatRelativeDateTime(item.startAt)}
@@ -559,7 +559,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                       )}
                     </span>
                     <span ref={dueRef} style={{ position: "relative", display: "flex", flex: 1, flexDirection: "column", gap: 3 }}>
-                      <span style={{ fontSize: 10.5, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>Fine</span>
+                      <span style={{ fontSize: "var(--text-xs)", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>Fine</span>
                       <button type="button" className="dpill" onClick={() => setDueOpen((v) => !v)} style={dueBoxStyle(dueOpen, true)}>
                         {CalendarIcon}
                         {formatRelativeDateTime(item.dueAt) ?? "Nessuna"}
@@ -579,7 +579,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
               </div>
 
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   <PropLabel noMargin>Note</PropLabel>
                   {!editingNotes && (
                     <button
@@ -601,10 +601,10 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                     onChange={(e) => setNotesDraft(e.target.value)}
                     onBlur={saveNotes}
                     placeholder="Aggiungi una nota interna…"
-                    style={{ width: "100%", border: "1px solid var(--color-accent)", borderRadius: "var(--radius-md)", background: "transparent", padding: "7px 9px", fontFamily: "inherit", fontSize: 12.5, lineHeight: 1.45, color: "var(--color-text)", resize: "none", minHeight: 40, maxHeight: 112, overflowY: "auto" }}
+                    style={{ width: "100%", border: "1px solid var(--color-accent)", borderRadius: "var(--radius-md)", background: "transparent", padding: "8px", fontFamily: "inherit", fontSize: "var(--text-base-sm)", lineHeight: 1.45, color: "var(--color-text)", resize: "none", minHeight: 40, maxHeight: 112, overflowY: "auto" }}
                   />
                 ) : (
-                  <div style={{ fontSize: 12.5, lineHeight: 1.5, color: item.notes ? "color-mix(in srgb, var(--color-text) 74%, transparent)" : "color-mix(in srgb, var(--color-text) 48%, transparent)", whiteSpace: "pre-wrap" }}>
+                  <div style={{ fontSize: "var(--text-base-sm)", lineHeight: 1.5, color: item.notes ? "color-mix(in srgb, var(--color-text) 74%, transparent)" : "color-mix(in srgb, var(--color-text) 48%, transparent)", whiteSpace: "pre-wrap" }}>
                     {item.notes || "Aggiungi una nota interna…"}
                   </div>
                 )}
@@ -612,11 +612,11 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
 
               <div>
                 <PropLabel>Tag</PropLabel>
-                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
                   {(item.tags ?? []).map((t) => (
-                    <span key={t} className="tag tag-neutral" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span key={t} className="tag tag-neutral" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                       #{t}
-                      <button type="button" onClick={() => removeTag(t)} aria-label={`Rimuovi tag ${t}`} style={{ border: "none", background: "transparent", color: "inherit", cursor: "pointer", padding: 0, fontSize: 11, lineHeight: 1, opacity: 0.7 }}>✕</button>
+                      <button type="button" onClick={() => removeTag(t)} aria-label={`Rimuovi tag ${t}`} style={{ border: "none", background: "transparent", color: "inherit", cursor: "pointer", padding: 0, fontSize: "var(--text-sm)", lineHeight: 1, opacity: 0.7 }}>✕</button>
                     </span>
                   ))}
                   <input
@@ -625,21 +625,21 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                     value={tagDraft}
                     onChange={(e) => setTagDraft(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-                    style={{ flex: "1 1 100px", minWidth: 90, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: 12, color: "var(--color-text)" }}
+                    style={{ flex: "1 1 100px", minWidth: 90, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: "var(--text-base-sm)", color: "var(--color-text)" }}
                   />
                 </div>
               </div>
             </div>
 
             {/* ---- tabs ---- */}
-            <div style={{ display: "flex", gap: 18, borderBottom: "1px solid var(--color-divider)", marginBottom: 14 }}>
+            <div style={{ display: "flex", gap: 16, borderBottom: "1px solid var(--color-divider)", marginBottom: 16 }}>
               {TABS.map((t) => (
                 <button
                   key={t}
                   type="button"
                   className="dtab"
                   onClick={() => setTab(t)}
-                  style={{ border: "none", borderBottom: `2px solid ${tab === t ? "var(--color-accent)" : "transparent"}`, background: "transparent", cursor: "pointer", padding: "0 0 9px", marginBottom: -1, fontFamily: "var(--font-body)", fontSize: 12.5, color: tab === t ? "var(--color-accent-300)" : "color-mix(in srgb, var(--color-text) 60%, transparent)" }}
+                  style={{ border: "none", borderBottom: `2px solid ${tab === t ? "var(--color-accent)" : "transparent"}`, background: "transparent", cursor: "pointer", padding: "0 0 8px", marginBottom: -1, fontFamily: "var(--font-body)", fontSize: "var(--text-base-sm)", color: tab === t ? "var(--color-accent-300)" : "color-mix(in srgb, var(--color-text) 60%, transparent)" }}
                 >
                   {t}
                 </button>
@@ -649,10 +649,10 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
             {tab === "Sottotask" && (
               <div>
                 {subtasks.length > 0 && (
-                  <div style={{ fontSize: 11, marginBottom: 6, color: "var(--color-accent-300)" }}>{subDone} di {subtasks.length}</div>
+                  <div style={{ fontSize: "var(--text-sm)", marginBottom: 8, color: "var(--color-accent-300)" }}>{subDone} di {subtasks.length}</div>
                 )}
                 {subtasks.map((st) => (
-                  <div key={st.id} className="row" style={{ display: "flex", alignItems: "center", gap: 11, padding: "6px 0" }}>
+                  <div key={st.id} className="row" style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0" }}>
                     <button
                       type="button"
                       className="tcheck"
@@ -662,7 +662,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                     >
                       {st.done && CheckIcon}
                     </button>
-                    <span style={{ fontSize: 13, textDecoration: st.done ? "line-through" : "none", color: st.done ? "color-mix(in srgb, var(--color-text) 50%, transparent)" : "var(--color-text)" }}>{st.title}</span>
+                    <span style={{ fontSize: "var(--text-md)", textDecoration: st.done ? "line-through" : "none", color: st.done ? "color-mix(in srgb, var(--color-text) 50%, transparent)" : "var(--color-text)" }}>{st.title}</span>
                     <button
                       type="button"
                       className="ghost-ico"
@@ -674,7 +674,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                     </button>
                   </div>
                 ))}
-                <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "6px 0" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0" }}>
                   <span style={{ width: 12, height: 12, flex: "0 0 auto", borderRadius: 999, border: "2.2px dashed color-mix(in srgb, var(--color-text) 35%, transparent)" }} />
                   <input
                     className="dnote"
@@ -682,7 +682,7 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                     value={newSub}
                     onChange={(e) => setNewSub(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubtask(); } }}
-                    style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-text)" }}
+                    style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: "var(--text-md)", color: "var(--color-text)" }}
                   />
                 </div>
               </div>
@@ -691,23 +691,23 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
             {tab === "Attività" && (
               <div>
                 {activity.map((a) => (
-                  <div key={a.id} style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-                    <span style={{ flex: "0 0 auto", width: 22, height: 22, borderRadius: 999, background: a.who === "AI" ? "var(--color-neutral-800)" : "var(--color-accent-800)", color: a.who === "AI" ? "var(--color-neutral-200)" : "var(--color-accent-100)", display: "grid", placeItems: "center", fontSize: 9 }}>{a.who}</span>
+                  <div key={a.id} style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                    <span style={{ flex: "0 0 auto", width: 22, height: 22, borderRadius: 999, background: a.who === "AI" ? "var(--color-neutral-800)" : "var(--color-accent-800)", color: a.who === "AI" ? "var(--color-neutral-200)" : "var(--color-accent-100)", display: "grid", placeItems: "center", fontSize: "var(--text-2xs)" }}>{a.who}</span>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5, lineHeight: 1.5, color: "color-mix(in srgb, var(--color-text) 80%, transparent)" }}>{a.text}</div>
-                      <div style={{ fontSize: 10.5, marginTop: 2, color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}>{a.when}</div>
+                      <div style={{ fontSize: "var(--text-base-sm)", lineHeight: 1.5, color: "color-mix(in srgb, var(--color-text) 80%, transparent)" }}>{a.text}</div>
+                      <div style={{ fontSize: "var(--text-xs)", marginTop: 2, color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}>{a.when}</div>
                     </div>
                   </div>
                 ))}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
-                  <span style={{ flex: "0 0 auto", width: 22, height: 22, borderRadius: 999, background: "var(--color-accent-800)", color: "var(--color-accent-100)", display: "grid", placeItems: "center", fontSize: 9 }}>Tu</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+                  <span style={{ flex: "0 0 auto", width: 22, height: 22, borderRadius: 999, background: "var(--color-accent-800)", color: "var(--color-accent-100)", display: "grid", placeItems: "center", fontSize: "var(--text-2xs)" }}>Tu</span>
                   <input
                     className="dnote"
                     placeholder="Scrivi una nota…"
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); sendComment(); } }}
-                    style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: 12.5, color: "var(--color-text)" }}
+                    style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: "var(--text-base-sm)", color: "var(--color-text)" }}
                   />
                   <button
                     type="button"
@@ -723,14 +723,14 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
             )}
 
             {tab === "Allegati" && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: 12 }}>
                 {attachments.map((a) => (
                   <div key={a.id} className="attach-tile" style={{ position: "relative", display: "flex", flexDirection: "column", gap: 4, padding: 8, borderRadius: "var(--radius-md)", border: "1px solid var(--color-divider)", background: "var(--color-surface)" }}>
                     <div style={{ width: "100%", aspectRatio: "1 / 1", borderRadius: "var(--radius-sm)", background: "color-mix(in srgb, var(--color-text) 8%, transparent)", display: "grid", placeItems: "center", color: "color-mix(in srgb, var(--color-text) 40%, transparent)" }}>
                       {PaperclipIcon}
                     </div>
-                    <span style={{ fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</span>
-                    <span style={{ fontSize: 10, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{formatSize(a.size)}</span>
+                    <span style={{ fontSize: "var(--text-sm)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{formatSize(a.size)}</span>
                     <button
                       type="button"
                       className="ghost-ico attach-remove"
@@ -747,10 +747,10 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                   type="button"
                   className="attach-add"
                   onClick={() => fileInputRef.current?.click()}
-                  style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, aspectRatio: "1 / 1", borderRadius: "var(--radius-md)", border: "1px dashed var(--color-divider)", background: "transparent", cursor: "pointer", color: "color-mix(in srgb, var(--color-text) 60%, transparent)" }}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, aspectRatio: "1 / 1", borderRadius: "var(--radius-md)", border: "1px dashed var(--color-divider)", background: "transparent", cursor: "pointer", color: "color-mix(in srgb, var(--color-text) 60%, transparent)" }}
                 >
                   {PlusIcon}
-                  <span style={{ fontSize: 11 }}>Aggiungi</span>
+                  <span style={{ fontSize: "var(--text-sm)" }}>Aggiungi</span>
                 </button>
               </div>
             )}
@@ -782,26 +782,26 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
                       }}
                     />
                   ))}
-                  <div style={{ borderTop: "1px solid var(--color-divider)", marginTop: 4, padding: "6px 8px 2px" }}>
+                  <div style={{ borderTop: "1px solid var(--color-divider)", marginTop: 4, padding: "8px 8px 2px" }}>
                     <input
                       type="datetime-local"
                       className="input"
                       onChange={(e) => e.target.value && setReminder(new Date(e.target.value).toISOString())}
-                      style={{ fontSize: 12.5, height: 30, minHeight: 30, padding: "2px 8px" }}
+                      style={{ fontSize: "var(--text-base-sm)", height: 30, minHeight: 30, padding: "2px 8px" }}
                     />
                   </div>
                 </div>
               )}
             </span>
 
-            <span style={{ marginLeft: "auto", fontSize: 11, color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}>Esc per chiudere</span>
+            <span style={{ marginLeft: "auto", fontSize: "var(--text-sm)", color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}>Esc per chiudere</span>
 
             <span ref={statusRef} style={{ position: "relative", display: "inline-flex" }}>
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => setStatusOpen((v) => !v)}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
               >
                 {statusLabel}
                 {ChevronDownIcon}
@@ -825,16 +825,16 @@ function dueBoxStyle(open, on) {
   return {
     display: "inline-flex",
     alignItems: "center",
-    gap: 7,
+    gap: 8,
     width: "100%",
     height: 32,
-    padding: "0 10px",
+    padding: "0 12px",
     borderRadius: "var(--radius-md)",
     cursor: "pointer",
     background: "var(--color-surface)",
     border: `1px solid ${open ? "var(--color-accent)" : "var(--color-divider)"}`,
     fontFamily: "var(--font-body)",
-    fontSize: 12.5,
+    fontSize: "var(--text-base-sm)",
     color: on ? "var(--color-text)" : "color-mix(in srgb, var(--color-text) 55%, transparent)",
   };
 }
@@ -842,26 +842,26 @@ function dueBoxStyle(open, on) {
 function DueMenu({ value, onPreset, onPrecise, hasStart, onAddStart, onRemoveStart }) {
   return (
     <div style={{ position: "absolute", left: 0, top: "calc(100% + 4px)", zIndex: 9, minWidth: 210, padding: 6, borderRadius: "var(--radius-md)", background: "var(--color-surface)", boxShadow: "var(--shadow-md)" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "2px 3px 6px" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "2px 3px 8px" }}>
         {DUE_PRESETS.map((p) => (
           <button
             key={p.label}
             type="button"
             className="pill"
             onClick={() => onPreset(p.toIso())}
-            style={{ height: 24, padding: "0 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--color-divider)", background: "transparent", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: 11.5, color: "color-mix(in srgb, var(--color-text) 74%, transparent)" }}
+            style={{ height: 24, padding: "0 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--color-divider)", background: "transparent", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: "var(--text-sm)", color: "color-mix(in srgb, var(--color-text) 74%, transparent)" }}
           >
             {p.label}
           </button>
         ))}
       </div>
-      <div style={{ padding: "2px 3px 6px" }}>
+      <div style={{ padding: "2px 3px 8px" }}>
         <input
           type="datetime-local"
           className="input"
           defaultValue={toDatetimeLocalValue(value)}
           onChange={(e) => e.target.value && onPrecise(new Date(e.target.value).toISOString())}
-          style={{ fontSize: 12.5, height: 30, minHeight: 30, padding: "2px 8px" }}
+          style={{ fontSize: "var(--text-base-sm)", height: 30, minHeight: 30, padding: "2px 8px" }}
         />
       </div>
       <div style={{ borderTop: "1px solid var(--color-divider)", paddingTop: 4 }}>
@@ -884,7 +884,7 @@ function toDatetimeLocalValue(iso) {
 
 function PropLabel({ children, noMargin }) {
   return (
-    <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", marginBottom: noMargin ? 0 : 6 }}>
+    <div style={{ fontSize: "var(--text-xs)", letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", marginBottom: noMargin ? 0 : 6 }}>
       {children}
     </div>
   );
@@ -899,7 +899,7 @@ function DetailMenuItem({ label, icon, dot, active, danger, accent, onClick }) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 9,
+        gap: 8,
         justifyContent: "space-between",
         width: "100%",
         border: "none",
@@ -907,8 +907,8 @@ function DetailMenuItem({ label, icon, dot, active, danger, accent, onClick }) {
         cursor: "pointer",
         textAlign: "left",
         fontFamily: "var(--font-body)",
-        fontSize: 12.5,
-        padding: "6px 8px",
+        fontSize: "var(--text-base-sm)",
+        padding: "8px",
         borderRadius: "var(--radius-sm)",
         color: danger ? "#ff6b6b" : accent ? "var(--color-accent-300)" : active ? "var(--color-accent-300)" : "var(--color-text)",
       }}
@@ -919,7 +919,7 @@ function DetailMenuItem({ label, icon, dot, active, danger, accent, onClick }) {
         {label}
       </span>
       {active && (
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
       )}
     </button>
   );

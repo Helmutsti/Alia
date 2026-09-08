@@ -16,17 +16,17 @@ const KANBAN_GROUPING = ["status", "project", "priority"];
 const GROUPING_LABELS = { none: "Nessuno", project: "Progetto", priority: "Priorità", status: "Stato" };
 
 const SearchIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flex: "0 0 auto", color: "color-mix(in srgb, var(--color-text) 58%, transparent)" }}>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flex: "0 0 auto", color: "color-mix(in srgb, var(--color-text) 58%, transparent)" }}>
     <circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" />
   </svg>
 );
 const ChevronIcon = (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6 }}>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6 }}>
     <path d="M6 9l6 6 6-6" />
   </svg>
 );
 const CheckIcon = (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="20 6 9 17 4 12" />
   </svg>
 );
@@ -50,14 +50,14 @@ function Dropdown({ label, active, open, onToggle, side = "left", children }) {
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: 7,
+          gap: 8,
           height: 29,
-          padding: "0 10px",
+          padding: "0 12px",
           borderRadius: "var(--radius-md)",
           cursor: "pointer",
           background: "transparent",
           fontFamily: "var(--font-body)",
-          fontSize: 12.5,
+          fontSize: "var(--text-base-sm)",
           border: `1px solid ${active || open ? "var(--color-accent)" : "transparent"}`,
           color: active ? "var(--color-accent-300)" : "color-mix(in srgb, var(--color-text) 70%, transparent)",
         }}
@@ -95,15 +95,15 @@ function MenuItem({ label, active, count, dot, onClick }) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 9,
+        gap: 8,
         width: "100%",
         border: "none",
         background: "transparent",
         cursor: "pointer",
         textAlign: "left",
         fontFamily: "var(--font-body)",
-        fontSize: 12.5,
-        padding: "6px 9px",
+        fontSize: "var(--text-base-sm)",
+        padding: "8px 8px",
         borderRadius: "var(--radius-sm)",
         color: active ? "var(--color-accent-300)" : "var(--color-text)",
       }}
@@ -111,7 +111,7 @@ function MenuItem({ label, active, count, dot, onClick }) {
       {dot && <span style={{ width: 6, height: 6, flex: "0 0 auto", borderRadius: 999, background: dot }} />}
       <span>{label}</span>
       <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-        {count != null && <span style={{ fontSize: 11, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>{count}</span>}
+        {count != null && <span style={{ fontSize: "var(--text-sm)", color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>{count}</span>}
         {active && CheckIcon}
       </span>
     </button>
@@ -156,15 +156,15 @@ export default function FilterBar({
 
   return (
     <div>
-      <div ref={barRef} style={{ position: "relative", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, paddingBottom: 10, borderBottom: "1px solid var(--color-divider)" }}>
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 29, padding: "0 10px", borderRadius: "var(--radius-md)", border: `1px solid ${search ? "var(--color-accent)" : "var(--color-divider)"}`, minWidth: 150, flex: "1 1 210px" }}>
+      <div ref={barRef} style={{ position: "relative", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4, paddingBottom: 10, borderBottom: "1px solid var(--color-divider)" }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 29, padding: "0 12px", borderRadius: "var(--radius-md)", border: `1px solid ${search ? "var(--color-accent)" : "var(--color-divider)"}`, minWidth: 150, flex: "1 1 210px" }}>
           {SearchIcon}
           <input
             className="fsearch"
             placeholder="Cerca"
             value={search}
             onChange={(e) => onSearch(e.target.value)}
-            style={{ minWidth: 0, flex: 1, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: 12.5, color: "var(--color-text)" }}
+            style={{ minWidth: 0, flex: 1, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: "var(--text-base-sm)", color: "var(--color-text)" }}
           />
         </label>
 
@@ -174,7 +174,7 @@ export default function FilterBar({
           open={menu === "status"}
           onToggle={() => onSetMenu(menu === "status" ? null : "status")}
         >
-          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 6px" }}>Stato</div>
+          <div style={{ fontSize: "var(--text-xs)", letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 8px" }}>Stato</div>
           {STATUS_KEYS.map((s) => (
             <MenuItem key={s} label={STATUS_LABELS[s]} active={statusMulti.includes(s)} count={counts.status[s] ?? 0} onClick={() => onToggleMulti("status", s)} />
           ))}
@@ -186,7 +186,7 @@ export default function FilterBar({
           open={menu === "project"}
           onToggle={() => onSetMenu(menu === "project" ? null : "project")}
         >
-          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 6px" }}>Progetto</div>
+          <div style={{ fontSize: "var(--text-xs)", letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 8px" }}>Progetto</div>
           {projectOptions.map((p) => (
             <MenuItem key={p} label={p} dot={projectColor(p)} active={projectMulti.includes(p)} count={counts.project[p] ?? 0} onClick={() => onToggleMulti("project", p)} />
           ))}
@@ -198,7 +198,7 @@ export default function FilterBar({
           open={menu === "priority"}
           onToggle={() => onSetMenu(menu === "priority" ? null : "priority")}
         >
-          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 6px" }}>Priorità</div>
+          <div style={{ fontSize: "var(--text-xs)", letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 8px" }}>Priorità</div>
           {PRIORITY_KEYS.map((p) => (
             <MenuItem key={p} label={PRIORITY_LABELS[p]} active={priorityMulti.includes(p)} count={counts.priority[p] ?? 0} onClick={() => onToggleMulti("priority", p)} />
           ))}
@@ -210,7 +210,7 @@ export default function FilterBar({
           open={menu === "sort"}
           onToggle={() => onSetMenu(menu === "sort" ? null : "sort")}
         >
-          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 6px" }}>Ordina per</div>
+          <div style={{ fontSize: "var(--text-xs)", letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 8px" }}>Ordina per</div>
           {Object.keys(SORT_LABELS).map((key) => (
             <MenuItem key={key} label={SORT_LABELS[key]} active={sortBy === key} onClick={() => { onSort(key); onSetMenu(null); }} />
           ))}
@@ -236,7 +236,7 @@ export default function FilterBar({
           side="right"
           onToggle={() => onSetMenu(menu === "grouping" ? null : "grouping")}
         >
-          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 6px" }}>Raggruppa per</div>
+          <div style={{ fontSize: "var(--text-xs)", letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 8px" }}>Raggruppa per</div>
           {groupingOptions.map((g) => (
             <MenuItem key={g} label={GROUPING_LABELS[g]} active={grouping === g} onClick={() => { onSetGrouping(g); onSetMenu(null); }} />
           ))}
@@ -277,17 +277,17 @@ export default function FilterBar({
       </div>
 
       {activeChips.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", padding: "10px 0 0" }}>
-          <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", marginRight: 2 }}>Filtri</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "12px 0 0" }}>
+          <span style={{ fontSize: "var(--text-xs)", letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", marginRight: 2 }}>Filtri</span>
           {activeChips.map((c) => (
-            <span key={c.key} style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 25, padding: "0 6px 0 9px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-accent)", color: "var(--color-accent-300)", fontSize: 11.5 }}>
+            <span key={c.key} style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 25, padding: "0 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-accent)", color: "var(--color-accent-300)", fontSize: "var(--text-sm)" }}>
               {c.label}
               <button type="button" className="ghost-ico" onClick={c.onRemove} aria-label="Rimuovi filtro" style={{ display: "grid", placeItems: "center", width: 17, height: 17, padding: 0, border: "none", borderRadius: "var(--radius-sm)", background: "transparent", cursor: "pointer", color: "inherit" }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
             </span>
           ))}
-          <button type="button" className="pill" onClick={onClearAll} style={{ display: "inline-flex", alignItems: "center", height: 25, padding: "0 9px", borderRadius: "var(--radius-md)", border: "1px solid transparent", background: "transparent", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: 11.5, color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}>
+          <button type="button" className="pill" onClick={onClearAll} style={{ display: "inline-flex", alignItems: "center", height: 25, padding: "0 8px", borderRadius: "var(--radius-md)", border: "1px solid transparent", background: "transparent", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: "var(--text-sm)", color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}>
             Azzera
           </button>
         </div>

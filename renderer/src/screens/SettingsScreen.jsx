@@ -6,7 +6,7 @@ const TABS = [
     key: "notifiche",
     label: "Notifiche",
     icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M18 8a6 6 0 10-12 0c0 3.5-1.2 5.3-2 6.5h16c-.8-1.2-2-3-2-6.5z" />
         <path d="M10.5 19a1.7 1.7 0 003 0" />
       </svg>
@@ -16,7 +16,7 @@ const TABS = [
     key: "fonti",
     label: "Fonti collegate",
     icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <rect x="3" y="4" width="18" height="16" rx="2" />
         <path d="M3 9h18M8 4v5" />
       </svg>
@@ -26,7 +26,7 @@ const TABS = [
     key: "scorciatoie",
     label: "Scorciatoie",
     icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <rect x="4" y="8" width="16" height="8" rx="1.5" />
         <path d="M7.5 12h.01M10.5 12h.01M13.5 12h.01M16.5 12h.01" />
       </svg>
@@ -36,7 +36,7 @@ const TABS = [
     key: "stati",
     label: "Stati",
     icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <circle cx="8" cy="7" r="2.3" /><circle cx="8" cy="17" r="2.3" /><path d="M8 9.5v5" /><path d="M14 7h6M14 17h6" />
       </svg>
     ),
@@ -93,10 +93,10 @@ const STATUS_TYPE_OPTIONS = [
 ];
 
 const TrashIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>
 );
 const PlusIcon = (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
 );
 const DragIcon = (
   <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor"><circle cx="3" cy="3" r="1" /><circle cx="7" cy="3" r="1" /><circle cx="3" cy="7" r="1" /><circle cx="7" cy="7" r="1" /><circle cx="3" cy="11" r="1" /><circle cx="7" cy="11" r="1" /></svg>
@@ -196,7 +196,7 @@ export default function SettingsScreen({ onClose }) {
       style={{ position: "fixed", inset: 0, background: "color-mix(in srgb, #0a0b0b 64%, transparent)", zIndex: 20 }}
       onClick={onClose}
     >
-      <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 224, display: "grid", placeItems: "center" }}>
+      <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 252, display: "grid", placeItems: "center" }}>
         <div
           className="card elev-lg"
           style={{ position: "relative", width: "100%", maxWidth: 820, height: 600, maxHeight: "88vh", gap: 0, padding: 0, display: "flex", flexDirection: "row", overflow: "hidden" }}
@@ -213,7 +213,7 @@ export default function SettingsScreen({ onClose }) {
           </button>
           <div style={{ width: 220, flex: "0 0 auto", borderRight: "1px solid var(--color-divider)", padding: "20px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
             <div style={{ padding: "4px 12px 16px" }}>
-              <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500, fontSize: 16 }}>Impostazioni</span>
+              <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500, fontSize: "var(--text-lg)" }}>Impostazioni</span>
             </div>
             {TABS.map((t) => (
               <button
@@ -256,7 +256,7 @@ export default function SettingsScreen({ onClose }) {
             {tab === "fonti" && (
               <div>
                 <div className="ssec-title">Fonti collegate</div>
-                <div className="shint" style={{ marginBottom: 6 }}>Collega le fonti da cui vuoi che Alia raccolga le attività. Non ancora attivo in questa versione.</div>
+                <div className="shint" style={{ marginBottom: 8 }}>Collega le fonti da cui vuoi che Alia raccolga le attività. Non ancora attivo in questa versione.</div>
                 {SOURCE_ROWS.map((label, i) => (
                   <div key={label} className="srow" style={i === SOURCE_ROWS.length - 1 ? { borderBottom: "none" } : undefined}>
                     <div className="slabel">{label}</div>
@@ -269,7 +269,7 @@ export default function SettingsScreen({ onClose }) {
             {tab === "scorciatoie" && (
               <div>
                 {SHORTCUT_GROUPS.map((group, gi) => (
-                  <div key={group.title} style={gi > 0 ? { marginTop: 22 } : undefined}>
+                  <div key={group.title} style={gi > 0 ? { marginTop: 24 } : undefined}>
                     <div className="ssec-title">{group.title}</div>
                     {group.rows.map((row) => (
                       <div key={row.label} className="scut-row">
@@ -285,7 +285,7 @@ export default function SettingsScreen({ onClose }) {
             {tab === "stati" && (
               <div>
                 <div className="ssec-title">Stati</div>
-                <div className="shint" style={{ marginBottom: 10 }}>Ordina, rinomina o rimuovi gli stati. Il tipo determina se l'attività conta come ancora da fare, in corso o conclusa.</div>
+                <div className="shint" style={{ marginBottom: 12 }}>Ordina, rinomina o rimuovi gli stati. Il tipo determina se l'attività conta come ancora da fare, in corso o conclusa.</div>
                 {statuses.map((s) => (
                   <div
                     key={s.id}
@@ -326,7 +326,7 @@ export default function SettingsScreen({ onClose }) {
                     </button>
                   </div>
                 ))}
-                <button type="button" className="linkbtn" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 12 }} onClick={addStatus}>
+                <button type="button" className="linkbtn" style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 12 }} onClick={addStatus}>
                   {PlusIcon}
                   Aggiungi stato
                 </button>

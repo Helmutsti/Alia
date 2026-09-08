@@ -89,16 +89,16 @@ export default function GanttScreen({ reloadKey, onOpen }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 24, marginBottom: 18, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 24, marginBottom: 20, flexWrap: "wrap" }}>
         <div>
-          <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent)", marginBottom: 8 }}>Pianificazione</div>
-          <h2 style={{ margin: 0, fontSize: 32 }}>Gantt</h2>
+          <div style={{ fontSize: "var(--text-sm)", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent)", marginBottom: 8 }}>Pianificazione</div>
+          <h2 style={{ margin: 0 }}>Gantt</h2>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <div style={{ textAlign: "right", lineHeight: 1.3 }}>
-            <div style={{ fontSize: 17, fontFamily: "var(--font-heading)", fontWeight: 500 }}>{visible.length}<span style={{ fontSize: 12, color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}> attività</span></div>
+            <div style={{ fontSize: "var(--text-md)", fontFamily: "var(--font-heading)", fontWeight: 500 }}>{visible.length}<span style={{ fontSize: "var(--text-sm)", fontFamily: "var(--font-body)", fontWeight: 400, color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}> attività</span></div>
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 8 }}>
             {["mese", "trimestre"].map((z) => (
               <span
                 key={z}
@@ -106,7 +106,7 @@ export default function GanttScreen({ reloadKey, onOpen }) {
                 tabIndex={0}
                 onClick={() => setZoom(z)}
                 onKeyDown={(e) => e.key === "Enter" && setZoom(z)}
-                style={{ display: "inline-flex", alignItems: "center", height: 32, padding: "0 12px", fontSize: 12.5, borderRadius: "var(--radius-md)", cursor: "pointer", border: `1px solid ${zoom === z ? "var(--color-accent)" : "transparent"}`, color: zoom === z ? "var(--color-accent-300)" : "color-mix(in srgb, var(--color-text) 62%, transparent)" }}
+                style={{ display: "inline-flex", alignItems: "center", height: 32, padding: "0 12px", fontSize: "var(--text-base-sm)", borderRadius: "var(--radius-md)", cursor: "pointer", border: `1px solid ${zoom === z ? "var(--color-accent)" : "var(--color-divider)"}`, color: zoom === z ? "var(--color-accent-300)" : "color-mix(in srgb, var(--color-text) 62%, transparent)" }}
               >
                 {z === "mese" ? "Mese" : "Trimestre"}
               </span>
@@ -118,7 +118,7 @@ export default function GanttScreen({ reloadKey, onOpen }) {
       <div style={{ flex: 1, minHeight: 0, overflow: "auto", borderTop: "1px solid var(--color-divider)" }}>
         <div style={{ display: "grid", gridTemplateColumns: `260px ${days * dayW}px`, alignItems: "start", width: "max-content", minWidth: "100%" }}>
           <div style={{ position: "sticky", left: 0, zIndex: 5, display: "flex", flexDirection: "column", background: "var(--color-bg)", borderRight: "1px solid var(--color-divider)" }}>
-            <div style={{ position: "sticky", top: 0, zIndex: 6, height: 52, flex: "0 0 52px", display: "flex", alignItems: "flex-end", padding: "0 12px 8px", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", background: "var(--color-bg)", borderBottom: "1px solid var(--color-divider)" }}>Attività</div>
+            <div style={{ position: "sticky", top: 0, zIndex: 6, height: 52, flex: "0 0 52px", display: "flex", alignItems: "flex-end", padding: "0 12px 8px", fontSize: "var(--text-xs)", letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", background: "var(--color-bg)", borderBottom: "1px solid var(--color-divider)" }}>Attività</div>
             {groups.map((g) => (
               <GroupHeadRows key={g.label} group={g} collapsed={!!collapsed[g.label]} onToggle={() => toggleGroup(g.label)} onOpen={onOpen} />
             ))}
@@ -129,12 +129,12 @@ export default function GanttScreen({ reloadKey, onOpen }) {
               <div style={{ position: "sticky", top: 0, zIndex: 3, background: "var(--color-bg)" }}>
                 <div style={{ display: "flex", height: 26 }}>
                   {monthBands.map((m, i) => (
-                    <div key={i} style={{ width: m.width, flex: "0 0 auto", display: "flex", alignItems: "center", paddingLeft: 10, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: i === 0 ? "var(--color-text)" : "color-mix(in srgb, var(--color-text) 57%, transparent)", borderLeft: "1px solid var(--color-divider)" }}>{m.label}</div>
+                    <div key={i} style={{ width: m.width, flex: "0 0 auto", display: "flex", alignItems: "center", paddingLeft: 10, fontSize: "var(--text-sm)", letterSpacing: "0.1em", textTransform: "uppercase", color: i === 0 ? "var(--color-text)" : "color-mix(in srgb, var(--color-text) 57%, transparent)", borderLeft: "1px solid var(--color-divider)" }}>{m.label}</div>
                   ))}
                 </div>
                 <div style={{ display: "flex", height: 26, borderBottom: "1px solid var(--color-divider)" }}>
                   {ticks.map((t, i) => (
-                    <div key={i} style={{ width: t.width, flex: "0 0 auto", display: "flex", alignItems: "flex-start", justifyContent: "center", fontSize: 9.5, color: t.isToday ? "var(--color-accent-200)" : t.isWeekend ? "color-mix(in srgb, var(--color-text) 45%, transparent)" : "color-mix(in srgb, var(--color-text) 58%, transparent)" }}>{t.label}</div>
+                    <div key={i} style={{ width: t.width, flex: "0 0 auto", display: "flex", alignItems: "flex-start", justifyContent: "center", fontSize: "var(--text-2xs)", color: t.isToday ? "var(--color-accent-200)" : t.isWeekend ? "color-mix(in srgb, var(--color-text) 45%, transparent)" : "color-mix(in srgb, var(--color-text) 58%, transparent)" }}>{t.label}</div>
                   ))}
                 </div>
               </div>
@@ -154,23 +154,20 @@ export default function GanttScreen({ reloadKey, onOpen }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 20, paddingTop: 14, fontSize: 10.5, color: "color-mix(in srgb, var(--color-text) 58%, transparent)", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 20, paddingTop: 14, fontSize: "var(--text-xs)", color: "color-mix(in srgb, var(--color-text) 58%, transparent)", flexWrap: "wrap" }}>
         <Legend color="var(--priority-high)" label="Priorità alta" />
         <Legend color="var(--priority-medium)" label="Priorità media" />
         <Legend color="var(--priority-low)" label="Priorità bassa" />
         <Legend color="var(--priority-none)" label="Nessuna priorità" />
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
-          <span style={{ width: 1, height: 11, background: "var(--color-accent)" }} />
-          Oggi
-        </span>
+        <Legend color="var(--color-accent)" label="Oggi" style={{ marginLeft: "auto" }} />
       </div>
     </div>
   );
 }
 
-function Legend({ color, label }) {
+function Legend({ color, label, style }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, ...style }}>
       <span style={{ width: 16, height: 8, borderRadius: "var(--radius-sm)", background: color }} />
       {label}
     </span>
@@ -180,19 +177,19 @@ function Legend({ color, label }) {
 function GroupHeadRows({ group, collapsed, onToggle, onOpen }) {
   return (
     <div>
-      <div className="g-row" style={{ height: 34, display: "flex", alignItems: "center", gap: 9, padding: "0 12px", borderBottom: "1px solid var(--color-divider)" }}>
+      <div className="g-row" style={{ height: 34, display: "flex", alignItems: "center", gap: 8, padding: "0 12px", borderBottom: "1px solid var(--color-divider)" }}>
         <button type="button" onClick={onToggle} aria-label="Apri o chiudi progetto" style={{ display: "flex", alignItems: "center", gap: 8, border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "inherit", fontFamily: "var(--font-body)" }}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" style={{ transform: collapsed ? "rotate(0deg)" : "rotate(90deg)", color: "color-mix(in srgb, var(--color-text) 58%, transparent)" }}><path d="M9 5l7 7-7 7" /></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" style={{ transform: collapsed ? "rotate(0deg)" : "rotate(90deg)", color: "color-mix(in srgb, var(--color-text) 58%, transparent)" }}><path d="M9 5l7 7-7 7" /></svg>
           <span style={{ width: 6, height: 6, borderRadius: 999, background: group.color }} />
-          <span style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 70%, transparent)" }}>{group.label}</span>
+          <span style={{ fontSize: "var(--text-sm)", letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 70%, transparent)" }}>{group.label}</span>
         </button>
-        <span style={{ marginLeft: "auto", fontSize: 11, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{group.rows.length}</span>
+        <span style={{ marginLeft: "auto", fontSize: "var(--text-sm)", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{group.rows.length}</span>
       </div>
       {!collapsed && group.rows.map((item) => (
-        <div key={item.id} className="g-row" style={{ height: 38, display: "flex", alignItems: "center", gap: 9, padding: "0 12px", borderBottom: "1px solid var(--color-divider)" }}>
-          <div onClick={() => onOpen(item)} style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, flex: 1, cursor: "pointer" }}>
+        <div key={item.id} className="g-row" style={{ height: 38, display: "flex", alignItems: "center", gap: 8, padding: "0 12px", borderBottom: "1px solid var(--color-divider)" }}>
+          <div onClick={() => onOpen(item)} style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, cursor: "pointer" }}>
             <span style={{ flex: "0 0 auto", width: 13, height: 13, marginLeft: 19, borderRadius: 999, border: `1.5px solid ${item.status === "completed" ? "var(--color-neutral-700)" : PRIORITY_COLORS[item.priority]}`, background: item.status === "completed" ? "var(--color-neutral-700)" : "transparent" }} />
-            <span style={{ fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: item.status === "completed" ? "line-through" : "none", color: item.status === "completed" ? "color-mix(in srgb, var(--color-text) 55%, transparent)" : "var(--color-text)" }}>{item.title}</span>
+            <span style={{ fontSize: "var(--text-base-sm)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: item.status === "completed" ? "line-through" : "none", color: item.status === "completed" ? "color-mix(in srgb, var(--color-text) 55%, transparent)" : "var(--color-text)" }}>{item.title}</span>
           </div>
         </div>
       ))}

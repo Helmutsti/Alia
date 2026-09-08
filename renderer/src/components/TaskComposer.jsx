@@ -44,20 +44,20 @@ function toDatetimeLocalValue(iso) {
 }
 
 const CalendarIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <rect x="3" y="5" width="18" height="16" rx="2" />
     <path d="M8 3v4M16 3v4M3 11h18" />
   </svg>
 );
 
 const FlagIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <path d="M5 21V4h9l-1 3 1 3H5" />
   </svg>
 );
 
 const AlarmIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="13.5" r="7.5" />
     <path d="M12 10v3.5l2.5 1.5" />
     <path d="M5.6 3.2L3.2 5.6M18.4 3.2L20.8 5.6" />
@@ -65,19 +65,19 @@ const AlarmIcon = (
 );
 
 const FolderIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 7h6l2 3h10v9H3z" />
   </svg>
 );
 
 const TagIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16" />
   </svg>
 );
 
 const PaperclipIcon = (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a1.5 1.5 0 0 1-2.12-2.12l8.49-8.48" />
   </svg>
 );
@@ -293,7 +293,7 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
             minHeight: 0,
             fontFamily: "var(--font-heading)",
             fontWeight: 500,
-            fontSize: 19,
+            fontSize: "var(--text-lg)",
             letterSpacing: "-0.015em",
           }}
         />
@@ -310,8 +310,8 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
             background: "transparent",
             padding: 0,
             minHeight: 0,
-            marginTop: 6,
-            fontSize: 13.5,
+            marginTop: 8,
+            fontSize: "var(--text-md)",
             lineHeight: 1.45,
             fontFamily: "inherit",
             resize: "none",
@@ -321,7 +321,7 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
           }}
         />
         {error && (
-          <div style={{ marginTop: 8, fontSize: 12.5, color: "#ff6b6b" }}>{error}</div>
+          <div style={{ marginTop: 8, fontSize: "var(--text-base-sm)", color: "#ff6b6b" }}>{error}</div>
         )}
       </div>
       <div
@@ -395,13 +395,13 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
           </span>
         ))}
         {attachments.map((file, i) => (
-          <span key={`${file.name}-${i}`} className="tag tag-neutral" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span key={`${file.name}-${i}`} className="tag tag-neutral" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
             {file.name}
             <button
               type="button"
               onClick={() => removeAttachment(i)}
               aria-label="Rimuovi allegato"
-              style={{ border: "none", background: "transparent", color: "inherit", cursor: "pointer", padding: 0, fontSize: 12, lineHeight: 1, opacity: 0.7 }}
+              style={{ border: "none", background: "transparent", color: "inherit", cursor: "pointer", padding: 0, fontSize: "var(--text-base-sm)", lineHeight: 1, opacity: 0.7 }}
             >
               ✕
             </button>
@@ -409,7 +409,7 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
         ))}
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-          {flash && <span style={{ fontSize: 12, color: "var(--color-accent-300)" }}>{flash}</span>}
+          {flash && <span style={{ fontSize: "var(--text-base-sm)", color: "var(--color-accent-300)" }}>{flash}</span>}
           <button
             type="button"
             className="ghost-send"
@@ -430,7 +430,7 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
               color: "var(--color-accent)",
             }}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.5 2.5L2.8 9.6c-.7.3-.7 1.2 0 1.5l7.1 2.7c.2.1.4.3.5.5l2.7 7.1c.3.7 1.2.7 1.5 0z" />
               <path d="M10.4 13.6l5.6-5.6" />
             </svg>
@@ -545,7 +545,7 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
             display: "flex",
             gap: "var(--space-4)",
             padding: "var(--space-2) var(--space-4) var(--space-3)",
-            fontSize: 11,
+            fontSize: "var(--text-sm)",
             color: "color-mix(in srgb, var(--color-text) 58%, transparent)",
           }}
         >
@@ -567,12 +567,12 @@ function Chip({ label, on, onClick, icon }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 6,
+        gap: 4,
         cursor: "pointer",
         fontFamily: "var(--font-body)",
-        fontSize: 12,
+        fontSize: "var(--text-base-sm)",
         height: 27,
-        padding: "0 10px",
+        padding: "0 12px",
         borderRadius: "var(--radius-md)",
         background: "transparent",
         border: `1px solid ${on ? "var(--color-accent)" : "transparent"}`,
@@ -603,11 +603,11 @@ function Menu({ title, children }) {
     >
       <div
         style={{
-          fontSize: 10,
+          fontSize: "var(--text-xs)",
           letterSpacing: "0.1em",
           textTransform: "uppercase",
           color: "color-mix(in srgb, var(--color-text) 60%, transparent)",
-          padding: "4px 8px 6px",
+          padding: "4px 8px 8px",
         }}
       >
         {title}
@@ -634,15 +634,15 @@ function MenuItem({ label, active, onClick }) {
         cursor: "pointer",
         textAlign: "left",
         fontFamily: "var(--font-body)",
-        fontSize: 13,
-        padding: "6px 8px",
+        fontSize: "var(--text-md)",
+        padding: "8px",
         borderRadius: "var(--radius-sm)",
         color: active ? "var(--color-accent-300)" : "var(--color-text)",
       }}
     >
       <span>{label}</span>
       {active && (
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       )}
@@ -652,7 +652,7 @@ function MenuItem({ label, active, onClick }) {
 
 function CustomDateTimeField({ value, onChange }) {
   return (
-    <div style={{ borderTop: "1px solid var(--color-divider)", marginTop: 4, paddingTop: 6, padding: "6px 8px 2px" }}>
+    <div style={{ borderTop: "1px solid var(--color-divider)", marginTop: 4, paddingTop: 6, padding: "8px 8px 2px" }}>
       <input
         type="datetime-local"
         className="input"
@@ -662,7 +662,7 @@ function CustomDateTimeField({ value, onChange }) {
           const iso = new Date(e.target.value).toISOString();
           onChange(iso);
         }}
-        style={{ fontSize: 12.5, height: 30, minHeight: 30, padding: "2px 8px" }}
+        style={{ fontSize: "var(--text-base-sm)", height: 30, minHeight: 30, padding: "2px 8px" }}
       />
     </div>
   );

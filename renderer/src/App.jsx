@@ -125,7 +125,7 @@ export default function App() {
               top: 0,
               right: 0,
               bottom: 0,
-              left: 224,
+              left: 252,
               display: "grid",
               placeItems: "start center",
               paddingTop: 150,

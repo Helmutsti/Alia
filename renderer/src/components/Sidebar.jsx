@@ -5,18 +5,18 @@ import { refreshProjects } from "../lib/projectsStore.js";
 const PROJECT_PALETTE = ["#45aeee", "#c78bff", "#3ddc97", "#ffb454", "#ff6b81", "#f7b955", "#7ee8fa", "#c9a24d", "#e9eaea", "#5a5e61"];
 
 const PencilIcon = (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
   </svg>
 );
 const TrashIcon = (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>
 );
 const PlusIcon = (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
 );
 const CloseIcon = (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
 );
 
 function actionButtonStyle() {
@@ -28,7 +28,7 @@ const NAV_ITEMS = [
     key: "sources",
     label: "Inbox",
     icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 13h4l2 3h6l2-3h4" />
         <path d="M5 5h14l2 8v6H3v-6z" />
       </svg>
@@ -38,7 +38,7 @@ const NAV_ITEMS = [
     key: "today",
     label: "Oggi",
     icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
         <circle cx="12" cy="12" r="9" />
         <path d="M12 8v4l3 2" />
       </svg>
@@ -48,7 +48,7 @@ const NAV_ITEMS = [
     key: "list",
     label: "Tutti i task",
     icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
         <path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
       </svg>
     ),
@@ -57,7 +57,7 @@ const NAV_ITEMS = [
     key: "calendar",
     label: "Calendario",
     icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
         <rect x="3" y="5" width="18" height="16" rx="2" />
         <path d="M8 3v4M16 3v4M3 11h18" />
       </svg>
@@ -67,7 +67,7 @@ const NAV_ITEMS = [
     key: "gantt",
     label: "Gantt",
     icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="5" width="10" height="3" rx="1" />
         <rect x="8" y="11" width="13" height="3" rx="1" />
         <rect x="5" y="17" width="9" height="3" rx="1" />
@@ -148,8 +148,8 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
   return (
     <aside
       style={{
-        width: 224,
-        flex: "0 0 224px",
+        width: 252,
+        flex: "0 0 252px",
         display: "flex",
         flexDirection: "column",
         gap: "var(--space-3)",
@@ -157,12 +157,13 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
         background: "color-mix(in srgb, #101112 45%, var(--color-bg))",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 6px" }}>
-        <svg width="21" height="21" viewBox="0 0 32 32" fill="none" stroke="var(--color-text)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 8px" }}>
+        {/* logo: allineato al tier icone "primario" (20px) invece dei 21px originali */}
+        <svg width="20" height="20" viewBox="0 0 32 32" fill="none" stroke="var(--color-text)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
           <rect x="4" y="4" width="24" height="24" rx="7" />
           <path d="M11 20l10-8M21 12v6.5" />
         </svg>
-        <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500, fontSize: 19, letterSpacing: "-0.02em" }}>
+        <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500, fontSize: "var(--text-lg)", letterSpacing: "-0.02em" }}>
           Alia
         </span>
       </div>
@@ -174,24 +175,24 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 9,
+          gap: 8,
           width: "100%",
           textAlign: "left",
           border: "1px dashed var(--color-divider)",
           borderRadius: "var(--radius-md)",
           background: "transparent",
           cursor: "pointer",
-          padding: "8px 10px",
+          padding: "8px 12px",
           color: "color-mix(in srgb, var(--color-text) 80%, transparent)",
           fontFamily: "var(--font-body)",
-          fontSize: 13,
+          fontSize: "var(--text-md)",
         }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="M12 5v14M5 12h14" />
         </svg>
         Aggiungi task
-        <span style={{ marginLeft: "auto", fontSize: 10.5, opacity: 0.8 }}>⌘K</span>
+        <span style={{ marginLeft: "auto", fontSize: "var(--text-xs)", opacity: 0.8 }}>⌘K</span>
       </button>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -208,10 +209,10 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 9,
-                padding: "8px 10px",
+                gap: 8,
+                padding: "8px 12px",
                 borderRadius: "var(--radius-md)",
-                fontSize: 13.5,
+                fontSize: "var(--text-md)",
                 cursor: "pointer",
                 border: `1px solid ${active ? "var(--color-accent)" : "transparent"}`,
                 color: active ? "var(--color-accent-300)" : "var(--color-text)",
@@ -219,7 +220,7 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
             >
               {n.icon}
               <span>{n.label}</span>
-              <span style={{ marginLeft: "auto", fontSize: 11.5, color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}>
+              <span style={{ marginLeft: "auto", fontSize: "var(--text-sm)", color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}>
                 {counts?.[n.key] ?? ""}
               </span>
             </div>
@@ -227,9 +228,9 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
         })}
       </nav>
 
-      <div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px", marginBottom: 8 }}>
-          <span style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)" }}>
+      <div style={{ display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px", marginBottom: 8, flex: "0 0 auto" }}>
+          <span style={{ fontSize: "var(--text-xs)", letterSpacing: "0.14em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)" }}>
             Progetti
           </span>
           <button
@@ -238,12 +239,12 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
             aria-label="Aggiungi progetto"
             title="Aggiungi progetto"
             onClick={() => { setAdding(true); setConfirmDeleteId(null); }}
-            style={{ display: "grid", placeItems: "center", width: 18, height: 18, padding: 0, border: "none", borderRadius: "var(--radius-sm)", background: "transparent", cursor: "pointer", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}
+            style={actionButtonStyle()}
           >
             {PlusIcon}
           </button>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 1, overflowY: "auto", minHeight: 0 }}>
           {(projects ?? []).map((p) => (
             <div
               key={p.id}
@@ -252,7 +253,7 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
               tabIndex={0}
               onClick={() => editingId !== p.id && onSelectProject?.(p.name)}
               onKeyDown={(e) => e.key === "Enter" && editingId !== p.id && onSelectProject?.(p.name)}
-              style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: "var(--radius-md)", fontSize: 13, cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: "var(--radius-md)", fontSize: "var(--text-md)", cursor: "pointer" }}
             >
               <span style={{ position: "relative", flex: "0 0 auto", display: "inline-flex" }} ref={colorPickerId === p.id ? colorPickerRef : null}>
                 <button
@@ -265,7 +266,7 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
                 {colorPickerId === p.id && (
                   <div
                     onClick={(e) => e.stopPropagation()}
-                    style={{ position: "absolute", left: -6, top: "calc(100% + 6px)", zIndex: 9, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, padding: 8, borderRadius: "var(--radius-md)", background: "var(--color-surface)", boxShadow: "var(--shadow-md)" }}
+                    style={{ position: "absolute", left: -6, top: "calc(100% + 6px)", zIndex: 9, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4, padding: 8, borderRadius: "var(--radius-md)", background: "var(--color-surface)", boxShadow: "var(--shadow-md)" }}
                   >
                     {PROJECT_PALETTE.map((c) => (
                       <button
@@ -300,7 +301,7 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
                     if (e.key === "Enter") { e.preventDefault(); commitEdit(p); }
                     else if (e.key === "Escape") { e.stopPropagation(); setEditingId(null); }
                   }}
-                  style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-text)" }}
+                  style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: "var(--text-md)", color: "var(--color-text)" }}
                 />
               ) : (
                 <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
@@ -322,12 +323,12 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
                 </span>
               )}
               {editingId !== p.id && (
-                <span style={{ flex: "0 0 auto", fontSize: 11.5, color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}>{p.count}</span>
+                <span style={{ flex: "0 0 auto", fontSize: "var(--text-sm)", color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}>{p.count}</span>
               )}
             </div>
           ))}
           {adding && (
-            <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px" }}>
               <span style={{ flex: "0 0 auto", width: 6, height: 6, borderRadius: 999, border: "1.5px dashed color-mix(in srgb, var(--color-text) 45%, transparent)" }} />
               <input
                 autoFocus
@@ -340,7 +341,7 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
                   if (e.key === "Enter") { e.preventDefault(); addProject(); }
                   else if (e.key === "Escape") { setAddDraft(""); setAdding(false); }
                 }}
-                style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-text)" }}
+                style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: "var(--text-md)", color: "var(--color-text)" }}
               />
               <button
                 type="button"
@@ -362,9 +363,9 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
         tabIndex={0}
         onClick={onOpenSettings}
         onKeyDown={(e) => e.key === "Enter" && onOpenSettings?.()}
-        style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: "var(--radius-md)", cursor: "pointer", fontSize: 13, color: "color-mix(in srgb, var(--color-text) 74%, transparent)" }}
+        style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: "var(--radius-md)", cursor: "pointer", fontSize: "var(--text-md)", color: "color-mix(in srgb, var(--color-text) 74%, transparent)" }}
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>

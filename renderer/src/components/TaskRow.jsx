@@ -7,7 +7,7 @@ const CheckIcon = (
 );
 
 const PostponeIcon = (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
     <path d="M4 12a8 8 0 1 0 8-8" />
     <path d="M12 4L9 7M12 4l3 3" />
     <path d="M12 9v3.5l2.5 1.5" />
@@ -15,13 +15,13 @@ const PostponeIcon = (
 );
 
 const RemoveIcon = (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
     <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
   </svg>
 );
 
 const SubsIcon = (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <path d="M4 7h16M4 12h10M4 17h7" />
   </svg>
 );
@@ -81,13 +81,13 @@ export default function TaskRow({
     return (
       <div
         onClick={() => onOpen?.(item)}
-        style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", cursor: "pointer", ...extraStyle }}
+        style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", cursor: "pointer", ...extraStyle }}
       >
         <span
           style={{
             fontFamily: "var(--font-heading)",
             fontWeight: 500,
-            fontSize: 13.5,
+            fontSize: "var(--text-md)",
             letterSpacing: "-0.01em",
             lineHeight: 1.35,
             whiteSpace: card ? "normal" : "nowrap",
@@ -101,10 +101,10 @@ export default function TaskRow({
           {item.title}
         </span>
         {priorityLabel && (
-          <span style={{ fontSize: 11, whiteSpace: "nowrap", color: dotColor }}>{priorityLabel.toLowerCase()}</span>
+          <span style={{ fontSize: "var(--text-sm)", whiteSpace: "nowrap", color: dotColor }}>{priorityLabel.toLowerCase()}</span>
         )}
         {item.subtaskTotal > 0 && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, whiteSpace: "nowrap", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--text-sm)", whiteSpace: "nowrap", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>
             {SubsIcon}
             {item.subtaskDone ?? 0}/{item.subtaskTotal}
           </span>
@@ -115,7 +115,7 @@ export default function TaskRow({
 
   const metaSize = card ? 10.5 : 12;
   const projectPill = item.project && (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: metaSize, color: done ? "color-mix(in srgb, var(--color-text) 45%, transparent)" : projectColor(item.project) }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, fontSize: metaSize, color: done ? "color-mix(in srgb, var(--color-text) 45%, transparent)" : projectColor(item.project) }}>
       <span style={{ width: 5, height: 5, flex: "0 0 auto", borderRadius: 999, background: done ? `color-mix(in srgb, ${projectColor(item.project)} 45%, transparent)` : projectColor(item.project) }} />
       <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.project}</span>
     </span>
@@ -147,7 +147,7 @@ export default function TaskRow({
         className="card"
         style={{
           gap: "5px 8px",
-          padding: "12px 13px",
+          padding: "12px",
           borderRadius: "var(--radius-md)",
           border: "1px solid color-mix(in srgb, var(--color-text) 13%, transparent)",
           background: "var(--color-surface)",
@@ -158,7 +158,7 @@ export default function TaskRow({
       >
         {check(checkLabel, () => onToggle?.(item))}
         {titleBlock({ flex: "1 0 calc(100% - 22px)" })}
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginLeft: 22, fontSize: 10.5, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginLeft: 22, fontSize: "var(--text-xs)", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>
           {dueLabel && <span style={{ color: dueColor(item.dueAt, item.status) }}>{dueLabel}</span>}
           {!hideProject && projectPill && (
             <>
@@ -188,9 +188,9 @@ export default function TaskRow({
       style={{
         display: "grid",
         gridTemplateColumns: cols.join(" "),
-        gap: 11,
+        gap: 12,
         alignItems: "center",
-        padding: "6px 12px",
+        padding: "8px 12px",
         borderRadius: "var(--radius-sm)",
       }}
     >
