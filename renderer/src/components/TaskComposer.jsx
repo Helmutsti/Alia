@@ -33,6 +33,9 @@ const PRIORITY_OPTIONS = [...PRIORITY_ORDER].reverse().map((value) => ({
   label: PRIORITY_LABELS[value],
 }));
 
+const PROJECT_OPTIONS = ["Casa", "Lavoro", "Salute", "Personale"];
+const TAG_OPTIONS = ["spesa", "urgente", "telefonata", "famiglia"];
+
 function toDatetimeLocalValue(iso) {
   if (!iso) return "";
   const date = new Date(iso);
@@ -67,6 +70,18 @@ const FolderIcon = (
   </svg>
 );
 
+const TagIcon = (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16" />
+  </svg>
+);
+
+const PaperclipIcon = (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a1.5 1.5 0 0 1-2.12-2.12l8.49-8.48" />
+  </svg>
+);
+
 export default function TaskComposer({ mode = "inline", onCreated, onClose, autoFocus = false }) {
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
@@ -75,6 +90,10 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
   const [dueChoice, setDueChoice] = useState(DEFAULT_DUE);
   const [reminderChoice, setReminderChoice] = useState(DEFAULT_REMINDER);
   const [reminderSource, setReminderSource] = useState("default"); // default | text | manual
+  const [project, setProject] = useState(null);
+  const [projectSource, setProjectSource] = useState("default"); // default | text | manual
+  const [manualTags, setManualTags] = useState([]);
+  const [attachments, setAttachments] = useState([]);
   const [menu, setMenu] = useState(null);
   const [flash, setFlash] = useState("");
   const [error, setError] = useState("");
@@ -82,6 +101,7 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
   const flashTimer = useRef(null);
   const titleRef = useRef(null);
   const descRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const parsed = parseComposerTitle(title);
 
@@ -123,8 +143,20 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsed.reminderMs]);
 
+  useEffect(() => {
+    if (parsed.project) {
+      setProject(parsed.project);
+      setProjectSource("text");
+    } else if (projectSource === "text") {
+      setProject(null);
+      setProjectSource("default");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parsed.project]);
+
   const isFloating = mode === "floating";
   const priorityLabel = priority === "none" ? "Priorità" : PRIORITY_LABELS[priority];
+  const effectiveTags = [...new Set([...parsed.tags, ...manualTags])];
 
   const dueOn = dueChoice.custom || dueChoice.label !== "Nessuna";
   const dueLabel = dueChoice.custom ? formatDateTimeShort(dueChoice.iso) : dueChoice.label;
@@ -143,6 +175,16 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
     return new Date(Date.now() + reminderChoice.ms).toISOString();
   }
 
+  function pickAttachments(e) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length) setAttachments((list) => [...list, ...files]);
+    e.target.value = "";
+  }
+
+  function removeAttachment(index) {
+    setAttachments((list) => list.filter((_, i) => i !== index));
+  }
+
   async function send() {
     const trimmedTitle = parsed.cleanTitle;
     if (!trimmedTitle || sending) return;
@@ -155,8 +197,8 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
         description: desc.trim() || undefined,
         priority,
         dueAt: dueIso() ?? undefined,
-        tags: parsed.tags.length ? parsed.tags : undefined,
-        project: parsed.project ?? undefined,
+        tags: effectiveTags.length ? effectiveTags : undefined,
+        project: project ?? undefined,
         reminderAt: reminderIso() ?? undefined,
         sourceType: "manual",
       });
@@ -168,6 +210,10 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
       setDueChoice(DEFAULT_DUE);
       setReminderChoice(DEFAULT_REMINDER);
       setReminderSource("default");
+      setProject(null);
+      setProjectSource("default");
+      setManualTags([]);
+      setAttachments([]);
       setMenu(null);
       setFlash(`Aggiunto · ${dueOn ? dueLabel : "Prima o poi"}`);
       clearTimeout(flashTimer.current);
@@ -278,12 +324,64 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
           on={reminderOn}
           onClick={() => setMenu(menu === "reminder" ? null : "reminder")}
         />
-        {parsed.tags.map((t) => (
+        <Chip
+          icon={FolderIcon}
+          label={project || "Progetto"}
+          on={!!project}
+          onClick={() => setMenu(menu === "project" ? null : "project")}
+        />
+        <Chip
+          icon={TagIcon}
+          label={effectiveTags.length ? `${effectiveTags.length} tag` : "Tag"}
+          on={effectiveTags.length > 0}
+          onClick={() => setMenu(menu === "tags" ? null : "tags")}
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          onChange={pickAttachments}
+          style={{ display: "none" }}
+        />
+        <button
+          type="button"
+          className="chip"
+          onClick={() => fileInputRef.current?.click()}
+          title="Allega file"
+          aria-label="Allega file"
+          style={{
+            display: "grid",
+            placeItems: "center",
+            cursor: "pointer",
+            width: 27,
+            height: 27,
+            padding: 0,
+            borderRadius: "var(--radius-md)",
+            background: "transparent",
+            border: `1px solid ${attachments.length ? "var(--color-accent)" : "transparent"}`,
+            color: attachments.length ? "var(--color-accent-300)" : "color-mix(in srgb, var(--color-text) 62%, transparent)",
+          }}
+        >
+          {PaperclipIcon}
+        </button>
+        {effectiveTags.map((t) => (
           <span key={t} className="tag tag-neutral">
             #{t}
           </span>
         ))}
-        {parsed.project && <StaticPill icon={FolderIcon} label={parsed.project} />}
+        {attachments.map((file, i) => (
+          <span key={`${file.name}-${i}`} className="tag tag-neutral" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            {file.name}
+            <button
+              type="button"
+              onClick={() => removeAttachment(i)}
+              aria-label="Rimuovi allegato"
+              style={{ border: "none", background: "transparent", color: "inherit", cursor: "pointer", padding: 0, fontSize: 12, lineHeight: 1, opacity: 0.7 }}
+            >
+              ✕
+            </button>
+          </span>
+        ))}
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
           {flash && <span style={{ fontSize: 12, color: "var(--color-accent-300)" }}>{flash}</span>}
@@ -376,6 +474,45 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
             />
           </Menu>
         )}
+        {menu === "project" && (
+          <Menu title="Progetto">
+            {PROJECT_OPTIONS.map((p) => (
+              <MenuItem
+                key={p}
+                label={p}
+                active={project === p}
+                onClick={() => {
+                  setProject(p);
+                  setProjectSource("manual");
+                  setMenu(null);
+                }}
+              />
+            ))}
+            <MenuItem
+              label="Nessuno"
+              active={!project}
+              onClick={() => {
+                setProject(null);
+                setProjectSource("manual");
+                setMenu(null);
+              }}
+            />
+          </Menu>
+        )}
+        {menu === "tags" && (
+          <Menu title="Tag">
+            {TAG_OPTIONS.map((t) => (
+              <MenuItem
+                key={t}
+                label={t}
+                active={manualTags.includes(t)}
+                onClick={() => {
+                  setManualTags((list) => (list.includes(t) ? list.filter((x) => x !== t) : [...list, t]));
+                }}
+              />
+            ))}
+          </Menu>
+        )}
       </div>
       {isFloating && (
         <div
@@ -423,26 +560,6 @@ function Chip({ label, on, onClick, icon }) {
   );
 }
 
-function StaticPill({ label, icon }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 12,
-        height: 27,
-        padding: "0 10px",
-        borderRadius: "var(--radius-md)",
-        border: "1px solid var(--color-accent)",
-        color: "var(--color-accent-300)",
-      }}
-    >
-      {icon}
-      {label}
-    </span>
-  );
-}
 
 function Menu({ title, children }) {
   return (

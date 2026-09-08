@@ -12,6 +12,10 @@ const CORE_OPERATIONS = [
   "deleteItem",
   "restoreItem",
   "getItemHistory",
+  "addSubtask",
+  "toggleSubtask",
+  "removeSubtask",
+  "addComment",
 ];
 
 const scheduler = Object.fromEntries(

@@ -2,17 +2,24 @@ import { useCallback, useEffect, useState } from "react";
 import Sidebar from "./components/Sidebar.jsx";
 import TaskComposer from "./components/TaskComposer.jsx";
 import TaskDetailModal from "./components/TaskDetailModal.jsx";
-import InboxScreen from "./screens/InboxScreen.jsx";
+import SourcesScreen from "./screens/SourcesScreen.jsx";
 import TodayScreen from "./screens/TodayScreen.jsx";
 import ListScreen from "./screens/ListScreen.jsx";
+import GanttScreen from "./screens/GanttScreen.jsx";
+import CalendarScreen from "./screens/CalendarScreen.jsx";
 import { api } from "./lib/api.js";
+import { projectColor } from "./lib/format.js";
+
+const SIDEBAR_PROJECTS = ["Casa", "Lavoro", "Salute", "Personale"];
 
 export default function App() {
-  const [view, setView] = useState("inbox");
+  const [view, setView] = useState("list");
   const [reloadKey, setReloadKey] = useState(0);
   const [composerOpen, setComposerOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [counts, setCounts] = useState({});
+  const [projects, setProjects] = useState([]);
+  const [pendingProject, setPendingProject] = useState(null);
 
   const bump = useCallback(() => setReloadKey((k) => k + 1), []);
 
@@ -20,17 +27,25 @@ export default function App() {
     let cancelled = false;
 
     async function loadCounts() {
-      const [inbox, active, everything] = await Promise.all([
-        api.listItems({ status: "inbox", limit: 200 }),
-        api.listItems({ status: "active", limit: 200 }),
-        api.listItems({ limit: 200 }),
-      ]);
+      const everything = await api.listItems({ limit: 200 });
       if (cancelled) return;
+      const now = new Date();
+      const isSameDay = (iso) => {
+        const d = new Date(iso);
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+      };
+      const active = everything.filter((i) => i.status !== "archived");
       setCounts({
-        inbox: inbox.length,
-        today: active.length,
-        list: everything.filter((i) => i.status !== "archived").length,
+        today: active.filter((i) => i.dueAt && isSameDay(i.dueAt)).length,
+        list: active.length,
       });
+      setProjects(
+        SIDEBAR_PROJECTS.map((name) => ({
+          name,
+          dot: projectColor(name),
+          count: active.filter((i) => i.project === name).length,
+        })),
+      );
     }
 
     loadCounts();
@@ -38,6 +53,11 @@ export default function App() {
       cancelled = true;
     };
   }, [reloadKey]);
+
+  function selectProject(name) {
+    setPendingProject(name);
+    setView("list");
+  }
 
   useEffect(() => {
     function onKeyDown(e) {
@@ -70,12 +90,22 @@ export default function App() {
 
   return (
     <div style={{ display: "flex", height: "100vh", background: "var(--color-bg)" }}>
-      <Sidebar view={view} onNavigate={setView} counts={counts} onAddTask={() => setComposerOpen(true)} />
+      <Sidebar view={view} onNavigate={setView} counts={counts} onAddTask={() => setComposerOpen(true)} projects={projects} onSelectProject={selectProject} />
 
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", padding: "32px 40px 24px", overflow: "hidden" }}>
-        {view === "inbox" && <InboxScreen reloadKey={reloadKey} onOpen={openItem} onMutated={bump} />}
-        {view === "today" && <TodayScreen reloadKey={reloadKey} onOpen={openItem} />}
-        {view === "list" && <ListScreen reloadKey={reloadKey} onOpen={openItem} />}
+        {view === "sources" && <SourcesScreen />}
+        {view === "today" && <TodayScreen reloadKey={reloadKey} onOpen={openItem} onMutated={bump} />}
+        {view === "list" && (
+          <ListScreen
+            reloadKey={reloadKey}
+            onOpen={openItem}
+            onMutated={bump}
+            pendingProject={pendingProject}
+            onConsumePendingProject={() => setPendingProject(null)}
+          />
+        )}
+        {view === "calendar" && <CalendarScreen reloadKey={reloadKey} onOpen={openItem} />}
+        {view === "gantt" && <GanttScreen reloadKey={reloadKey} onOpen={openItem} />}
       </main>
 
       {composerOpen && (

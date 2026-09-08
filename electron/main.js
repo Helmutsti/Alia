@@ -31,6 +31,10 @@ const CORE_OPERATIONS = [
   "deleteItem",
   "restoreItem",
   "getItemHistory",
+  "addSubtask",
+  "toggleSubtask",
+  "removeSubtask",
+  "addComment",
 ];
 
 let core;

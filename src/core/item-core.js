@@ -22,6 +22,7 @@ const CREATE_FIELDS = new Set([
   "status",
   "priority",
   "dueAt",
+  "startAt",
   "reminderAt",
   "sourceType",
   "sourceId",
@@ -30,6 +31,8 @@ const CREATE_FIELDS = new Set([
   "contentGeneratedByAi",
   "tags",
   "project",
+  "list",
+  "notes",
 ]);
 
 const UPDATE_FIELDS = new Set([
@@ -37,10 +40,13 @@ const UPDATE_FIELDS = new Set([
   "description",
   "priority",
   "dueAt",
+  "startAt",
   "reminderAt",
   "contentGeneratedByAi",
   "tags",
   "project",
+  "list",
+  "notes",
 ]);
 
 export class ItemValidationError extends Error {
@@ -87,6 +93,7 @@ class ItemCore {
       status: normalizeChoice(input.status ?? "inbox", ITEM_STATUSES, "status"),
       priority: normalizeChoice(input.priority ?? "none", ITEM_PRIORITIES, "priority"),
       dueAt: normalizeDate(input.dueAt, "dueAt"),
+      startAt: normalizeDate(input.startAt, "startAt"),
       reminderAt: normalizeDate(input.reminderAt, "reminderAt"),
       sourceType: normalizeSourceType(input.sourceType ?? "manual"),
       sourceId: normalizeNullableText(input.sourceId, "sourceId"),
@@ -98,6 +105,8 @@ class ItemCore {
       ),
       tags: normalizeTags(input.tags),
       project: normalizeNullableText(input.project, "project"),
+      list: normalizeNullableText(input.list, "list"),
+      notes: normalizeNullableText(input.notes, "notes"),
       createdAt: now,
       updatedAt: now,
       completedAt: input.status === "completed" ? now : null,
@@ -108,11 +117,11 @@ class ItemCore {
     runInTransaction(this.#database, () => {
       this.#database.prepare(`
         INSERT INTO items (
-          id, title, description, status, priority, due_at, reminder_at,
+          id, title, description, status, priority, due_at, start_at, reminder_at,
           source_type, source_id, source_url, original_content,
-          content_generated_by_ai, tags, project, created_at, updated_at,
+          content_generated_by_ai, tags, project, list, notes, created_at, updated_at,
           completed_at, archived_at, deleted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         item.id,
         item.title,
@@ -120,6 +129,7 @@ class ItemCore {
         item.status,
         item.priority,
         item.dueAt,
+        item.startAt,
         item.reminderAt,
         item.sourceType,
         item.sourceId,
@@ -128,6 +138,8 @@ class ItemCore {
         item.contentGeneratedByAi ? 1 : 0,
         JSON.stringify(item.tags),
         item.project,
+        item.list,
+        item.notes,
         item.createdAt,
         item.updatedAt,
         item.completedAt,
@@ -151,7 +163,14 @@ class ItemCore {
       throw new ItemNotFoundError(id);
     }
 
-    return mapItem(row);
+    const item = mapItem(row);
+    item.subtasks = this.#database.prepare(`
+      SELECT id, title, done, position FROM subtasks WHERE item_id = ? ORDER BY position ASC
+    `).all(id).map((r) => ({ id: r.id, title: r.title, done: r.done === 1 }));
+    item.comments = this.#database.prepare(`
+      SELECT id, author, body, created_at FROM item_comments WHERE item_id = ? ORDER BY created_at ASC
+    `).all(id).map((r) => ({ id: r.id, author: r.author, body: r.body, createdAt: r.created_at }));
+    return item;
   }
 
   listItems(filters = {}) {
@@ -229,7 +248,23 @@ class ItemCore {
       LIMIT ? OFFSET ?
     `).all(...parameters, limit, offset);
 
-    return rows.map(mapItem);
+    const items = rows.map(mapItem);
+    if (items.length > 0) {
+      const placeholders = items.map(() => "?").join(",");
+      const counts = this.#database.prepare(`
+        SELECT item_id, COUNT(*) as total, SUM(done) as done
+        FROM subtasks WHERE item_id IN (${placeholders})
+        GROUP BY item_id
+      `).all(...items.map((i) => i.id));
+      const byId = Object.fromEntries(counts.map((c) => [c.item_id, c]));
+      for (const item of items) {
+        const c = byId[item.id];
+        item.subtaskTotal = c ? c.total : 0;
+        item.subtaskDone = c ? c.done : 0;
+      }
+    }
+
+    return items;
   }
 
   updateItem(id, changes) {
@@ -246,6 +281,7 @@ class ItemCore {
       description: ["description", (value) => normalizeNullableText(value, "description")],
       priority: ["priority", (value) => normalizeChoice(value, ITEM_PRIORITIES, "priority")],
       dueAt: ["due_at", (value) => normalizeDate(value, "dueAt")],
+      startAt: ["start_at", (value) => normalizeDate(value, "startAt")],
       reminderAt: ["reminder_at", (value) => normalizeDate(value, "reminderAt")],
       contentGeneratedByAi: [
         "content_generated_by_ai",
@@ -253,6 +289,8 @@ class ItemCore {
       ],
       tags: ["tags", normalizeTags],
       project: ["project", (value) => normalizeNullableText(value, "project")],
+      list: ["list", (value) => normalizeNullableText(value, "list")],
+      notes: ["notes", (value) => normalizeNullableText(value, "notes")],
     };
 
     for (const [field, value] of Object.entries(changes)) {
@@ -335,6 +373,75 @@ class ItemCore {
     return this.getItem(id);
   }
 
+  addSubtask(itemId, title) {
+    this.getItem(itemId);
+    const cleanTitle = normalizeRequiredText(title, "title");
+    const now = this.#now();
+    const id = randomUUID();
+    const { pos } = this.#database.prepare(`
+      SELECT COALESCE(MAX(position), -1) + 1 as pos FROM subtasks WHERE item_id = ?
+    `).get(itemId);
+
+    runInTransaction(this.#database, () => {
+      this.#database.prepare(`
+        INSERT INTO subtasks (id, item_id, title, done, position, created_at)
+        VALUES (?, ?, ?, 0, ?, ?)
+      `).run(id, itemId, cleanTitle, pos, now);
+      this.#database.prepare("UPDATE items SET updated_at = ? WHERE id = ?").run(now, itemId);
+    });
+
+    return this.getItem(itemId);
+  }
+
+  toggleSubtask(subtaskId) {
+    assertId(subtaskId);
+    const row = this.#database.prepare("SELECT * FROM subtasks WHERE id = ?").get(subtaskId);
+    if (!row) {
+      throw new ItemValidationError(`Subtask not found: ${subtaskId}`);
+    }
+
+    const now = this.#now();
+    runInTransaction(this.#database, () => {
+      this.#database.prepare("UPDATE subtasks SET done = ? WHERE id = ?").run(row.done ? 0 : 1, subtaskId);
+      this.#database.prepare("UPDATE items SET updated_at = ? WHERE id = ?").run(now, row.item_id);
+    });
+
+    return this.getItem(row.item_id);
+  }
+
+  removeSubtask(subtaskId) {
+    assertId(subtaskId);
+    const row = this.#database.prepare("SELECT * FROM subtasks WHERE id = ?").get(subtaskId);
+    if (!row) {
+      throw new ItemValidationError(`Subtask not found: ${subtaskId}`);
+    }
+
+    const now = this.#now();
+    runInTransaction(this.#database, () => {
+      this.#database.prepare("DELETE FROM subtasks WHERE id = ?").run(subtaskId);
+      this.#database.prepare("UPDATE items SET updated_at = ? WHERE id = ?").run(now, row.item_id);
+    });
+
+    return this.getItem(row.item_id);
+  }
+
+  addComment(itemId, body) {
+    this.getItem(itemId);
+    const text = normalizeRequiredText(body, "body");
+    const now = this.#now();
+    const id = randomUUID();
+
+    runInTransaction(this.#database, () => {
+      this.#database.prepare(`
+        INSERT INTO item_comments (id, item_id, author, body, created_at)
+        VALUES (?, ?, 'user', ?, ?)
+      `).run(id, itemId, text, now);
+      this.#database.prepare("UPDATE items SET updated_at = ? WHERE id = ?").run(now, itemId);
+    });
+
+    return this.getItem(itemId);
+  }
+
   getItemHistory(id) {
     this.getItem(id, { includeDeleted: true });
     return this.#database.prepare(`
@@ -402,6 +509,7 @@ function mapItem(row) {
     status: row.status,
     priority: row.priority,
     dueAt: row.due_at,
+    startAt: row.start_at,
     reminderAt: row.reminder_at,
     sourceType: row.source_type,
     sourceId: row.source_id,
@@ -410,6 +518,8 @@ function mapItem(row) {
     contentGeneratedByAi: row.content_generated_by_ai === 1,
     tags: JSON.parse(row.tags),
     project: row.project,
+    list: row.list,
+    notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     completedAt: row.completed_at,

@@ -82,6 +82,48 @@ function migrate(database) {
       COMMIT;
     `);
   }
+
+  if (version < 3) {
+    database.exec(`
+      BEGIN IMMEDIATE;
+
+      CREATE TABLE subtasks (
+        id TEXT PRIMARY KEY,
+        item_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        done INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
+        position INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE item_comments (
+        id TEXT PRIMARY KEY,
+        item_id TEXT NOT NULL,
+        author TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX subtasks_item_id ON subtasks(item_id, position);
+      CREATE INDEX item_comments_item_id ON item_comments(item_id, created_at);
+
+      PRAGMA user_version = 3;
+      COMMIT;
+    `);
+  }
+
+  if (version < 4) {
+    database.exec(`
+      BEGIN IMMEDIATE;
+      ALTER TABLE items ADD COLUMN list TEXT;
+      ALTER TABLE items ADD COLUMN start_at TEXT;
+      ALTER TABLE items ADD COLUMN notes TEXT;
+      PRAGMA user_version = 4;
+      COMMIT;
+    `);
+  }
 }
 
 export function runInTransaction(database, operation) {

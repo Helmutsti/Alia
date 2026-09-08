@@ -29,6 +29,17 @@
   --color-accent-800: #1d4f6e;
   --color-accent-900: #173340;
 
+  --priority-high: #d4614f;
+  --priority-medium: #c9a24d;
+  --priority-low: #5fae86;
+  --priority-none: #5a5e61;
+
+  --project-casa: #45aeee;
+  --project-lavoro: #c78bff;
+  --project-salute: #3ddc97;
+  --project-personale: #ffb454;
+  --project-fallback: #94979a;
+
   --font-heading: "Inter", system-ui, sans-serif;
   --font-heading-weight: 500;
   --font-body: "Inter", system-ui, sans-serif;
@@ -201,4 +212,38 @@ textarea.input { min-height: 90px; resize: vertical; }
 .chip:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
 .menu-item:hover { background: color-mix(in srgb, var(--color-accent) 14%, transparent); }
 
+.pill:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
+.ghost-ico:hover { background: color-mix(in srgb, var(--color-text) 9%, transparent); }
+.ghost-ico:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.tcheck:hover { filter: brightness(1.35); }
+.tcheck:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+.gtoggle:hover { color: var(--color-text); }
+.kadd:hover { border-color: var(--color-accent); color: var(--color-accent-300); }
+.kadd:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+.trow { position: relative; }
+.trow:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+.trow .tactions { opacity: 0; transition: opacity 120ms ease; }
+.trow:hover .tactions { opacity: 1; }
+.trow .thandle { opacity: 0; transition: opacity 120ms ease; }
+.trow:hover .thandle { opacity: 0.45; }
+
+.ktrack { scroll-snap-type: x proximity; }
+.ktrack > div { scroll-snap-align: start; }
+
+.g-row:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+.g-bar:hover { filter: brightness(1.14); }
+
 .text-muted { color: color-mix(in srgb, var(--color-text) 60%, transparent); }
+
+/* — task detail — */
+.dtab { border-bottom: 2px solid transparent; }
+.dtab:hover { color: var(--color-text); }
+.dtab:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.dpill:hover { background: color-mix(in srgb, var(--color-text) 9%, transparent); }
+.dpill:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.attach-tile .attach-remove { opacity: 0; transition: opacity 120ms ease; }
+.attach-tile:hover .attach-remove { opacity: 1; }
+.attach-add:hover { border-color: var(--color-accent); color: var(--color-accent-300); }
+.bell-btn:hover { background: color-mix(in srgb, var(--color-text) 9%, transparent); }
+.dtextarea:focus-visible { outline: none; border-color: var(--color-accent) !important; }

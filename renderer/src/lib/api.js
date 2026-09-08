@@ -18,4 +18,8 @@ export const api = {
   deleteItem: (id) => scheduler.deleteItem(id),
   restoreItem: (id) => scheduler.restoreItem(id),
   getItemHistory: (id) => scheduler.getItemHistory(id),
+  addSubtask: (itemId, title) => scheduler.addSubtask(itemId, title),
+  toggleSubtask: (subtaskId) => scheduler.toggleSubtask(subtaskId),
+  removeSubtask: (subtaskId) => scheduler.removeSubtask(subtaskId),
+  addComment: (itemId, body) => scheduler.addComment(itemId, body),
 };

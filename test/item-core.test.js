@@ -178,3 +178,45 @@ test("persists items in a file database", () => {
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("manages subtasks and comments alongside an item", () => {
+  const core = createMemoryCore();
+
+  try {
+    const item = core.createItem({ title: "Preparare la presentazione" });
+    assert.deepEqual(core.getItem(item.id).subtasks, []);
+    assert.deepEqual(core.getItem(item.id).comments, []);
+
+    const withSub = core.addSubtask(item.id, "  Esportare i numeri  ");
+    assert.equal(withSub.subtasks.length, 1);
+    assert.equal(withSub.subtasks[0].title, "Esportare i numeri");
+    assert.equal(withSub.subtasks[0].done, false);
+
+    const withSecondSub = core.addSubtask(item.id, "Scrivere la slide");
+    assert.equal(withSecondSub.subtasks.length, 2);
+    assert.deepEqual(withSecondSub.subtasks.map((s) => s.title), ["Esportare i numeri", "Scrivere la slide"]);
+
+    const toggled = core.toggleSubtask(withSecondSub.subtasks[0].id);
+    assert.equal(toggled.subtasks[0].done, true);
+
+    const untoggled = core.toggleSubtask(toggled.subtasks[0].id);
+    assert.equal(untoggled.subtasks[0].done, false);
+
+    const removed = core.removeSubtask(untoggled.subtasks[1].id);
+    assert.equal(removed.subtasks.length, 1);
+
+    assert.throws(() => core.addSubtask(item.id, "   "), ItemValidationError);
+    assert.throws(() => core.toggleSubtask("missing-id"), ItemValidationError);
+
+    const withComment = core.addComment(item.id, "Nota di avanzamento");
+    assert.equal(withComment.comments.length, 1);
+    assert.equal(withComment.comments[0].author, "user");
+    assert.equal(withComment.comments[0].body, "Nota di avanzamento");
+
+    const listed = core.listItems({ limit: 10 }).find((i) => i.id === item.id);
+    assert.equal(listed.subtaskTotal, 1);
+    assert.equal(listed.subtaskDone, 0);
+  } finally {
+    core.close();
+  }
+});

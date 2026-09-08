@@ -9,12 +9,34 @@ export const PRIORITY_LABELS = {
 export const PRIORITY_ORDER = ["none", "low", "medium", "high", "urgent"];
 
 export const PRIORITY_COLORS = {
-  none: "var(--color-neutral-600)",
-  low: "var(--color-neutral-500)",
-  medium: "var(--color-accent-400)",
-  high: "var(--color-accent)",
-  urgent: "#ff6b6b",
+  none: "var(--priority-none)",
+  low: "var(--priority-low)",
+  medium: "var(--priority-medium)",
+  high: "var(--priority-high)",
+  urgent: "var(--priority-high)",
 };
+
+export const PROJECT_COLORS = {
+  Casa: "var(--project-casa)",
+  Lavoro: "var(--project-lavoro)",
+  Salute: "var(--project-salute)",
+  Personale: "var(--project-personale)",
+};
+
+export function projectColor(project) {
+  return PROJECT_COLORS[project] || "var(--project-fallback)";
+}
+
+export const PROJECT_LISTS = {
+  Casa: ["Generale", "Manutenzione", "Bollette"],
+  Lavoro: ["Generale", "Clienti", "Amministrazione"],
+  Salute: ["Generale", "Visite", "Allenamento"],
+  Personale: ["Generale", "Obiettivi", "Tempo libero"],
+};
+
+export function listsForProject(project) {
+  return PROJECT_LISTS[project] || ["Generale"];
+}
 
 export const STATUS_LABELS = {
   inbox: "Inbox",
@@ -78,6 +100,12 @@ export function formatDueLabel(dueAt) {
   return `${date.getDate()} ${MONTH_LABELS_IT[date.getMonth()]}`;
 }
 
+export function dueStatusLabel(dueAt, status) {
+  if (!dueAt) return null;
+  if (status !== "completed" && isPast(dueAt)) return "In ritardo";
+  return formatDueLabel(dueAt);
+}
+
 export function formatWeekdayLong(date = new Date()) {
   const weekdays = [
     "Domenica", "Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato",
@@ -85,11 +113,26 @@ export function formatWeekdayLong(date = new Date()) {
   return `${weekdays[date.getDay()]} ${date.getDate()} ${MONTH_LABELS_IT[date.getMonth()]}`;
 }
 
+export function formatRelativeDateTime(iso, { pastLabel = "In ritardo" } = {}) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  const pad = (n) => String(n).padStart(2, "0");
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0;
+  if (isPast(date) && !isSameDay(date, new Date())) {
+    return hasTime ? `${pastLabel} · ${formatDateTimeShort(iso)}` : `${pastLabel} · ${formatDateTimeShort(iso)}`;
+  }
+  if (isSameDay(date, new Date())) return hasTime ? `Oggi, ${time}` : "Oggi";
+  const tomorrow = new Date(startOfDay(new Date()).getTime() + MS_PER_DAY);
+  if (isSameDay(date, tomorrow)) return hasTime ? `Domani, ${time}` : "Domani";
+  return formatDateTimeShort(iso);
+}
+
 export function dueColor(dueAt, status) {
   if (!dueAt || status === "completed") {
     return "color-mix(in srgb, var(--color-text) 56%, transparent)";
   }
-  if (isPast(dueAt)) return "#ff6b6b";
+  if (isPast(dueAt)) return "var(--priority-high)";
   if (isSameDay(dueAt, new Date())) return "var(--color-accent-300)";
   return "color-mix(in srgb, var(--color-text) 62%, transparent)";
 }
