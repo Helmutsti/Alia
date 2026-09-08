@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { PRIORITY_LABELS, STATUS_LABELS, projectColor } from "../lib/format.js";
 
 const STATUS_KEYS = ["inbox", "active", "completed", "archived"];
@@ -128,13 +128,23 @@ export default function FilterBar({
   menu, onSetMenu,
   onClearAll,
 }) {
+  const barRef = useRef(null);
+
   useEffect(() => {
+    if (!menu) return;
+    function onMouseDown(e) {
+      if (barRef.current && !barRef.current.contains(e.target)) onSetMenu(null);
+    }
     function onKey(e) {
       if (e.key === "Escape") onSetMenu(null);
     }
+    window.addEventListener("mousedown", onMouseDown);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onSetMenu]);
+    return () => {
+      window.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menu, onSetMenu]);
 
   const groupingOptions = view === "kanban" ? KANBAN_GROUPING : LIST_GROUPING;
   const activeChips = [
@@ -146,7 +156,7 @@ export default function FilterBar({
 
   return (
     <div>
-      <div style={{ position: "relative", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, paddingBottom: 10, borderBottom: "1px solid var(--color-divider)" }}>
+      <div ref={barRef} style={{ position: "relative", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, paddingBottom: 10, borderBottom: "1px solid var(--color-divider)" }}>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 29, padding: "0 10px", borderRadius: "var(--radius-md)", border: `1px solid ${search ? "var(--color-accent)" : "var(--color-divider)"}`, minWidth: 150, flex: "1 1 210px" }}>
           {SearchIcon}
           <input

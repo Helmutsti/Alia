@@ -102,6 +102,7 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
   const titleRef = useRef(null);
   const descRef = useRef(null);
   const fileInputRef = useRef(null);
+  const chipRowRef = useRef(null);
 
   const parsed = parseComposerTitle(title);
 
@@ -117,6 +118,25 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
   }, [autoFocus]);
 
   useEffect(() => () => clearTimeout(flashTimer.current), []);
+
+  useEffect(() => {
+    if (!menu) return;
+    function onMouseDown(e) {
+      if (chipRowRef.current && !chipRowRef.current.contains(e.target)) setMenu(null);
+    }
+    function onKeyDown(e) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setMenu(null);
+      }
+    }
+    window.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [menu]);
 
   // La priorità e il promemoria digitati nel titolo restano legati al testo:
   // se il simbolo viene cancellato, l'attributo torna com'era prima — a meno
@@ -230,7 +250,10 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
   }
 
   function onTitleKeyDown(e) {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && e.shiftKey) {
+      e.preventDefault();
+      send();
+    } else if (e.key === "Enter") {
       e.preventDefault();
       descRef.current?.focus();
     } else if (e.key === "Escape" && isFloating) {
@@ -301,6 +324,7 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
         )}
       </div>
       <div
+        ref={chipRowRef}
         style={{
           position: "relative",
           display: "flex",
