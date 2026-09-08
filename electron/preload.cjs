@@ -16,6 +16,11 @@ const CORE_OPERATIONS = [
   "toggleSubtask",
   "removeSubtask",
   "addComment",
+  "listStatuses",
+  "createStatus",
+  "updateStatus",
+  "deleteStatus",
+  "reorderStatuses",
 ];
 
 const scheduler = Object.fromEntries(

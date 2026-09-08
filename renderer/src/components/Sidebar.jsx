@@ -51,7 +51,7 @@ const NAV_ITEMS = [
   },
 ];
 
-export default function Sidebar({ view, onNavigate, counts, onAddTask, projects, onSelectProject }) {
+export default function Sidebar({ view, onNavigate, counts, onAddTask, projects, onSelectProject, onOpenSettings }) {
   return (
     <aside
       style={{
@@ -161,6 +161,10 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
 
       <div
         className="nav-row"
+        role="button"
+        tabIndex={0}
+        onClick={onOpenSettings}
+        onKeyDown={(e) => e.key === "Enter" && onOpenSettings?.()}
         style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: "var(--radius-md)", cursor: "pointer", fontSize: 13, color: "color-mix(in srgb, var(--color-text) 74%, transparent)" }}
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">

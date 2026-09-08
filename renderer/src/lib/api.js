@@ -22,4 +22,9 @@ export const api = {
   toggleSubtask: (subtaskId) => scheduler.toggleSubtask(subtaskId),
   removeSubtask: (subtaskId) => scheduler.removeSubtask(subtaskId),
   addComment: (itemId, body) => scheduler.addComment(itemId, body),
+  listStatuses: () => scheduler.listStatuses(),
+  createStatus: (input) => scheduler.createStatus(input),
+  updateStatus: (id, changes) => scheduler.updateStatus(id, changes),
+  deleteStatus: (id) => scheduler.deleteStatus(id),
+  reorderStatuses: (orderedIds) => scheduler.reorderStatuses(orderedIds),
 };

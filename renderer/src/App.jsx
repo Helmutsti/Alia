@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import Sidebar from "./components/Sidebar.jsx";
 import TaskComposer from "./components/TaskComposer.jsx";
 import TaskDetailModal from "./components/TaskDetailModal.jsx";
+import SettingsScreen from "./screens/SettingsScreen.jsx";
 import SourcesScreen from "./screens/SourcesScreen.jsx";
 import TodayScreen from "./screens/TodayScreen.jsx";
 import ListScreen from "./screens/ListScreen.jsx";
@@ -16,6 +17,7 @@ export default function App() {
   const [view, setView] = useState("list");
   const [reloadKey, setReloadKey] = useState(0);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [counts, setCounts] = useState({});
   const [projects, setProjects] = useState([]);
@@ -90,7 +92,7 @@ export default function App() {
 
   return (
     <div style={{ display: "flex", height: "100vh", background: "var(--color-bg)" }}>
-      <Sidebar view={view} onNavigate={setView} counts={counts} onAddTask={() => setComposerOpen(true)} projects={projects} onSelectProject={selectProject} />
+      <Sidebar view={view} onNavigate={setView} counts={counts} onAddTask={() => setComposerOpen(true)} projects={projects} onSelectProject={selectProject} onOpenSettings={() => setSettingsOpen(true)} />
 
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", padding: "32px 40px 24px", overflow: "hidden" }}>
         {view === "sources" && <SourcesScreen />}
@@ -151,6 +153,8 @@ export default function App() {
           onDeleted={onItemDeleted}
         />
       )}
+
+      {settingsOpen && <SettingsScreen onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

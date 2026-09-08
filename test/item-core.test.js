@@ -220,3 +220,45 @@ test("manages subtasks and comments alongside an item", () => {
     core.close();
   }
 });
+
+test("manages configurable statuses, reassigning items when one is deleted", () => {
+  const core = createMemoryCore();
+
+  try {
+    const defaults = core.listStatuses();
+    assert.deepEqual(defaults.map((s) => s.key), ["inbox", "active", "completed", "archived"]);
+
+    const withNew = core.createStatus({ label: "In revisione", type: "in_corso" });
+    const created = withNew.find((s) => s.label === "In revisione");
+    assert.equal(created.type, "in_corso");
+    assert.equal(created.key, "in-revisione");
+    assert.equal(created.position, 4);
+
+    const renamed = core.updateStatus(created.id, { label: "In review" });
+    assert.equal(renamed.find((s) => s.id === created.id).label, "In review");
+
+    const reordered = core.reorderStatuses([created.id, ...defaults.map((s) => s.id)]);
+    assert.equal(reordered[0].id, created.id);
+    assert.throws(() => core.reorderStatuses(["missing-id"]), ItemValidationError);
+
+    const item = core.createItem({ title: "Verifica bozza" });
+    const active = defaults.find((s) => s.key === "active");
+    core.updateStatus(active.id, {}); // no-op update keeps fields
+    const afterActivate = core.activateItem(item.id);
+    assert.equal(afterActivate.status, "active");
+
+    const afterDelete = core.deleteStatus(active.id);
+    assert.equal(afterDelete.find((s) => s.key === "active"), undefined);
+    const reassigned = core.getItem(item.id);
+    assert.notEqual(reassigned.status, "active");
+
+    const remaining = core.listStatuses();
+    while (core.listStatuses().length > 1) {
+      core.deleteStatus(core.listStatuses()[0].id);
+    }
+    assert.throws(() => core.deleteStatus(core.listStatuses()[0].id), ItemValidationError);
+    assert.equal(remaining.length > 0, true);
+  } finally {
+    core.close();
+  }
+});

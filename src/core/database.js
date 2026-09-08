@@ -124,6 +124,83 @@ function migrate(database) {
       COMMIT;
     `);
   }
+
+  if (version < 5) {
+    // Gli stati diventano configurabili: la tabella items non può più vincolare
+    // la colonna status a un CHECK statico, quindi va ricostruita senza.
+    database.exec("PRAGMA foreign_keys = OFF");
+    database.exec(`
+      BEGIN IMMEDIATE;
+
+      CREATE TABLE statuses (
+        id TEXT PRIMARY KEY,
+        key TEXT NOT NULL UNIQUE,
+        label TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('apertura', 'in_corso', 'chiusura')),
+        position INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
+
+      INSERT INTO statuses (id, key, label, type, position, created_at) VALUES
+        ('st-inbox', 'inbox', 'Da fare', 'apertura', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('st-active', 'active', 'In corso', 'in_corso', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('st-completed', 'completed', 'Fatto', 'chiusura', 2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('st-archived', 'archived', 'Archiviato', 'chiusura', 3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+      CREATE INDEX statuses_position ON statuses(position);
+
+      CREATE TABLE items_new (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        status TEXT NOT NULL,
+        priority TEXT NOT NULL CHECK (priority IN ('none', 'low', 'medium', 'high', 'urgent')),
+        due_at TEXT,
+        start_at TEXT,
+        reminder_at TEXT,
+        source_type TEXT NOT NULL,
+        source_id TEXT,
+        source_url TEXT,
+        original_content TEXT NOT NULL,
+        content_generated_by_ai INTEGER NOT NULL DEFAULT 0 CHECK (content_generated_by_ai IN (0, 1)),
+        tags TEXT NOT NULL DEFAULT '[]',
+        project TEXT,
+        list TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        completed_at TEXT,
+        archived_at TEXT,
+        deleted_at TEXT
+      );
+
+      INSERT INTO items_new (
+        id, title, description, status, priority, due_at, start_at, reminder_at,
+        source_type, source_id, source_url, original_content, content_generated_by_ai,
+        tags, project, list, notes, created_at, updated_at, completed_at, archived_at, deleted_at
+      )
+      SELECT
+        id, title, description, status, priority, due_at, start_at, reminder_at,
+        source_type, source_id, source_url, original_content, content_generated_by_ai,
+        tags, project, list, notes, created_at, updated_at, completed_at, archived_at, deleted_at
+      FROM items;
+
+      DROP TABLE items;
+      ALTER TABLE items_new RENAME TO items;
+
+      CREATE UNIQUE INDEX items_source_identity
+        ON items(source_type, source_id)
+        WHERE source_id IS NOT NULL;
+      CREATE INDEX items_status_created_at ON items(status, created_at DESC);
+      CREATE INDEX items_due_at ON items(due_at) WHERE due_at IS NOT NULL;
+      CREATE INDEX items_reminder_at ON items(reminder_at) WHERE reminder_at IS NOT NULL;
+      CREATE INDEX items_deleted_at ON items(deleted_at) WHERE deleted_at IS NOT NULL;
+
+      PRAGMA user_version = 5;
+      COMMIT;
+    `);
+    database.exec("PRAGMA foreign_keys = ON");
+  }
 }
 
 export function runInTransaction(database, operation) {

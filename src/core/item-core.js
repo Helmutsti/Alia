@@ -16,6 +16,10 @@ export const ITEM_PRIORITIES = Object.freeze([
   "urgent",
 ]);
 
+export const STATUS_TYPES = Object.freeze(["apertura", "in_corso", "chiusura"]);
+
+const STATUS_UPDATE_FIELDS = new Set(["label", "type"]);
+
 const CREATE_FIELDS = new Set([
   "title",
   "description",
@@ -458,6 +462,84 @@ class ItemCore {
     }));
   }
 
+  listStatuses() {
+    return this.#database.prepare(`
+      SELECT id, key, label, type, position FROM statuses ORDER BY position ASC
+    `).all();
+  }
+
+  createStatus({ label, type }) {
+    const cleanLabel = normalizeRequiredText(label, "label");
+    const cleanType = normalizeChoice(type, STATUS_TYPES, "type");
+    const now = this.#now();
+    const id = randomUUID();
+    const key = this.#uniqueStatusKey(cleanLabel);
+    const { pos } = this.#database.prepare(`
+      SELECT COALESCE(MAX(position), -1) + 1 as pos FROM statuses
+    `).get();
+
+    runInTransaction(this.#database, () => {
+      this.#database.prepare(`
+        INSERT INTO statuses (id, key, label, type, position, created_at) VALUES (?, ?, ?, ?, ?, ?)
+      `).run(id, key, cleanLabel, cleanType, pos, now);
+    });
+
+    return this.listStatuses();
+  }
+
+  updateStatus(id, changes) {
+    assertPlainObject(changes, "changes");
+    assertKnownFields(changes, STATUS_UPDATE_FIELDS);
+    const current = this.#getStatus(id);
+    const label = changes.label !== undefined ? normalizeRequiredText(changes.label, "label") : current.label;
+    const type = changes.type !== undefined ? normalizeChoice(changes.type, STATUS_TYPES, "type") : current.type;
+
+    runInTransaction(this.#database, () => {
+      this.#database.prepare("UPDATE statuses SET label = ?, type = ? WHERE id = ?").run(label, type, id);
+    });
+
+    return this.listStatuses();
+  }
+
+  reorderStatuses(orderedIds) {
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      throw new ItemValidationError("orderedIds must be a non-empty array");
+    }
+    const known = new Set(this.listStatuses().map((s) => s.id));
+    for (const id of orderedIds) {
+      if (!known.has(id)) {
+        throw new ItemValidationError(`Unknown status id: ${id}`);
+      }
+    }
+
+    runInTransaction(this.#database, () => {
+      orderedIds.forEach((id, index) => {
+        this.#database.prepare("UPDATE statuses SET position = ? WHERE id = ?").run(index, id);
+      });
+    });
+
+    return this.listStatuses();
+  }
+
+  deleteStatus(id) {
+    const current = this.#getStatus(id);
+    const all = this.listStatuses();
+    if (all.length <= 1) {
+      throw new ItemValidationError("Cannot delete the last remaining status");
+    }
+    const fallback = all.find((s) => s.id !== id && s.type === current.type) ?? all.find((s) => s.id !== id);
+    const now = this.#now();
+
+    runInTransaction(this.#database, () => {
+      this.#database.prepare(`
+        UPDATE items SET status = ?, updated_at = ? WHERE status = ? AND deleted_at IS NULL
+      `).run(fallback.key, now, current.key);
+      this.#database.prepare("DELETE FROM statuses WHERE id = ?").run(id);
+    });
+
+    return this.listStatuses();
+  }
+
   close() {
     this.#database.close();
   }
@@ -498,6 +580,32 @@ class ItemCore {
       throw new TypeError("clock returned an invalid date");
     }
     return date.toISOString();
+  }
+
+  #getStatus(id) {
+    assertId(id);
+    const row = this.#database.prepare(`
+      SELECT id, key, label, type, position FROM statuses WHERE id = ?
+    `).get(id);
+    if (!row) {
+      throw new ItemValidationError(`Status not found: ${id}`);
+    }
+    return row;
+  }
+
+  #uniqueStatusKey(label) {
+    const base = label
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-+|-+$)/g, "") || "stato";
+    let key = base;
+    let suffix = 2;
+    while (this.#database.prepare("SELECT 1 FROM statuses WHERE key = ?").get(key)) {
+      key = `${base}-${suffix++}`;
+    }
+    return key;
   }
 }
 
