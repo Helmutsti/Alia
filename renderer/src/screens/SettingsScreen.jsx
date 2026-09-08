@@ -199,21 +199,21 @@ export default function SettingsScreen({ onClose }) {
       <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 224, display: "grid", placeItems: "center" }}>
         <div
           className="card elev-lg"
-          style={{ width: "100%", maxWidth: 820, height: 600, maxHeight: "88vh", gap: 0, padding: 0, display: "flex", flexDirection: "row", overflow: "hidden" }}
+          style={{ position: "relative", width: "100%", maxWidth: 820, height: 600, maxHeight: "88vh", gap: 0, padding: 0, display: "flex", flexDirection: "row", overflow: "hidden" }}
           onClick={(e) => e.stopPropagation()}
         >
+          <button
+            type="button"
+            className="ghost-ico"
+            aria-label="Chiudi"
+            onClick={onClose}
+            style={{ position: "absolute", top: 12, right: 12, zIndex: 1, display: "grid", placeItems: "center", width: 27, height: 27, padding: 0, border: "none", borderRadius: "var(--radius-md)", background: "transparent", cursor: "pointer", color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}
+          >
+            {CloseIcon}
+          </button>
           <div style={{ width: 220, flex: "0 0 auto", borderRight: "1px solid var(--color-divider)", padding: "20px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 12px 16px" }}>
+            <div style={{ padding: "4px 12px 16px" }}>
               <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500, fontSize: 16 }}>Impostazioni</span>
-              <button
-                type="button"
-                className="ghost-ico"
-                aria-label="Chiudi"
-                onClick={onClose}
-                style={{ display: "grid", placeItems: "center", width: 24, height: 24, padding: 0, border: "none", borderRadius: "var(--radius-sm)", background: "transparent", cursor: "pointer", color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}
-              >
-                {CloseIcon}
-              </button>
             </div>
             {TABS.map((t) => (
               <button
@@ -315,7 +315,13 @@ export default function SettingsScreen({ onClose }) {
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </select>
-                    <button type="button" className="ghost-ico" onClick={() => removeStatus(s.id)} aria-label={`Rimuovi stato ${s.label}`}>
+                    <button
+                      type="button"
+                      className="ghost-ico"
+                      onClick={() => removeStatus(s.id)}
+                      aria-label={`Rimuovi stato ${s.label}`}
+                      style={{ display: "grid", placeItems: "center", width: 28, height: 28, flex: "0 0 auto", padding: 0, border: "none", borderRadius: "var(--radius-sm)", background: "transparent", cursor: "pointer", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}
+                    >
                       {TrashIcon}
                     </button>
                   </div>
