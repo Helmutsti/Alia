@@ -17,6 +17,14 @@ export function openDatabase(databasePath) {
 
   if (databasePath !== ":memory:") {
     database.exec("PRAGMA journal_mode = WAL");
+    // Il binding node:sqlite del processo main di Electron non sembra
+    // agganciarsi in modo affidabile al file -wal scritto da altre
+    // connessioni (osservato concretamente: una connessione separata vede
+    // dati che quella di Electron non vede, e viceversa). Il checkpoint
+    // esplicito ad ogni apertura forza la sincronizzazione con il file
+    // principale, così qualunque connessione riparte sempre dallo stato
+    // realmente più recente indipendentemente da questo comportamento.
+    database.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   }
 
   migrate(database);
