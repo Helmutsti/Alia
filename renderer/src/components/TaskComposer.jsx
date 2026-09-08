@@ -9,6 +9,7 @@ import {
   tomorrowIso,
 } from "../lib/format.js";
 import { formatReminderOffset, parseComposerTitle } from "../lib/composerSyntax.js";
+import { useProjects } from "../lib/projectsStore.js";
 
 const DUE_PRESETS = [
   { label: "Oggi", toIso: () => todayIso() },
@@ -33,7 +34,6 @@ const PRIORITY_OPTIONS = [...PRIORITY_ORDER].reverse().map((value) => ({
   label: PRIORITY_LABELS[value],
 }));
 
-const PROJECT_OPTIONS = ["Casa", "Lavoro", "Salute", "Personale"];
 const TAG_OPTIONS = ["spesa", "urgente", "telefonata", "famiglia"];
 
 function toDatetimeLocalValue(iso) {
@@ -83,6 +83,7 @@ const PaperclipIcon = (
 );
 
 export default function TaskComposer({ mode = "inline", onCreated, onClose, autoFocus = false }) {
+  const dbProjects = useProjects();
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [priority, setPriority] = useState("none");
@@ -500,13 +501,13 @@ export default function TaskComposer({ mode = "inline", onCreated, onClose, auto
         )}
         {menu === "project" && (
           <Menu title="Progetto">
-            {PROJECT_OPTIONS.map((p) => (
+            {dbProjects.map((p) => (
               <MenuItem
-                key={p}
-                label={p}
-                active={project === p}
+                key={p.id}
+                label={p.name}
+                active={project === p.name}
                 onClick={() => {
-                  setProject(p);
+                  setProject(p.name);
                   setProjectSource("manual");
                   setMenu(null);
                 }}

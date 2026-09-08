@@ -10,8 +10,7 @@ import {
   tomorrowIso,
   endOfWeekIso,
 } from "../lib/format.js";
-
-const PROJECT_OPTIONS = ["Casa", "Lavoro", "Salute", "Personale"];
+import { useProjects } from "../lib/projectsStore.js";
 
 const PRIORITY_OPTIONS = [
   { value: "high", label: "Alta", desc: "Richiede attenzione immediata" },
@@ -143,6 +142,7 @@ function formatSize(bytes) {
 }
 
 export default function TaskDetailModal({ item, onClose, onChanged, onDeleted }) {
+  const dbProjects = useProjects();
   const [tab, setTab] = useState("Sottotask");
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(item.title);
@@ -403,8 +403,8 @@ export default function TaskDetailModal({ item, onClose, onChanged, onDeleted })
               {projectOpen && (
                 <div style={{ position: "absolute", left: 0, top: "calc(100% + 4px)", zIndex: 8, minWidth: 190, padding: 6, borderRadius: "var(--radius-md)", background: "var(--color-surface)", boxShadow: "var(--shadow-md)" }}>
                   <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "4px 8px 6px" }}>Progetto</div>
-                  {PROJECT_OPTIONS.map((p) => (
-                    <DetailMenuItem key={p} label={p} dot={projectColor(p)} active={item.project === p} onClick={() => setProject(p)} />
+                  {dbProjects.map((p) => (
+                    <DetailMenuItem key={p.id} label={p.name} dot={p.color} active={item.project === p.name} onClick={() => setProject(p.name)} />
                   ))}
                   <DetailMenuItem label="Nessuno" active={!item.project} onClick={() => setProject(null)} />
                   {item.project && (

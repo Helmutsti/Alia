@@ -27,4 +27,13 @@ export const api = {
   updateStatus: (id, changes) => scheduler.updateStatus(id, changes),
   deleteStatus: (id) => scheduler.deleteStatus(id),
   reorderStatuses: (orderedIds) => scheduler.reorderStatuses(orderedIds),
+  listProjects: () => scheduler.listProjects(),
+  createProject: (input) => scheduler.createProject(input),
+  updateProject: (id, changes) => scheduler.updateProject(id, changes),
+  deleteProject: (id) => scheduler.deleteProject(id),
+  reorderProjects: (orderedIds) => scheduler.reorderProjects(orderedIds),
+  createList: (projectId, input) => scheduler.createList(projectId, input),
+  updateList: (id, changes) => scheduler.updateList(id, changes),
+  deleteList: (id) => scheduler.deleteList(id),
+  reorderLists: (projectId, orderedIds) => scheduler.reorderLists(projectId, orderedIds),
 };

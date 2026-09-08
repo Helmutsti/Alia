@@ -21,6 +21,15 @@ const CORE_OPERATIONS = [
   "updateStatus",
   "deleteStatus",
   "reorderStatuses",
+  "listProjects",
+  "createProject",
+  "updateProject",
+  "deleteProject",
+  "reorderProjects",
+  "createList",
+  "updateList",
+  "deleteList",
+  "reorderLists",
 ];
 
 const scheduler = Object.fromEntries(

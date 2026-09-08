@@ -262,3 +262,51 @@ test("manages configurable statuses, reassigning items when one is deleted", () 
     core.close();
   }
 });
+
+test("manages projects and their lists, cascading renames and deletions to items", () => {
+  const core = createMemoryCore();
+
+  try {
+    const defaults = core.listProjects();
+    assert.deepEqual(defaults.map((p) => p.name), ["Casa", "Lavoro", "Salute", "Personale"]);
+    assert.equal(defaults[0].lists.length, 3);
+
+    assert.throws(() => core.createProject({ name: "Casa", color: "#000" }), ItemValidationError);
+
+    const withNew = core.createProject({ name: "Viaggi", color: "#abcdef" });
+    const created = withNew.find((p) => p.name === "Viaggi");
+    assert.equal(created.color, "#abcdef");
+    assert.deepEqual(created.lists, []);
+
+    const withList = core.createList(created.id, { name: "Voli" });
+    const project = withList.find((p) => p.id === created.id);
+    assert.equal(project.lists.length, 1);
+    assert.throws(() => core.createList(created.id, { name: "Voli" }), ItemValidationError);
+
+    const item = core.createItem({ title: "Prenota il volo", project: "Viaggi", list: "Voli" });
+
+    const renamedProject = core.updateProject(created.id, { name: "Vacanze" });
+    assert.equal(renamedProject.find((p) => p.id === created.id).name, "Vacanze");
+    assert.equal(core.getItem(item.id).project, "Vacanze");
+
+    const listId = project.lists[0].id;
+    const renamedList = core.updateList(listId, { name: "Biglietti" });
+    assert.equal(renamedList.find((p) => p.id === created.id).lists[0].name, "Biglietti");
+    assert.equal(core.getItem(item.id).list, "Biglietti");
+
+    const reordered = core.reorderProjects([created.id, ...defaults.map((p) => p.id)]);
+    assert.equal(reordered[0].id, created.id);
+    assert.throws(() => core.reorderProjects(["missing"]), ItemValidationError);
+
+    const afterListDelete = core.deleteList(listId);
+    assert.equal(afterListDelete.find((p) => p.id === created.id).lists.length, 0);
+    assert.equal(core.getItem(item.id).list, null);
+    assert.equal(core.getItem(item.id).project, "Vacanze");
+
+    const afterProjectDelete = core.deleteProject(created.id);
+    assert.equal(afterProjectDelete.find((p) => p.id === created.id), undefined);
+    assert.equal(core.getItem(item.id).project, null);
+  } finally {
+    core.close();
+  }
+});

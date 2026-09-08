@@ -19,6 +19,8 @@ export const ITEM_PRIORITIES = Object.freeze([
 export const STATUS_TYPES = Object.freeze(["apertura", "in_corso", "chiusura"]);
 
 const STATUS_UPDATE_FIELDS = new Set(["label", "type"]);
+const PROJECT_UPDATE_FIELDS = new Set(["name", "color"]);
+const LIST_UPDATE_FIELDS = new Set(["name"]);
 
 const CREATE_FIELDS = new Set([
   "title",
@@ -540,6 +542,182 @@ class ItemCore {
     return this.listStatuses();
   }
 
+  listProjects() {
+    const projects = this.#database.prepare(`
+      SELECT id, name, color, position FROM projects ORDER BY position ASC
+    `).all();
+    const lists = this.#database.prepare(`
+      SELECT id, project_id, name, position FROM lists ORDER BY position ASC
+    `).all();
+    return projects.map((p) => ({
+      ...p,
+      lists: lists.filter((l) => l.project_id === p.id).map((l) => ({ id: l.id, name: l.name, position: l.position })),
+    }));
+  }
+
+  createProject({ name, color }) {
+    const cleanName = normalizeRequiredText(name, "name");
+    const cleanColor = normalizeRequiredText(color, "color");
+    if (this.#database.prepare("SELECT 1 FROM projects WHERE name = ?").get(cleanName)) {
+      throw new ItemValidationError(`Project already exists: ${cleanName}`);
+    }
+    const now = this.#now();
+    const id = randomUUID();
+    const { pos } = this.#database.prepare(`
+      SELECT COALESCE(MAX(position), -1) + 1 as pos FROM projects
+    `).get();
+
+    runInTransaction(this.#database, () => {
+      this.#database.prepare(`
+        INSERT INTO projects (id, name, color, position, created_at) VALUES (?, ?, ?, ?, ?)
+      `).run(id, cleanName, cleanColor, pos, now);
+    });
+
+    return this.listProjects();
+  }
+
+  updateProject(id, changes) {
+    assertPlainObject(changes, "changes");
+    assertKnownFields(changes, PROJECT_UPDATE_FIELDS);
+    const current = this.#getProject(id);
+    const name = changes.name !== undefined ? normalizeRequiredText(changes.name, "name") : current.name;
+    const color = changes.color !== undefined ? normalizeRequiredText(changes.color, "color") : current.color;
+    if (name !== current.name && this.#database.prepare("SELECT 1 FROM projects WHERE name = ? AND id != ?").get(name, id)) {
+      throw new ItemValidationError(`Project already exists: ${name}`);
+    }
+    const now = this.#now();
+
+    runInTransaction(this.#database, () => {
+      this.#database.prepare("UPDATE projects SET name = ?, color = ? WHERE id = ?").run(name, color, id);
+      if (name !== current.name) {
+        this.#database.prepare(`
+          UPDATE items SET project = ?, updated_at = ? WHERE project = ? AND deleted_at IS NULL
+        `).run(name, now, current.name);
+      }
+    });
+
+    return this.listProjects();
+  }
+
+  reorderProjects(orderedIds) {
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      throw new ItemValidationError("orderedIds must be a non-empty array");
+    }
+    const known = new Set(this.listProjects().map((p) => p.id));
+    for (const id of orderedIds) {
+      if (!known.has(id)) {
+        throw new ItemValidationError(`Unknown project id: ${id}`);
+      }
+    }
+
+    runInTransaction(this.#database, () => {
+      orderedIds.forEach((id, index) => {
+        this.#database.prepare("UPDATE projects SET position = ? WHERE id = ?").run(index, id);
+      });
+    });
+
+    return this.listProjects();
+  }
+
+  deleteProject(id) {
+    const current = this.#getProject(id);
+    const now = this.#now();
+
+    runInTransaction(this.#database, () => {
+      this.#database.prepare(`
+        UPDATE items SET project = NULL, list = NULL, updated_at = ? WHERE project = ? AND deleted_at IS NULL
+      `).run(now, current.name);
+      this.#database.prepare("DELETE FROM projects WHERE id = ?").run(id);
+    });
+
+    return this.listProjects();
+  }
+
+  createList(projectId, { name }) {
+    this.#getProject(projectId);
+    const cleanName = normalizeRequiredText(name, "name");
+    if (this.#database.prepare("SELECT 1 FROM lists WHERE project_id = ? AND name = ?").get(projectId, cleanName)) {
+      throw new ItemValidationError(`List already exists in this project: ${cleanName}`);
+    }
+    const now = this.#now();
+    const id = randomUUID();
+    const { pos } = this.#database.prepare(`
+      SELECT COALESCE(MAX(position), -1) + 1 as pos FROM lists WHERE project_id = ?
+    `).get(projectId);
+
+    runInTransaction(this.#database, () => {
+      this.#database.prepare(`
+        INSERT INTO lists (id, project_id, name, position, created_at) VALUES (?, ?, ?, ?, ?)
+      `).run(id, projectId, cleanName, pos, now);
+    });
+
+    return this.listProjects();
+  }
+
+  updateList(id, changes) {
+    assertPlainObject(changes, "changes");
+    assertKnownFields(changes, LIST_UPDATE_FIELDS);
+    const current = this.#getList(id);
+    const project = this.#getProject(current.project_id);
+    const name = changes.name !== undefined ? normalizeRequiredText(changes.name, "name") : current.name;
+    if (
+      name !== current.name &&
+      this.#database.prepare("SELECT 1 FROM lists WHERE project_id = ? AND name = ? AND id != ?").get(current.project_id, name, id)
+    ) {
+      throw new ItemValidationError(`List already exists in this project: ${name}`);
+    }
+    const now = this.#now();
+
+    runInTransaction(this.#database, () => {
+      this.#database.prepare("UPDATE lists SET name = ? WHERE id = ?").run(name, id);
+      if (name !== current.name) {
+        this.#database.prepare(`
+          UPDATE items SET list = ?, updated_at = ? WHERE project = ? AND list = ? AND deleted_at IS NULL
+        `).run(name, now, project.name, current.name);
+      }
+    });
+
+    return this.listProjects();
+  }
+
+  reorderLists(projectId, orderedIds) {
+    this.#getProject(projectId);
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      throw new ItemValidationError("orderedIds must be a non-empty array");
+    }
+    const known = new Set(
+      this.#database.prepare("SELECT id FROM lists WHERE project_id = ?").all(projectId).map((l) => l.id),
+    );
+    for (const id of orderedIds) {
+      if (!known.has(id)) {
+        throw new ItemValidationError(`Unknown list id: ${id}`);
+      }
+    }
+
+    runInTransaction(this.#database, () => {
+      orderedIds.forEach((id, index) => {
+        this.#database.prepare("UPDATE lists SET position = ? WHERE id = ?").run(index, id);
+      });
+    });
+
+    return this.listProjects();
+  }
+
+  deleteList(id) {
+    const current = this.#getList(id);
+    const project = this.#getProject(current.project_id);
+    const now = this.#now();
+
+    runInTransaction(this.#database, () => {
+      this.#database.prepare(`
+        UPDATE items SET list = NULL, updated_at = ? WHERE project = ? AND list = ? AND deleted_at IS NULL
+      `).run(now, project.name, current.name);
+      this.#database.prepare("DELETE FROM lists WHERE id = ?").run(id);
+    });
+
+    return this.listProjects();
+  }
+
   close() {
     this.#database.close();
   }
@@ -606,6 +784,28 @@ class ItemCore {
       key = `${base}-${suffix++}`;
     }
     return key;
+  }
+
+  #getProject(id) {
+    assertId(id);
+    const row = this.#database.prepare(`
+      SELECT id, name, color, position FROM projects WHERE id = ?
+    `).get(id);
+    if (!row) {
+      throw new ItemValidationError(`Project not found: ${id}`);
+    }
+    return row;
+  }
+
+  #getList(id) {
+    assertId(id);
+    const row = this.#database.prepare(`
+      SELECT id, project_id, name, position FROM lists WHERE id = ?
+    `).get(id);
+    if (!row) {
+      throw new ItemValidationError(`List not found: ${id}`);
+    }
+    return row;
   }
 }
 

@@ -16,26 +16,19 @@ export const PRIORITY_COLORS = {
   urgent: "var(--priority-high)",
 };
 
-export const PROJECT_COLORS = {
-  Casa: "var(--project-casa)",
-  Lavoro: "var(--project-lavoro)",
-  Salute: "var(--project-salute)",
-  Personale: "var(--project-personale)",
-};
+// Progetti e liste vivono nel database (vedi lib/projectsStore.js); queste
+// funzioni leggono dalla cache sincrona popolata da App al bootstrap, con un
+// fallback ragionevole finché il primo fetch non è ancora arrivato.
+import { getProjects } from "./projectsStore.js";
 
 export function projectColor(project) {
-  return PROJECT_COLORS[project] || "var(--project-fallback)";
+  const found = getProjects().find((p) => p.name === project);
+  return found ? found.color : "var(--project-fallback)";
 }
 
-export const PROJECT_LISTS = {
-  Casa: ["Generale", "Manutenzione", "Bollette"],
-  Lavoro: ["Generale", "Clienti", "Amministrazione"],
-  Salute: ["Generale", "Visite", "Allenamento"],
-  Personale: ["Generale", "Obiettivi", "Tempo libero"],
-};
-
 export function listsForProject(project) {
-  return PROJECT_LISTS[project] || ["Generale"];
+  const found = getProjects().find((p) => p.name === project);
+  return found ? found.lists.map((l) => l.name) : ["Generale"];
 }
 
 export const STATUS_LABELS = {

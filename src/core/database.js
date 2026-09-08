@@ -201,6 +201,56 @@ function migrate(database) {
     `);
     database.exec("PRAGMA foreign_keys = ON");
   }
+
+  if (version < 6) {
+    database.exec(`
+      BEGIN IMMEDIATE;
+
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        color TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE lists (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        UNIQUE (project_id, name)
+      );
+
+      CREATE INDEX projects_position ON projects(position);
+      CREATE INDEX lists_project_id ON lists(project_id, position);
+
+      INSERT INTO projects (id, name, color, position, created_at) VALUES
+        ('pr-casa', 'Casa', '#45aeee', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('pr-lavoro', 'Lavoro', '#c78bff', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('pr-salute', 'Salute', '#3ddc97', 2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('pr-personale', 'Personale', '#ffb454', 3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+      INSERT INTO lists (id, project_id, name, position, created_at) VALUES
+        ('ls-casa-generale', 'pr-casa', 'Generale', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('ls-casa-manutenzione', 'pr-casa', 'Manutenzione', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('ls-casa-bollette', 'pr-casa', 'Bollette', 2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('ls-lavoro-generale', 'pr-lavoro', 'Generale', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('ls-lavoro-clienti', 'pr-lavoro', 'Clienti', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('ls-lavoro-amministrazione', 'pr-lavoro', 'Amministrazione', 2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('ls-salute-generale', 'pr-salute', 'Generale', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('ls-salute-visite', 'pr-salute', 'Visite', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('ls-salute-allenamento', 'pr-salute', 'Allenamento', 2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('ls-personale-generale', 'pr-personale', 'Generale', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('ls-personale-obiettivi', 'pr-personale', 'Obiettivi', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        ('ls-personale-tempolibero', 'pr-personale', 'Tempo libero', 2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+      PRAGMA user_version = 6;
+      COMMIT;
+    `);
+  }
 }
 
 export function runInTransaction(database, operation) {

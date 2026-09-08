@@ -9,9 +9,7 @@ import ListScreen from "./screens/ListScreen.jsx";
 import GanttScreen from "./screens/GanttScreen.jsx";
 import CalendarScreen from "./screens/CalendarScreen.jsx";
 import { api } from "./lib/api.js";
-import { projectColor } from "./lib/format.js";
-
-const SIDEBAR_PROJECTS = ["Casa", "Lavoro", "Salute", "Personale"];
+import { useProjects } from "./lib/projectsStore.js";
 
 export default function App() {
   const [view, setView] = useState("list");
@@ -20,8 +18,10 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [counts, setCounts] = useState({});
-  const [projects, setProjects] = useState([]);
+  const [projectCounts, setProjectCounts] = useState({});
   const [pendingProject, setPendingProject] = useState(null);
+  const dbProjects = useProjects();
+  const projects = dbProjects.map((p) => ({ name: p.name, dot: p.color, count: projectCounts[p.name] ?? 0 }));
 
   const bump = useCallback(() => setReloadKey((k) => k + 1), []);
 
@@ -41,13 +41,11 @@ export default function App() {
         today: active.filter((i) => i.dueAt && isSameDay(i.dueAt)).length,
         list: active.length,
       });
-      setProjects(
-        SIDEBAR_PROJECTS.map((name) => ({
-          name,
-          dot: projectColor(name),
-          count: active.filter((i) => i.project === name).length,
-        })),
-      );
+      const byProject = {};
+      for (const item of active) {
+        if (item.project) byProject[item.project] = (byProject[item.project] ?? 0) + 1;
+      }
+      setProjectCounts(byProject);
     }
 
     loadCounts();
