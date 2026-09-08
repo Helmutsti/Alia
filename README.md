@@ -1,11 +1,24 @@
-# Scheduler
+# Alia
 
-Modulo Node.js per la gestione locale degli item, con un'interfaccia grafica Electron + React in stile "Alia" (design system Nocturne, accento blu).
+Task manager locale (core Node.js + interfaccia grafica Electron/React in stile "Alia", design system Nocturne, accento blu).
 
 ## Requisiti
 
 - Node.js 22.13 o successivo
 - SQLite fornito dal runtime Node.js
+
+## Installazione come comando globale
+
+Ogni GitHub Release pubblicata fa scattare la pipeline `.github/workflows/release.yml`, che builda il renderer, impacchetta il progetto con `npm pack` e allega il tarball (`alia-<versione>.tgz`) alla Release stessa. Per installarlo:
+
+```powershell
+npm install -g https://github.com/Helmutsti/Alia/releases/download/vX.Y.Z/alia-X.Y.Z.tgz
+alia
+```
+
+`npm install` scarica in automatico le dipendenze (incluso Electron, per la piattaforma corrente) dal registro npm pubblico: serve una connessione di rete al momento dell'installazione, non in seguito. Il comando `alia` avvia l'app; i dati restano in `%APPDATA%\alia\scheduler.sqlite` (per utente, indipendente da dove è installato il pacchetto).
+
+Per pubblicare una nuova release: crea un tag `vX.Y.Z`, pubblica una GitHub Release su quel tag — la pipeline si occupa del resto (versione presa dal tag, nessun bump manuale di `package.json` richiesto).
 
 ## Utilizzo
 
@@ -91,7 +104,7 @@ npm run seed
 Popola `./data/scheduler.sqlite` (percorso di default) con qualche item di esempio, utile per provare l'interfaccia senza partire da un database vuoto. Per popolare invece il database reale usato dall'app Electron, passa il percorso esplicito:
 
 ```powershell
-node scripts/seed.js "$env:APPDATA\scheduler-core\scheduler.sqlite"
+node scripts/seed.js "$env:APPDATA\alia\scheduler.sqlite"
 ```
 
 ## Interfaccia grafica
