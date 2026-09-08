@@ -21,7 +21,7 @@ export default function App() {
   const [projectCounts, setProjectCounts] = useState({});
   const [pendingProject, setPendingProject] = useState(null);
   const dbProjects = useProjects();
-  const projects = dbProjects.map((p) => ({ name: p.name, dot: p.color, count: projectCounts[p.name] ?? 0 }));
+  const projects = dbProjects.map((p) => ({ ...p, dot: p.color, count: projectCounts[p.name] ?? 0 }));
 
   const bump = useCallback(() => setReloadKey((k) => k + 1), []);
 

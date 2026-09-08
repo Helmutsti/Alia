@@ -1,3 +1,28 @@
+import { useEffect, useRef, useState } from "react";
+import { api } from "../lib/api.js";
+import { refreshProjects } from "../lib/projectsStore.js";
+
+const PROJECT_PALETTE = ["#45aeee", "#c78bff", "#3ddc97", "#ffb454", "#ff6b81", "#f7b955", "#7ee8fa", "#c9a24d", "#e9eaea", "#5a5e61"];
+
+const PencilIcon = (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+  </svg>
+);
+const TrashIcon = (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>
+);
+const PlusIcon = (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+);
+const CloseIcon = (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+);
+
+function actionButtonStyle() {
+  return { display: "grid", placeItems: "center", width: 20, height: 20, padding: 0, border: "none", borderRadius: "var(--radius-sm)", background: "transparent", cursor: "pointer", color: "color-mix(in srgb, var(--color-text) 60%, transparent)" };
+}
+
 const NAV_ITEMS = [
   {
     key: "sources",
@@ -52,6 +77,74 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar({ view, onNavigate, counts, onAddTask, projects, onSelectProject, onOpenSettings }) {
+  const [adding, setAdding] = useState(false);
+  const [addDraft, setAddDraft] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [colorPickerId, setColorPickerId] = useState(null);
+  const colorPickerRef = useRef(null);
+
+  useEffect(() => {
+    if (!colorPickerId) return;
+    function onMouseDown(e) {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target)) setColorPickerId(null);
+    }
+    function onKeyDown(e) {
+      if (e.key === "Escape") { e.stopPropagation(); setColorPickerId(null); }
+    }
+    window.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [colorPickerId]);
+
+  async function setProjectColor(p, color) {
+    setColorPickerId(null);
+    if (color === p.color) return;
+    await api.updateProject(p.id, { color });
+    await refreshProjects();
+  }
+
+  async function addProject() {
+    const name = addDraft.trim();
+    if (!name) {
+      setAdding(false);
+      return;
+    }
+    const color = PROJECT_PALETTE[(projects?.length ?? 0) % PROJECT_PALETTE.length];
+    setAddDraft("");
+    setAdding(false);
+    await api.createProject({ name, color });
+    await refreshProjects();
+  }
+
+  function startEdit(p) {
+    setConfirmDeleteId(null);
+    setEditingId(p.id);
+    setEditDraft(p.name);
+  }
+
+  async function commitEdit(p) {
+    const name = editDraft.trim();
+    setEditingId(null);
+    if (!name || name === p.name) return;
+    await api.updateProject(p.id, { name });
+    await refreshProjects();
+  }
+
+  async function removeProject(id) {
+    if (confirmDeleteId !== id) {
+      setConfirmDeleteId(id);
+      return;
+    }
+    setConfirmDeleteId(null);
+    await api.deleteProject(id);
+    await refreshProjects();
+  }
+
   return (
     <aside
       style={{
@@ -134,30 +227,134 @@ export default function Sidebar({ view, onNavigate, counts, onAddTask, projects,
         })}
       </nav>
 
-      {projects?.length > 0 && (
-        <div>
-          <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)", padding: "0 10px", marginBottom: 8 }}>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px", marginBottom: 8 }}>
+          <span style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 57%, transparent)" }}>
             Progetti
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            {projects.map((p) => (
-              <div
-                key={p.name}
-                className="nav-row"
-                role="button"
-                tabIndex={0}
-                onClick={() => onSelectProject?.(p.name)}
-                onKeyDown={(e) => e.key === "Enter" && onSelectProject?.(p.name)}
-                style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: "var(--radius-md)", fontSize: 13, cursor: "pointer" }}
-              >
-                <span style={{ width: 6, height: 6, borderRadius: 999, background: p.dot }} />
-                <span>{p.name}</span>
-                <span style={{ marginLeft: "auto", fontSize: 11.5, color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}>{p.count}</span>
-              </div>
-            ))}
-          </div>
+          </span>
+          <button
+            type="button"
+            className="ghost-ico"
+            aria-label="Aggiungi progetto"
+            title="Aggiungi progetto"
+            onClick={() => { setAdding(true); setConfirmDeleteId(null); }}
+            style={{ display: "grid", placeItems: "center", width: 18, height: 18, padding: 0, border: "none", borderRadius: "var(--radius-sm)", background: "transparent", cursor: "pointer", color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}
+          >
+            {PlusIcon}
+          </button>
         </div>
-      )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          {(projects ?? []).map((p) => (
+            <div
+              key={p.id}
+              className="nav-row proj-row"
+              role="button"
+              tabIndex={0}
+              onClick={() => editingId !== p.id && onSelectProject?.(p.name)}
+              onKeyDown={(e) => e.key === "Enter" && editingId !== p.id && onSelectProject?.(p.name)}
+              style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: "var(--radius-md)", fontSize: 13, cursor: "pointer" }}
+            >
+              <span style={{ position: "relative", flex: "0 0 auto", display: "inline-flex" }} ref={colorPickerId === p.id ? colorPickerRef : null}>
+                <button
+                  type="button"
+                  aria-label={`Cambia colore di ${p.name}`}
+                  title="Cambia colore"
+                  onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); setColorPickerId(colorPickerId === p.id ? null : p.id); }}
+                  style={{ display: "block", width: 10, height: 10, padding: 0, margin: 1, border: "none", borderRadius: 999, background: p.dot, cursor: "pointer" }}
+                />
+                {colorPickerId === p.id && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ position: "absolute", left: -6, top: "calc(100% + 6px)", zIndex: 9, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, padding: 8, borderRadius: "var(--radius-md)", background: "var(--color-surface)", boxShadow: "var(--shadow-md)" }}
+                  >
+                    {PROJECT_PALETTE.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        aria-label={c}
+                        onClick={() => setProjectColor(p, c)}
+                        style={{
+                          width: 18,
+                          height: 18,
+                          padding: 0,
+                          borderRadius: 999,
+                          cursor: "pointer",
+                          background: c,
+                          border: c === p.color ? "2px solid var(--color-text)" : "2px solid transparent",
+                          outline: c === p.color ? "1px solid var(--color-surface)" : "none",
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </span>
+              {editingId === p.id ? (
+                <input
+                  autoFocus
+                  className="dnote"
+                  value={editDraft}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => setEditDraft(e.target.value)}
+                  onBlur={() => commitEdit(p)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); commitEdit(p); }
+                    else if (e.key === "Escape") { e.stopPropagation(); setEditingId(null); }
+                  }}
+                  style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-text)" }}
+                />
+              ) : (
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+              )}
+              {editingId !== p.id && (
+                <span className="proj-actions" style={{ display: "flex", alignItems: "center", gap: 2, flex: "0 0 auto" }}>
+                  <button type="button" className="ghost-ico" aria-label={`Rinomina ${p.name}`} onClick={(e) => { e.stopPropagation(); startEdit(p); }} style={actionButtonStyle()}>
+                    {PencilIcon}
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-ico"
+                    aria-label={confirmDeleteId === p.id ? `Conferma eliminazione di ${p.name}` : `Elimina ${p.name}`}
+                    onClick={(e) => { e.stopPropagation(); removeProject(p.id); }}
+                    style={{ ...actionButtonStyle(), color: confirmDeleteId === p.id ? "#ff6b6b" : actionButtonStyle().color }}
+                  >
+                    {TrashIcon}
+                  </button>
+                </span>
+              )}
+              {editingId !== p.id && (
+                <span style={{ flex: "0 0 auto", fontSize: 11.5, color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}>{p.count}</span>
+              )}
+            </div>
+          ))}
+          {adding && (
+            <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px" }}>
+              <span style={{ flex: "0 0 auto", width: 6, height: 6, borderRadius: 999, border: "1.5px dashed color-mix(in srgb, var(--color-text) 45%, transparent)" }} />
+              <input
+                autoFocus
+                className="dnote"
+                placeholder="Nome progetto"
+                value={addDraft}
+                onChange={(e) => setAddDraft(e.target.value)}
+                onBlur={addProject}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); addProject(); }
+                  else if (e.key === "Escape") { setAddDraft(""); setAdding(false); }
+                }}
+                style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", outline: "none", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-text)" }}
+              />
+              <button
+                type="button"
+                className="ghost-ico"
+                aria-label="Annulla"
+                onClick={() => { setAddDraft(""); setAdding(false); }}
+                style={actionButtonStyle()}
+              >
+                {CloseIcon}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div
         className="nav-row"

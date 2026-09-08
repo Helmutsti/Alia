@@ -248,6 +248,10 @@ textarea.input { min-height: 90px; resize: vertical; }
 .bell-btn:hover { background: color-mix(in srgb, var(--color-text) 9%, transparent); }
 .dtextarea:focus-visible { outline: none; border-color: var(--color-accent) !important; }
 
+/* — sidebar progetti — */
+.proj-row .proj-actions { opacity: 0; transition: opacity 120ms ease; }
+.proj-row:hover .proj-actions { opacity: 1; }
+
 /* — impostazioni — */
 .setnav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; color: color-mix(in srgb, var(--color-text) 72%, transparent); border: none; background: transparent; width: 100%; text-align: left; font-family: var(--font-body); }
 .setnav-item:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
