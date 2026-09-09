@@ -1,236 +1,417 @@
-import { useMemo, useState } from "react";
-import { Check, ChevronDown, Layers, PathIcon, Search } from "../components/icons.jsx";
+import { useCallback, useMemo, useState } from "react";
+import { ChevronDown, PathIcon } from "../components/icons.jsx";
 import { InboxCard } from "./InboxCard.jsx";
+import { TaskRow } from "./TaskRow.jsx";
+import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from "./Dropdown.jsx";
 import {
-  CALENDAR_DOTS,
-  CONTENT_TASKS,
-  GANTT_BARS,
-  PRIORITY_COLOR,
-  PROJECTS,
-  VIEW_ICONS,
-  VIEW_LABELS,
-  VIEW_ORDER,
-} from "./data.js";
+  GROUP_KEYS,
+  SHOW_DONE,
+  SORT_KEYS,
+  activeFilterCount,
+  filterGroups,
+  filterTasks,
+  groupTasks,
+  sortTasks,
+} from "./contentQuery.js";
+import { VIEW_ICONS, VIEW_LABELS, VIEW_ORDER } from "./data.js";
+import { useAlia } from "../lib/AliaProvider.jsx";
+import { dueLabel, giorniDiScarto } from "../lib/tasks.js";
 
-/* Area contenuto della schermata principale — da DEF_Inbox min: selettore
-   d'ambito, tab, filtri e le quattro viste (Lista, Kanban, Calendario, Gantt).
+/* Area contenuto — testata risolta in DEF_Content.
 
-   Estratta dalla schermata perché durante il movimento verso la Full Inbox il
-   pannello si spegne come blocco unico: chi lo posiziona e lo dissolve è
-   InboxWorkspace, qui c'è solo il contenuto. */
+   Riga 1: a sinistra il progetto (20px, senza bordi, pallino e freccia), a
+   destra la vista. Sono le due scelte che valgono per tutte le viste.
+   Riga 2: gli strumenti della vista corrente. In Lista: ordinamento, filtro,
+   raggruppamento. Misura 94px in tutto, contro i 141 della versione a tre file
+   che aveva ambito, tab e filtri su righe separate.
 
-const VIEW_BTN =
-  "flex items-center rounded-lg border border-divider bg-transparent cursor-pointer hover:border-accent";
-const MENU = "absolute top-[38px] z-10 p-1.5 rounded-lg border border-divider bg-surface shadow-elev-lg";
-const MENU_ITEM =
-  "flex items-center gap-[9px] px-[9px] py-2 w-full text-left rounded-sm border-none bg-transparent " +
-  "cursor-pointer text-[12.5px] hover:bg-[color-mix(in_srgb,var(--color-accent)_14%,transparent)]";
-const CHIP =
-  "h-8 px-3 rounded-lg border border-divider bg-transparent cursor-pointer text-[12.5px] " +
-  "text-content/70 hover:border-[color-mix(in_srgb,var(--color-content)_30%,transparent)]";
+   Fuori: la barra di ricerca, le chip Priorità/Milestone e la tab "Oggi".
+   La ricerca non era stata decisa; le chip sono confluite nel menu filtri; gli
+   intervalli temporali, non essendo chiavi di raggruppamento, stanno nel filtro
+   e hanno reso la tab superflua.
+
+   Il selettore di progetto non ha la voce "Senza progetto": quelle task vivono
+   nella sezione "Da smistare". Compaiono qui come *gruppo*, quando si raggruppa
+   per progetto — che è un'altra cosa. */
+
+const CTL =
+  "inline-flex items-center gap-[7px] h-8 px-3 rounded-lg border border-divider bg-transparent " +
+  "cursor-pointer text-[12.5px] hover:border-accent";
+const CTL_MUT = `${CTL} text-content/70`;
+const PICK =
+  "inline-flex items-center gap-[9px] border-0 bg-transparent cursor-pointer text-content " +
+  "font-medium tracking-[-0.015em] px-1 py-0.5 rounded-md leading-[1.2] text-lg " +
+  "hover:bg-[color-mix(in_srgb,var(--color-content)_7%,transparent)]";
 
 export function ContentPane() {
-  const [view, setView] = useState("lista");
-  const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const alia = useAlia();
   const [scope, setScope] = useState("all");
-  const [scopeMenuOpen, setScopeMenuOpen] = useState(false);
+  const [view, setView] = useState("lista");
+  const [sortKey, setSortKey] = useState("scadenza");
+  const [sortDir, setSortDir] = useState("asc");
+  const [group, setGroup] = useState("progetto");
+  const [filters, setFilters] = useState(() => new Set());
+  const [menu, setMenu] = useState(null);
 
-  const scopeMap = useMemo(() => {
-    const map = { all: { label: "Tutti i progetti", dot: null, count: 20 } };
-    PROJECTS.forEach((p) => (map[p.id] = { label: p.label, dot: p.dot, count: p.count }));
-    return map;
-  }, []);
-  const currentScope = scopeMap[scope];
+  const chiudi = useCallback(() => setMenu(null), []);
+  const apri = (id) => setMenu((m) => (m === id ? null : id));
 
-  const byStatus = useMemo(() => {
-    const groups = { todo: [], doing: [], done: [] };
-    CONTENT_TASKS.forEach((t) => groups[t.status].push(t));
-    return groups;
+  const toggleFiltro = (id) =>
+    setFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const { tasks, projects, states } = alia;
+  const progetto = projects.find((p) => p.id === scope);
+  const nFiltri = activeFilterCount(filters);
+  const gruppiFiltro = useMemo(() => filterGroups(states), [states]);
+
+  /* L'area contenuto mostra le task di primo livello: i sotto-task appartengono
+     al loro padre e si leggono nel dettaglio, non come righe pari agli altri.
+     Senza questo, un task con tre figli occuperebbe quattro righe. */
+  const radici = useMemo(() => tasks.filter((t) => t.parentId === null), [tasks]);
+
+  /* Ambito → filtri → ordinamento → gruppi, in quest'ordine: l'ambito decide
+     l'insieme di partenza, il resto lavora su quello. */
+  const gruppi = useMemo(() => {
+    const inAmbito = scope === "all" ? radici : radici.filter((t) => t.project?.id === scope);
+    const visibili = sortTasks(filterTasks(inAmbito, filters, gruppiFiltro), sortKey, sortDir);
+    return groupTasks(visibili, view === "lista" ? group : "nessuno", { projects, states });
+  }, [radici, scope, filters, gruppiFiltro, sortKey, sortDir, group, view, projects, states]);
+
+  const totale = gruppi.reduce((n, g) => n + g.items.length, 0);
+
+  /* Le colonne del Kanban sono gli stati configurati, in ordine di `stepOrder`:
+     non tre colonne fisse. Le chiusure si accorpano nell'ultima, altrimenti con
+     quattro stati finali il Kanban diventerebbe una fila di colonne vuote. */
+  const colonneKanban = useMemo(() => {
+    const visibili = gruppi.flatMap((g) => g.items);
+    const aperti = states.filter((s) => s.role !== "end").sort((a, b) => a.stepOrder - b.stepOrder);
+    const chiusure = states.filter((s) => s.role === "end");
+    const colonne = aperti.map((s) => ({
+      key: `s${s.id}`,
+      label: s.label,
+      items: visibili.filter((t) => t.state.id === s.id),
+    }));
+    if (chiusure.length > 0) {
+      colonne.push({ key: "chiuse", label: "Chiuse", items: visibili.filter((t) => t.done) });
+    }
+    return colonne;
+  }, [gruppi, states]);
+
+  /* Calendario e Gantt restano le viste abbozzate che erano — l'utente ha
+     rimandato il loro disegno — ma smettono di mostrare dati inventati: i
+     punti sono le scadenze vere del mese corrente, le barre le task che hanno
+     davvero un intervallo `startAt`→`dueAt`. */
+  const giorniDelMese = useMemo(() => {
+    const oggi = new Date();
+    return new Date(oggi.getFullYear(), oggi.getMonth() + 1, 0).getDate();
   }, []);
+
+  const barreGantt = useMemo(() => {
+    const conIntervallo = gruppi
+      .flatMap((g) => g.items)
+      .filter((t) => t.startAt && t.dueAt)
+      .slice(0, 8);
+    if (conIntervallo.length === 0) return [];
+
+    const inizi = conIntervallo.map((t) => new Date(t.startAt).getTime());
+    const fini = conIntervallo.map((t) => new Date(t.dueAt).getTime());
+    const da = Math.min(...inizi);
+    const a = Math.max(...fini);
+    const ampiezza = Math.max(1, a - da);
+    return conIntervallo.map((t) => ({
+      id: t.id,
+      label: t.title,
+      left: ((new Date(t.startAt).getTime() - da) / ampiezza) * 100,
+      width: Math.max(2, ((new Date(t.dueAt).getTime() - new Date(t.startAt).getTime()) / ampiezza) * 100),
+    }));
+  }, [gruppi]);
+
+  const puntiCalendario = useMemo(() => {
+    const oggi = new Date();
+    return new Set(
+      gruppi
+        .flatMap((g) => g.items)
+        .map((t) => (t.dueAt ? new Date(t.dueAt) : null))
+        .filter((d) => d && d.getMonth() === oggi.getMonth() && d.getFullYear() === oggi.getFullYear())
+        .map((d) => d.getDate()),
+    );
+  }, [gruppi]);
+
+  /* Il progetto nella riga solo quando non è già la chiave del gruppo e
+     l'ambito è su tutti: altrimenti sarebbe la stessa parola su ogni riga. */
+  const mostraProgetto = scope === "all" && group !== "progetto";
+
+  /* Il Kanban dispone le task in colonne, quindi lì sono card e non righe:
+     è la stessa distinzione che tiene separati TaskRow e InboxCard. */
+  const kanbanCard = (t) => (
+    <InboxCard
+      key={t.id}
+      id={t.id}
+      title={t.title}
+      due={dueLabel(t.dueAt)}
+      titleSize="text-meta"
+      dueSize="text-[10.5px]"
+      priorityColor={t.priorityColor}
+    />
+  );
 
   return (
     <div className="flex-1 min-w-0 flex flex-col px-6 py-5 overflow-hidden relative">
-      {/* selettore d'ambito */}
-      <div className="relative mb-3.5 shrink-0">
-        <button
-          type="button"
-          onClick={() => {
-            setScopeMenuOpen((v) => !v);
-            setViewMenuOpen(false);
-          }}
-          className={`${VIEW_BTN} w-full justify-between h-[34px] pl-3 pr-2.5 text-content/85 text-[12.5px]`}
-        >
-          <span className="inline-flex items-center gap-2 min-w-0 overflow-hidden whitespace-nowrap text-ellipsis">
-            {currentScope.dot ? (
-              <span className="shrink-0 w-[7px] h-[7px] rounded-full" style={{ background: currentScope.dot }} />
-            ) : null}
-            <span className="overflow-hidden text-ellipsis">{currentScope.label}</span>
-          </span>
-          <ChevronDown
-            size={11}
-            className="shrink-0 opacity-70"
-            style={{ transform: `rotate(${scopeMenuOpen ? 180 : 0}deg)` }}
-          />
-        </button>
-        {scopeMenuOpen ? (
-          <div className={`${MENU} left-0 right-0`}>
-            <button
-              type="button"
+      {/* ═══ riga 1 — cosa guardo · in che forma ═══ */}
+      <div className="flex items-center h-[34px] mb-3 shrink-0">
+        <div className="relative">
+          <button type="button" onClick={() => apri("progetto")} className={PICK}>
+            {progetto ? (
+              <span className="w-[9px] h-[9px] rounded-full shrink-0" style={{ background: progetto.color }} />
+            ) : (
+              <span className="w-[9px] h-[9px] rounded-full shrink-0 border-[1.4px] border-dashed border-content/55" />
+            )}
+            {progetto ? progetto.name : "Tutti i progetti"}
+            <ChevronDown size={14} className="opacity-65 shrink-0 ml-0.5" />
+          </button>
+          <Dropdown open={menu === "progetto"} onClose={chiudi} width={236}>
+            <DropdownItem
+              selected={scope === "all"}
               onClick={() => {
                 setScope("all");
-                setScopeMenuOpen(false);
+                chiudi();
               }}
-              className={MENU_ITEM}
-              style={{ color: scope === "all" ? "var(--color-accent)" : "var(--color-content)" }}
             >
-              <Layers size={13} />
-              <span className="flex-1 text-left">Tutti i progetti</span>
-              <span className="text-mini opacity-70">20</span>
-            </button>
-            <div className="h-px my-1 mx-0.5 bg-divider" />
-            {PROJECTS.map((p) => (
-              <button
+              <span className="w-[9px] h-[9px] rounded-full shrink-0 border-[1.4px] border-dashed border-content/55" />
+              <span className="flex-1">Tutti i progetti</span>
+              <span className="text-mini opacity-70">{radici.length}</span>
+            </DropdownItem>
+            <DropdownSeparator />
+            {projects.map((p) => (
+              <DropdownItem
                 key={p.id}
-                type="button"
+                selected={scope === p.id}
                 onClick={() => {
                   setScope(p.id);
-                  setScopeMenuOpen(false);
+                  chiudi();
                 }}
-                className={MENU_ITEM}
-                style={{ color: scope === p.id ? "var(--color-accent)" : "var(--color-content)" }}
               >
-                <span className="shrink-0 w-[7px] h-[7px] rounded-full" style={{ background: p.dot }} />
-                <span className="flex-1 text-left">{p.label}</span>
-                <span className="text-mini opacity-70">{p.count}</span>
-              </button>
+                <span className="w-[9px] h-[9px] rounded-full shrink-0" style={{ background: p.color }} />
+                <span className="flex-1">{p.name}</span>
+                <span className="text-mini opacity-70">
+                  {radici.filter((t) => t.project?.id === p.id).length}
+                </span>
+              </DropdownItem>
             ))}
+          </Dropdown>
+        </div>
+
+        <span className="ml-2 text-sm text-content/42">{totale} task</span>
+        <span className="flex-1" />
+
+        <div className="relative">
+          <button type="button" onClick={() => apri("vista")} className={CTL}>
+            <PathIcon d={VIEW_ICONS[view]} size={14} />
+            {VIEW_LABELS[view]}
+            <ChevronDown size={11} className="opacity-70" />
+          </button>
+          <Dropdown open={menu === "vista"} onClose={chiudi} align="right" width={180}>
+            {VIEW_ORDER.map((v) => (
+              <DropdownItem
+                key={v}
+                selected={view === v}
+                onClick={() => {
+                  setView(v);
+                  chiudi();
+                }}
+              >
+                <PathIcon d={VIEW_ICONS[v]} size={14} />
+                <span className="flex-1">{VIEW_LABELS[v]}</span>
+              </DropdownItem>
+            ))}
+          </Dropdown>
+        </div>
+      </div>
+
+      {/* ═══ riga 2 — strumenti della vista ═══ */}
+      <div className="flex items-center gap-2 mb-4 shrink-0">
+        <div className="relative">
+          <button type="button" onClick={() => apri("ordina")} className={CTL_MUT}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 6h13M4 12h9M4 18h5" />
+            </svg>
+            Ordina: {SORT_KEYS.find((k) => k.id === sortKey).label.toLowerCase()}
+            <ChevronDown size={11} className="opacity-70" />
+          </button>
+          <Dropdown open={menu === "ordina"} onClose={chiudi} width={200}>
+            {SORT_KEYS.map((k) => (
+              <DropdownItem key={k.id} selected={sortKey === k.id} onClick={() => setSortKey(k.id)}>
+                <span className="flex-1">{k.label}</span>
+              </DropdownItem>
+            ))}
+            <DropdownSeparator />
+            {/* La direzione è una seconda scelta, non una sesta chiave: separata,
+                e spenta quando l'ordine è manuale perché lì non vuol dire nulla. */}
+            {sortKey === "manuale" ? (
+              <p className="text-mini text-content/38 px-[9px] py-2 m-0">
+                L’ordine manuale non ha direzione.
+              </p>
+            ) : (
+              ["asc", "desc"].map((d) => (
+                <DropdownItem key={d} selected={sortDir === d} onClick={() => setSortDir(d)}>
+                  <span className="flex-1">{d === "asc" ? "Crescente" : "Decrescente"}</span>
+                </DropdownItem>
+              ))
+            )}
+          </Dropdown>
+        </div>
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => apri("filtri")}
+            className={nFiltri ? CTL : CTL_MUT}
+            aria-label={nFiltri ? `Filtri, ${nFiltri} attivi` : "Filtri"}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 6h16l-6 7v5l-4 2v-7z" />
+            </svg>
+            Filtri
+            {nFiltri > 0 ? (
+              <span className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-accent text-bg text-micro font-medium">
+                {nFiltri}
+              </span>
+            ) : null}
+          </button>
+          <Dropdown open={menu === "filtri"} onClose={chiudi} width={224}>
+            {gruppiFiltro.map((g, i) => (
+              <div key={g.id}>
+                {i > 0 ? <DropdownSeparator /> : null}
+                <DropdownLabel>{g.label}</DropdownLabel>
+                {g.items.map((f) => (
+                  /* Il menu non si chiude: accendere due filtri di fila non
+                     deve costare due aperture. */
+                  <DropdownItem key={f.id} selected={filters.has(f.id)} onClick={() => toggleFiltro(f.id)}>
+                    <span className="flex-1">{f.label}</span>
+                  </DropdownItem>
+                ))}
+              </div>
+            ))}
+            <DropdownItem selected={filters.has(SHOW_DONE.id)} onClick={() => toggleFiltro(SHOW_DONE.id)}>
+              <span className="flex-1">{SHOW_DONE.label}</span>
+            </DropdownItem>
+            <DropdownSeparator />
+            <DropdownItem onClick={() => setFilters(new Set())}>
+              <span className="flex-1">Azzera i filtri</span>
+            </DropdownItem>
+          </Dropdown>
+        </div>
+
+        {view === "lista" ? (
+          <div className="relative">
+            <button type="button" onClick={() => apri("raggruppa")} className={CTL_MUT}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 5h16M4 12h16M4 19h16" opacity=".45" />
+                <path d="M4 5h6M4 12h6M4 19h6" />
+              </svg>
+              Raggruppa: {GROUP_KEYS.find((k) => k.id === group).label.toLowerCase()}
+              <ChevronDown size={11} className="opacity-70" />
+            </button>
+            <Dropdown open={menu === "raggruppa"} onClose={chiudi} width={200}>
+              {GROUP_KEYS.map((k) => (
+                <DropdownItem
+                  key={k.id}
+                  selected={group === k.id}
+                  onClick={() => {
+                    setGroup(k.id);
+                    chiudi();
+                  }}
+                >
+                  <span className="flex-1">{k.label}</span>
+                </DropdownItem>
+              ))}
+            </Dropdown>
           </div>
         ) : null}
       </div>
 
-      {/* tab */}
-      <div className="flex items-center gap-6 border-b border-divider mb-4 shrink-0">
-        <button
-          type="button"
-          className="sp-tab-active relative border-none bg-transparent cursor-pointer px-0.5 pb-2.5 font-medium text-card text-content"
-        >
-          Oggi
-        </button>
-      </div>
-
-      {/* filtri e selettore vista */}
-      <div className="flex items-center gap-2 mb-4 shrink-0">
-        <div className="flex items-center gap-[7px] h-8 px-[11px] rounded-lg border border-divider text-content/55 text-[12.5px]">
-          <Search size={13} />
-          Cerca…
-        </div>
-        <button type="button" className={CHIP}>
-          Priorità
-        </button>
-        <button type="button" className={CHIP}>
-          Milestone
-        </button>
-
-        <div className="ml-auto relative">
-          <button
-            type="button"
-            onClick={() => {
-              setViewMenuOpen((v) => !v);
-              setScopeMenuOpen(false);
-            }}
-            className={`${VIEW_BTN} h-8 pl-[11px] pr-2.5 gap-[7px] text-content/82 text-[12.5px]`}
-          >
-            <PathIcon d={VIEW_ICONS[view]} size={14} />
-            {VIEW_LABELS[view]}
-            <ChevronDown
-              size={11}
-              className="opacity-70"
-              style={{ transform: `rotate(${viewMenuOpen ? 180 : 0}deg)` }}
-            />
-          </button>
-          {viewMenuOpen ? (
-            <div className={`${MENU} right-0 w-[168px]`}>
-              {VIEW_ORDER.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => {
-                    setView(v);
-                    setViewMenuOpen(false);
-                  }}
-                  className={MENU_ITEM}
-                  style={{ color: view === v ? "var(--color-accent)" : "var(--color-content)" }}
-                >
-                  <PathIcon d={VIEW_ICONS[v]} size={14} />
-                  {VIEW_LABELS[v]}
-                  {view === v ? <Check size={13} className="ml-auto" /> : null}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      {/* — vista Lista — */}
+      {/* ═══ vista Lista ═══ */}
       {view === "lista" ? (
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
-          {CONTENT_TASKS.map((t) => (
-            <InboxCard
-              key={t.id}
-              id={t.id}
-              title={t.title}
-              due={t.due}
-              priorityColor={PRIORITY_COLOR[t.priority] ?? PRIORITY_COLOR.Nessuna}
-            />
-          ))}
+          {totale === 0 ? (
+            <p className="text-meta text-content/45 m-0 pt-2">
+              Nessuna task con questi filtri.
+            </p>
+          ) : (
+            gruppi.map((g) => (
+              <div key={g.id} className="flex flex-col gap-2">
+                {g.label ? (
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <span className="flex items-center gap-1.5 text-[10.5px] tracking-[0.1em] uppercase font-medium text-content/62">
+                      {g.dot ? (
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: g.dot }} />
+                      ) : null}
+                      {g.dashed ? (
+                        <span className="w-1.5 h-1.5 rounded-full border-[1.4px] border-dashed border-content/55" />
+                      ) : null}
+                      {g.label}
+                    </span>
+                    <span className="text-mini text-content/42">{g.items.length}</span>
+                    <span className="flex-1 h-px bg-divider" />
+                  </div>
+                ) : null}
+                {g.items.map((t) => (
+                  <TaskRow
+                    key={t.id}
+                    task={t}
+                    showProject={mostraProgetto}
+                    states={states}
+                    onChangeState={(task, stato) => alia.cambiaStato(task.id, stato.id)}
+                  />
+                ))}
+              </div>
+            ))
+          )}
         </div>
       ) : null}
 
-      {/* — vista Kanban — */}
+      {/* ═══ vista Kanban ═══ */}
       {view === "kanban" ? (
         <div className="flex-1 min-h-0 flex gap-3.5 overflow-x-auto">
-          {[
-            { label: "Da fare", items: byStatus.todo },
-            { label: "In corso", items: byStatus.doing },
-            { label: "Fatto", items: byStatus.done },
-          ].map((col) => (
-            <div key={col.label} className="flex-[0_0_220px] flex flex-col gap-2 overflow-y-auto">
+          {colonneKanban.map((col) => (
+            <div key={col.key} className="flex-[0_0_220px] flex flex-col gap-2 overflow-y-auto">
               <div className="text-mini tracking-[0.1em] uppercase font-medium text-content/62 px-0.5 mb-1">
                 {col.label} <span className="font-normal text-content/50">{col.items.length}</span>
               </div>
-              {col.items.map((t) => (
-                <InboxCard
-                  key={t.id}
-                  id={t.id}
-                  title={t.title}
-                  due={t.due}
-                  titleSize="text-meta"
-                  dueSize="text-[10.5px]"
-                  priorityColor={PRIORITY_COLOR[t.priority] ?? PRIORITY_COLOR.Nessuna}
-                />
-              ))}
+              {col.items.map((t) => kanbanCard(t))}
             </div>
           ))}
         </div>
       ) : null}
 
-      {/* — vista Calendario — */}
+      {/* ═══ vista Calendario ═══ */}
       {view === "calendario" ? (
         <div className="flex-1 min-h-0 grid grid-cols-7 auto-rows-fr gap-1.5">
-          {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+          {Array.from({ length: giorniDelMese }, (_, i) => i + 1).map((day) => (
             <div key={day} className="border border-divider rounded-sm p-1.5 flex flex-col gap-1">
               <span className="text-micro text-content/50">{day}</span>
-              {CALENDAR_DOTS.includes(day) ? <span className="w-[5px] h-[5px] rounded-full bg-accent" /> : null}
+              {puntiCalendario.has(day) ? <span className="w-[5px] h-[5px] rounded-full bg-accent" /> : null}
             </div>
           ))}
         </div>
       ) : null}
 
-      {/* — vista Gantt — */}
+      {/* ═══ vista Gantt ═══ */}
       {view === "gantt" ? (
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-2.5 justify-center">
-          {GANTT_BARS.map((bar) => (
-            <div key={bar.label} className="flex items-center gap-2.5">
+          {barreGantt.length === 0 ? (
+            <p className="text-meta text-content/45 m-0">
+              Nessuna task con un intervallo: il Gantt mostra solo quelle che hanno sia inizio che
+              scadenza.
+            </p>
+          ) : null}
+          {barreGantt.map((bar) => (
+            <div key={bar.id} className="flex items-center gap-2.5">
               <span className="flex-[0_0_90px] text-[11.5px] text-content/60">{bar.label}</span>
               <div className="flex-1 h-4 rounded-sm relative overflow-hidden bg-content/6">
                 <div

@@ -1,158 +1,81 @@
-import { useCallback, useEffect, useState } from "react";
-import Sidebar from "./components/Sidebar.jsx";
-import TaskComposer from "./components/TaskComposer.jsx";
-import TaskDetailModal from "./components/TaskDetailModal.jsx";
-import SettingsScreen from "./screens/SettingsScreen.jsx";
-import SourcesScreen from "./screens/SourcesScreen.jsx";
-import TodayScreen from "./screens/TodayScreen.jsx";
-import ListScreen from "./screens/ListScreen.jsx";
-import GanttScreen from "./screens/GanttScreen.jsx";
-import CalendarScreen from "./screens/CalendarScreen.jsx";
-import { api } from "./lib/api.js";
-import { useProjects } from "./lib/projectsStore.js";
+import { InboxWorkspace } from "./inbox/InboxWorkspace.jsx";
+import { AliaDialogs } from "./lib/AliaDialogs.jsx";
+import { AliaProvider, useAlia } from "./lib/AliaProvider.jsx";
 
-export default function App() {
-  const [view, setView] = useState("list");
-  const [reloadKey, setReloadKey] = useState(0);
-  const [composerOpen, setComposerOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [selected, setSelected] = useState(null);
-  const [counts, setCounts] = useState({});
-  const [projectCounts, setProjectCounts] = useState({});
-  const [pendingProject, setPendingProject] = useState(null);
-  const dbProjects = useProjects();
-  const projects = dbProjects.map((p) => ({ ...p, dot: p.color, count: projectCounts[p.name] ?? 0 }));
+/* L'app è la schermata a tre sezioni, a tutta finestra, sui dati veri del core.
 
-  const bump = useCallback(() => setReloadKey((k) => k + 1), []);
+   La UI precedente è stata rimossa per intero — sidebar, schermate Oggi, Lista,
+   Kanban, Calendario, Sorgenti e Impostazioni, composer, dettaglio, filter bar,
+   la vecchia card e il ponte `lib/api.js`. Era costruita sul design vecchio e
+   sul vecchio schema del core, quindi non c'era niente da riportare: sta nella
+   storia del repo se serve rileggerla.
 
-  useEffect(() => {
-    let cancelled = false;
+   Il ponte verso il core nuovo è `lib/aliaClient.js` (preload → IPC →
+   src/core/alia-core.js). Fuori da Electron quel ponte non esiste, e la
+   schermata lo dice invece di fingere: un finto database coprirebbe proprio gli
+   errori che questo innesto deve fare emergere. */
 
-    async function loadCounts() {
-      const everything = await api.listItems({ limit: 200 });
-      if (cancelled) return;
-      const now = new Date();
-      const isSameDay = (iso) => {
-        const d = new Date(iso);
-        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-      };
-      const active = everything.filter((i) => i.status !== "archived");
-      setCounts({
-        today: active.filter((i) => i.dueAt && isSameDay(i.dueAt)).length,
-        list: active.length,
-      });
-      const byProject = {};
-      for (const item of active) {
-        if (item.project) byProject[item.project] = (byProject[item.project] ?? 0) + 1;
-      }
-      setProjectCounts(byProject);
-    }
+const CENTRATO = "h-full w-full grid place-items-center bg-bg text-content font-sans p-8";
 
-    loadCounts();
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadKey]);
+function Schermata() {
+  const { stato, errore, ricarica } = useAlia();
 
-  function selectProject(name) {
-    setPendingProject(name);
-    setView("list");
+  if (stato === "senza-core") {
+    return (
+      <div className={CENTRATO}>
+        <div className="max-w-md text-center flex flex-col gap-2">
+          <p className="m-0 text-mini tracking-[0.14em] uppercase text-accent">Alia</p>
+          <p className="m-0 text-meta text-content/70">
+            Questa pagina gira fuori da Electron, dove il core non è raggiungibile. Avvia l’app con{" "}
+            <code className="text-content">npm run dev</code> per vedere i dati veri.
+          </p>
+        </div>
+      </div>
+    );
   }
 
-  useEffect(() => {
-    function onKeyDown(e) {
-      const cmdOrCtrl = e.metaKey || e.ctrlKey;
-      if (cmdOrCtrl && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setComposerOpen(true);
-      } else if (e.key === "Escape") {
-        setComposerOpen(false);
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  async function openItem(item) {
-    const fresh = await api.getItem(item.id);
-    setSelected(fresh);
+  if (stato === "caricamento") {
+    return (
+      <div className={CENTRATO}>
+        <p className="m-0 text-meta text-content/50">Caricamento…</p>
+      </div>
+    );
   }
 
-  function onItemChanged(updated) {
-    setSelected(updated);
-    bump();
-  }
-
-  function onItemDeleted() {
-    setSelected(null);
-    bump();
+  if (stato === "errore") {
+    return (
+      <div className={CENTRATO}>
+        <div className="max-w-lg text-center flex flex-col gap-3">
+          <p className="m-0 text-mini tracking-[0.14em] uppercase text-priority-high">
+            Il core non ha risposto
+          </p>
+          <p className="m-0 text-meta text-content/70 break-words">{errore}</p>
+          <button
+            type="button"
+            onClick={ricarica}
+            className="h-8 px-3 self-center rounded-lg border border-divider bg-transparent cursor-pointer text-[12.5px] text-content hover:border-accent"
+          >
+            Riprova
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "var(--color-bg)" }}>
-      <Sidebar view={view} onNavigate={setView} counts={counts} onAddTask={() => setComposerOpen(true)} projects={projects} onSelectProject={selectProject} onOpenSettings={() => setSettingsOpen(true)} />
+    <>
+      <InboxWorkspace />
+      <AliaDialogs />
+    </>
+  );
+}
 
-      <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", padding: "32px 40px 24px", overflow: "hidden" }}>
-        {view === "sources" && <SourcesScreen />}
-        {view === "today" && <TodayScreen reloadKey={reloadKey} onOpen={openItem} onMutated={bump} />}
-        {view === "list" && (
-          <ListScreen
-            reloadKey={reloadKey}
-            onOpen={openItem}
-            onMutated={bump}
-            pendingProject={pendingProject}
-            onConsumePendingProject={() => setPendingProject(null)}
-          />
-        )}
-        {view === "calendar" && <CalendarScreen reloadKey={reloadKey} onOpen={openItem} />}
-        {view === "gantt" && <GanttScreen reloadKey={reloadKey} onOpen={openItem} />}
-      </main>
-
-      {composerOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "color-mix(in srgb, #0a0b0b 60%, transparent)",
-            zIndex: 30,
-          }}
-          onClick={() => setComposerOpen(false)}
-        >
-          {/* Centrato sull'area del contenuto (dopo la sidebar), non su tutta la finestra */}
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 252,
-              display: "grid",
-              placeItems: "start center",
-              paddingTop: 150,
-            }}
-          >
-            <div style={{ width: 640 }} onClick={(e) => e.stopPropagation()}>
-              <TaskComposer
-                mode="floating"
-                autoFocus
-                onCreated={bump}
-                onClose={() => setComposerOpen(false)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {selected && (
-        <TaskDetailModal
-          item={selected}
-          onClose={() => setSelected(null)}
-          onChanged={onItemChanged}
-          onDeleted={onItemDeleted}
-        />
-      )}
-
-      {settingsOpen && <SettingsScreen onClose={() => setSettingsOpen(false)} />}
-    </div>
+export default function App() {
+  return (
+    <AliaProvider>
+      <div className="relative h-screen w-screen overflow-hidden">
+        <Schermata />
+      </div>
+    </AliaProvider>
   );
 }

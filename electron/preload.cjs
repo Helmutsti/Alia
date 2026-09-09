@@ -1,42 +1,32 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-const CORE_OPERATIONS = [
-  "createItem",
-  "getItem",
-  "listItems",
-  "updateItem",
-  "completeItem",
-  "activateItem",
-  "moveToInbox",
-  "archiveItem",
-  "deleteItem",
-  "restoreItem",
-  "getItemHistory",
-  "addSubtask",
-  "toggleSubtask",
-  "removeSubtask",
-  "addComment",
-  "listStatuses",
-  "createStatus",
-  "updateStatus",
-  "deleteStatus",
-  "reorderStatuses",
+/* Copia dell'elenco `ALIA_OPERATIONS` di src/core/alia-core.js.
+   È duplicato per forza: il preload gira in CommonJS in un contesto isolato e
+   non può importare il modulo ESM del core. Se qui manca un'operazione, il
+   renderer non la vede — quindi i due elenchi vanno tenuti allineati a mano. */
+const ALIA_OPERATIONS = [
+  "listTasks",
+  "getTask",
+  "getTaskHistory",
+  "listStates",
   "listProjects",
-  "createProject",
-  "updateProject",
-  "deleteProject",
-  "reorderProjects",
-  "createList",
-  "updateList",
-  "deleteList",
-  "reorderLists",
+  "listMilestones",
+  "createTask",
+  "updateTask",
+  "setTaskState",
+  "setTaskProject",
+  "reorderTasks",
+  "reparentTask",
+  "deleteTask",
+  "restoreTask",
+  "migrateTask",
 ];
 
-const scheduler = Object.fromEntries(
-  CORE_OPERATIONS.map((operation) => [
+const alia = Object.fromEntries(
+  ALIA_OPERATIONS.map((operation) => [
     operation,
-    (...args) => ipcRenderer.invoke(`scheduler:${operation}`, ...args),
+    (...args) => ipcRenderer.invoke(`alia:${operation}`, ...args),
   ]),
 );
 
-contextBridge.exposeInMainWorld("schedulerCore", scheduler);
+contextBridge.exposeInMainWorld("alia", alia);

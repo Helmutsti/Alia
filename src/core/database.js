@@ -2,6 +2,8 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
+import { RINASCITA_VERSION, migrateRinascita } from "./rinascita-schema.js";
+
 export function openDatabase(databasePath) {
   if (typeof databasePath !== "string" || databasePath.trim() === "") {
     throw new TypeError("databasePath must be a non-empty string");
@@ -258,6 +260,14 @@ function migrate(database) {
       PRAGMA user_version = 6;
       COMMIT;
     `);
+  }
+
+  if (version < RINASCITA_VERSION) {
+    // Lo schema "Rinascita": t_task ricorsiva al posto di items+subtasks,
+    // t_milestone al posto di lists, t_state al posto di statuses. Le vecchie
+    // tabelle restano in piedi finché il resto dell'applicazione non è passato
+    // al nuovo core — la migrazione le legge, non le tocca.
+    migrateRinascita(database);
   }
 }
 

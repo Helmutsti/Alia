@@ -50,8 +50,15 @@ export function OriginCard({ task, editing, dragging, onPointerDown, onCommit, o
       </div>
 
       <div className="flex items-center gap-1.5">
-        <PathIcon d={SOURCE_ICONS[task.source]} size={11} sw={2} className="text-accent" />
-        <span className="text-[10.5px] text-accent">{SOURCE_LABELS[task.source]}</span>
+        {/* `sourceType` è testo libero nel core: le integrazioni che lo
+            valorizzeranno non sono ancora scritte. Quindi l'icona c'è quando la
+            sorgente è una di quelle disegnate, e altrimenti resta il nome. */}
+        {SOURCE_ICONS[task.sourceType] ? (
+          <PathIcon d={SOURCE_ICONS[task.sourceType]} size={11} sw={2} className="text-accent" />
+        ) : null}
+        <span className="text-[10.5px] text-accent">
+          {SOURCE_LABELS[task.sourceType] ?? task.sourceType}
+        </span>
         <span className="ml-auto flex gap-[5px]">
           <button
             type="button"
@@ -77,9 +84,10 @@ export function OriginCard({ task, editing, dragging, onPointerDown, onCommit, o
             type="button"
             onPointerDown={stop}
             onClick={onConfirm}
-            title="Conferma"
+            disabled={!onConfirm}
+            title={onConfirm ? "Conferma" : "Nessuno stato intermedio configurato: non c'è dove confermarla"}
             aria-label="Conferma"
-            className={`${BTN} hover:!border-confirm hover:!text-confirm`}
+            className={`${BTN} hover:!border-confirm hover:!text-confirm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:!border-divider disabled:hover:!text-content/65`}
           >
             <Check size={12} />
           </button>

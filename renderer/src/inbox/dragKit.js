@@ -90,7 +90,7 @@ function makeClone(el, transformSuffix, shadowVar, opacity) {
    colonna sotto il puntatore prende la classe `hit`, e al rilascio senza
    movimento si apre il dettaglio — o la rinomina, se il puntatore era sul
    titolo. */
-export function useBoardDrag({ boardRef, tasks, setTasks, onDragChange, onOpen, onEditTitle }) {
+export function useBoardDrag({ boardRef, tasks, setTasks, onDragChange, onOpen, onEditTitle, onDrop }) {
   const capture = useFlip(boardRef, "data-task");
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
@@ -104,9 +104,10 @@ export function useBoardDrag({ boardRef, tasks, setTasks, onDragChange, onOpen, 
       capture();
       const next = current.slice();
       const [task] = next.splice(idx, 1);
-      /* Spostare una card fuori dalla colonna origini la conferma: perde il
-         flag `pending` e prende il progetto della colonna di arrivo. */
-      const moved = { ...task, project: projectId, pending: false };
+      /* Anteprima ottimistica dello spostamento. `projectId` è null per la
+         colonna "Da smistare", che è l'unico bersaglio di questa board: le
+         origini non ricevono. La scrittura vera avviene in `onDrop`. */
+      const moved = { ...task, project: projectId ? task.project : null };
       let insertAt = next.length;
       if (beforeId != null) {
         const bIdx = next.findIndex((t) => String(t.id) === String(beforeId));
@@ -192,13 +193,17 @@ export function useBoardDrag({ boardRef, tasks, setTasks, onDragChange, onOpen, 
           return;
         }
         onDragChange(null);
+        /* Il riordino durante il trascinamento è ottimistico: serve alla
+           anteprima e vive nello stato locale. La scrittura avviene qui, una
+           volta sola, quando il puntatore si stacca — non a ogni pixel. */
+        onDrop?.({ id, colId: lastColId, tasks: tasksRef.current });
       };
 
       window.addEventListener("pointermove", move);
       window.addEventListener("pointerup", up);
       e.preventDefault();
     },
-    [reorder, onDragChange, onOpen, onEditTitle],
+    [reorder, onDragChange, onOpen, onEditTitle, onDrop],
   );
 
   return { start, reorder };

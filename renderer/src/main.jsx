@@ -2,7 +2,6 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import "./styles/theme.css";
-import "./styles/tokens.css";
 
 window.addEventListener("error", (e) => {
   console.error("UNCAUGHT ERROR:", e.message, e.error?.stack ?? "");

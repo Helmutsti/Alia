@@ -23,71 +23,57 @@ Per pubblicare una nuova release: crea un tag `vX.Y.Z`, pubblica una GitHub Rele
 ## Utilizzo
 
 ```js
-import { createItemCore } from "./src/index.js";
+import { createAliaCore } from "./src/index.js";
 
-const core = createItemCore({
+const core = createAliaCore({
   databasePath: "./data/scheduler.sqlite",
 });
 
-const item = core.createItem({
+const stati = core.listStates();
+const inCorso = stati.find((s) => s.label === "In corso");
+
+const { idTask } = core.createTask({
   title: "Richiamare il cliente",
   description: "Confermare la data di consegna",
   priority: "high",
   reminderAt: "2026-09-08T09:00:00+02:00",
 });
 
-core.activateItem(item.id);
-core.completeItem(item.id);
+core.setTaskState(idTask, inCorso.idState);
 core.close();
 ```
 
-In Electron, il percorso del database dovra essere costruito nel processo principale usando la cartella dati dell'applicazione:
+In Electron il percorso del database si costruisce nel processo principale, dalla cartella dati dell'applicazione (`electron/main.js` fa esattamente questo):
 
 ```js
 import { app } from "electron";
 import { join } from "node:path";
-import { createItemCore } from "./src/index.js";
+import { createAliaCore } from "./src/index.js";
 
-const core = createItemCore({
+const core = createAliaCore({
   databasePath: join(app.getPath("userData"), "scheduler.sqlite"),
 });
 ```
 
-La futura interfaccia non dovra ricevere l'oggetto `core` direttamente. Il processo principale esporra soltanto le operazioni necessarie attraverso un canale controllato.
+L'interfaccia non riceve mai l'oggetto `core`: il processo principale espone le sole operazioni di `ALIA_OPERATIONS` attraverso IPC, e il preload le monta su `window.alia`.
 
 ## API disponibile
 
-- `createItem(input)`
-- `getItem(id, options)`
-- `listItems(filters)`
-- `updateItem(id, changes)`
-- `completeItem(id)`
-- `activateItem(id)`
-- `moveToInbox(id)`
-- `archiveItem(id)`
-- `deleteItem(id)`
-- `restoreItem(id)`
-- `getItemHistory(id)`
-- `close()`
+Lettura: `listTasks(opzioni)`, `getTask(id)`, `getTaskHistory(id)`, `listStates()`, `listProjects()`, `listMilestones(idProject)`.
 
-`deleteItem` esegue una cancellazione logica. Gli item cancellati sono esclusi dalle letture normali e possono essere recuperati con `restoreItem`.
+Scrittura: `createTask(input, decisioni)`, `updateTask(id, patch)`, `setTaskState(id, idState, decisioni)`, `setTaskProject(id, idProject, idMilestone)`, `reorderTasks(idParentTask, orderedIds)`, `reparentTask(id, idParentTask)`, `deleteTask(id)`, `restoreTask(id, decisioni)`, `migrateTask(id, idState)`. Più `close()`.
 
-Il contenuto originale e i dati di provenienza vengono definiti alla creazione e non sono modificabili con `updateItem`.
+Tre di queste possono **non applicare** e restituire invece un esito da negoziare, perché la macchina a stati ha punti in cui serve una scelta umana e un trigger SQL non può fermarsi ad aspettarla:
 
-## Filtri
+```js
+{ esito: "applicato", cambi: [...], avvisi: [...] }
+{ esito: "conferma",  richiesta: { tipo, tasks, ... } }  // richiama con `decisioni`
+{ esito: "bloccato",  motivo, tasks }
+```
 
-`listItems` accetta i seguenti filtri facoltativi:
+Finché torna `"conferma"` non è stato scritto niente: la transazione è annullata, e la stessa chiamata va rigiocata con la decisione dentro (`sovrascriviFigliChiusi`, `statiRiapertura`). Le regole complete stanno in `Rinascita.md`, sezione Flussi.
 
-- `status`
-- `priority`
-- `sourceType`
-- `search`
-- `dueBefore`
-- `dueAfter`
-- `includeDeleted`
-- `limit` e `offset`
-- `orderBy`: `createdAt`, `updatedAt`, `dueAt` o `priority`
-- `orderDirection`: `asc` o `desc`
+`deleteTask` è una cancellazione logica ed estesa a tutto il sotto-albero. Il ripristino (`restoreTask`) esiste nel core come intervento tecnico, non come funzione di prodotto.
 
 ## Test
 
@@ -101,7 +87,7 @@ node --test
 npm run seed
 ```
 
-Popola `./data/scheduler.sqlite` (percorso di default) con qualche item di esempio, utile per provare l'interfaccia senza partire da un database vuoto. Per popolare invece il database reale usato dall'app Electron, passa il percorso esplicito:
+Popola `./data/scheduler.sqlite` (percorso di default) con qualche task di esempio, sotto-task e origini esterne comprese, utile per provare l'interfaccia senza partire da un database vuoto. Non azzera niente: su un database già pieno i dati si sommano. Per popolare invece il database reale usato dall'app Electron, passa il percorso esplicito:
 
 ```powershell
 node scripts/seed.js "$env:APPDATA\alia\scheduler.sqlite"
@@ -109,7 +95,11 @@ node scripts/seed.js "$env:APPDATA\alia\scheduler.sqlite"
 
 ## Interfaccia grafica
 
-L'app Electron vive in `electron/` (main process + preload, che aprono il core reale e lo espongono al renderer solo tramite IPC) e in `renderer/` (React + Vite, stile Nocturne portato dal progetto Alia in Claude Design). Copre per ora Inbox, Oggi, Tutti i task, composer e dettaglio task — Kanban/Calendario/Gantt/progetti/tag arriveranno quando il core avrà quei concetti.
+L'app Electron vive in `electron/` (main process + preload, che aprono il core reale e lo espongono al renderer solo tramite IPC) e in `renderer/` (React + Vite, Tailwind puro — vedi `DESIGN_LOCK.md`).
+
+È una schermata sola, a tre sezioni di cui due visibili per volta: origini da confermare, "Da smistare", area contenuto. Le viste Lista e Kanban sono costruite; Calendario e Gantt sono abbozzi, in attesa che il loro disegno venga deciso.
+
+`preview.html` (via `npm run dev:renderer`) mostra le stesse schermate su un dataset dichiaratamente finto: serve al confronto con gli artboard, e gira nel browser dove il core non è raggiungibile.
 
 ```powershell
 npm install

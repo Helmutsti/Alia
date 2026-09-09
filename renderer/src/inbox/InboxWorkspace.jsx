@@ -1,11 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, MailBox, Plus } from "../components/icons.jsx";
 import { ContentPane } from "./ContentPane.jsx";
 import { InboxCard } from "./InboxCard.jsx";
 import { OriginCard } from "./OriginCard.jsx";
 import { useBoardDrag } from "./dragKit.js";
 import { useInboxMorph } from "./useInboxMorph.js";
-import { PRIORITY_COLOR, PROJECT_NAMES, TASKS, pendingOf, unassignedOf } from "./data.js";
+import { useAlia } from "../lib/AliaProvider.jsx";
 import "./inbox.css";
 
 /* Inbox — vista divisa e Full Inbox nello stesso componente.
@@ -48,31 +48,92 @@ const BACK_BTN =
 export function InboxWorkspace({ startFull = false }) {
   const m = useInboxMorph(20, startFull);
   const boardRef = useRef(null);
+  const alia = useAlia();
 
-  const [tasks, setTasks] = useState(() => [...TASKS]);
+  /* Copia locale delle task, riallineata a ogni caricamento del core.
+     Serve al trascinamento: durante il movimento la lista si riordina a ogni
+     spostamento del puntatore per far vedere dove finirà la card, e non si può
+     scrivere sul database sessanta volte al secondo. La scrittura avviene al
+     rilascio, e il ricaricamento che segue rimette le due liste d'accordo. */
+  const [tasks, setTasks] = useState(alia.tasks);
+  useEffect(() => setTasks(alia.tasks), [alia.tasks]);
+
   const [draggingTask, setDraggingTask] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [detailTask, setDetailTask] = useState(null);
 
-  const commitTitle = useCallback((id, value) => {
-    if (value != null) {
-      const next = String(value).trim();
-      if (next) setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, title: next } : t)));
-    }
-    setEditingTask(null);
-  }, []);
+  const commitTitle = useCallback(
+    (id, value) => {
+      setEditingTask(null);
+      const next = String(value ?? "").trim();
+      const task = tasks.find((t) => t.id === id);
+      if (!next || !task || next === task.title) return;
+      alia.aggiornaTask(id, { title: next });
+    },
+    [alia, tasks],
+  );
 
-  const { start, reorder } = useBoardDrag({
+  /* Le task di primo livello senza progetto: il contenuto della Small Inbox e,
+     a movimento finito, della colonna "Da smistare". */
+  const unassigned = useMemo(
+    () => tasks.filter((t) => t.parentId === null && t.project === null && !t.done),
+    [tasks],
+  );
+
+  /* Le origini da confermare.
+
+     Attenzione: nel core non esiste un flag "non ancora confermata". La
+     specifica lascia aperta proprio questa domanda ("cosa distingua un task
+     appena arrivato da uno già in lavorazione", § Stati speciali del task), e
+     inventare qui una colonna sul database sarebbe deciderla di nascosto.
+     Nel frattempo la colonna legge ciò che il modello sa già dire: una task
+     nata da una sorgente esterna e ancora nello stato di partenza. */
+  const pending = useMemo(
+    () => tasks.filter((t) => t.sourceType && t.sourceType !== "manual" && t.state.role === "start"),
+    [tasks],
+  );
+
+  /* "Confermare" un'origine significa toglierla dallo stato di partenza: è la
+     lettura più vicina alla regola non ancora decisa. Se non c'è uno stato
+     intermedio configurato, il gesto non ha una destinazione e resta spento. */
+  const statoDopoLaConferma = alia.statiAperti.find((s) => s.role === "mid") ?? null;
+
+  const onDrop = useCallback(
+    ({ id, colId, tasks: locali }) => {
+      if (colId !== "none") return;
+      const task = locali.find((t) => t.id === id);
+      if (!task) return;
+
+      /* Trascinare fuori dalle origini vale come conferma; l'ordine della
+         colonna si scrive comunque, perché il rilascio può essere solo un
+         riordino. */
+      if (task.project === null && pending.some((p) => p.id === id) && statoDopoLaConferma) {
+        alia.cambiaStato(id, statoDopoLaConferma.id);
+        return;
+      }
+      const ordine = locali.filter((t) => t.parentId === null).map((t) => t.id);
+      alia.riordina(null, ordine);
+    },
+    [alia, pending, statoDopoLaConferma],
+  );
+
+  /* Creazione: la task nasce senza progetto (è un'inbox) e con il titolo già
+     in modifica, così si scrive subito invece di crearla e poi cercarla. */
+  const aggiungi = useCallback(async () => {
+    const esito = await alia.creaTask({ title: "Nuova task" });
+    if (esito?.esito === "applicato" && esito.idTask) setEditingTask(esito.idTask);
+  }, [alia]);
+
+  const { start } = useBoardDrag({
     boardRef,
     tasks,
     setTasks,
     onDragChange: setDraggingTask,
     onOpen: setDetailTask,
     onEditTitle: setEditingTask,
+    onDrop,
   });
 
-  const pending = useMemo(() => pendingOf(tasks), [tasks]);
-  const unassigned = useMemo(() => unassignedOf(tasks), [tasks]);
   const detail = tasks.find((t) => t.id === detailTask);
 
   return (
@@ -82,9 +143,13 @@ export function InboxWorkspace({ startFull = false }) {
         boardRef.current = el;
       }}
       data-board
+      /* Riempie il contenitore: nell'app è la finestra, nella pagina di
+         anteprima è una cornice di 1180×760 che serve al confronto con gli
+         artboard. La geometria del movimento si adatta da sé — vedi
+         useInboxMorph, che misura il quadro invece di assumerlo. */
       className={
-        "relative w-[1180px] h-[760px] overflow-hidden rounded-[14px] bg-bg text-content " +
-        `font-sans shadow-elev-md ${m.dragging ? "cursor-col-resize select-none" : ""}`
+        "relative w-full h-full overflow-hidden bg-bg text-content " +
+        `font-sans ${m.dragging ? "cursor-col-resize select-none" : ""}`
       }
     >
       {/* ═══ intestazione di quadro — appare col layout della Full Inbox ═══ */}
@@ -150,8 +215,10 @@ export function InboxWorkspace({ startFull = false }) {
               onPointerDown={(e) => start(task.id, e)}
               onCommit={(v) => commitTitle(task.id, v)}
               onEdit={() => setEditingTask(task.id)}
-              onConfirm={() => reorder(task.id, null, null)}
-              onDelete={() => setTasks((ts) => ts.filter((t) => t.id !== task.id))}
+              onConfirm={
+                statoDopoLaConferma ? () => alia.cambiaStato(task.id, statoDopoLaConferma.id) : undefined
+              }
+              onDelete={() => alia.cancellaTask(task.id)}
             />
           ))}
         </div>
@@ -207,6 +274,7 @@ export function InboxWorkspace({ startFull = false }) {
             </div>
             <button
               type="button"
+              onClick={aggiungi}
               className={
                 "flex items-center w-full h-8 px-2.5 gap-2 rounded-lg bg-transparent cursor-pointer " +
                 "border border-dashed border-divider text-content/65 text-[12.5px] " +
@@ -246,7 +314,7 @@ export function InboxWorkspace({ startFull = false }) {
               id={task.id}
               idAttr="data-task"
               title={task.title}
-              priorityColor={PRIORITY_COLOR[task.priority] ?? PRIORITY_COLOR.Nessuna}
+              priorityColor={task.priorityColor}
               editing={editingTask === task.id}
               dragging={draggingTask === task.id}
               onTitleClick={() => setEditingTask(task.id)}
@@ -256,6 +324,7 @@ export function InboxWorkspace({ startFull = false }) {
           ))}
           <button
             type="button"
+            onClick={aggiungi}
             className={ADD_BTN}
             style={{ opacity: m.fullHeaderOpacity, transition: m.fadeTransition }}
           >
@@ -306,8 +375,8 @@ export function InboxWorkspace({ startFull = false }) {
               <p className="text-mini tracking-[0.14em] uppercase text-accent m-0">Task Detail</p>
               <h4 className="mt-2 mb-1 text-lg">{detail.title}</h4>
               <p className="text-meta text-content/55 m-0">
-                Progetto: {PROJECT_NAMES[detail.project] ?? "Nessuno"} · Priorità:{" "}
-                {detail.priority || "Nessuna"}
+                Progetto: {detail.project?.name ?? "Nessuno"} · Priorità: {detail.priorityLabel} · Stato:{" "}
+                {detail.state.label}
               </p>
               <p className="text-meta text-content/40 mt-4 mb-0">
                 Segnaposto: da ricostruire da DEF_Task Detail.

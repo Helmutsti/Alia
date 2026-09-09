@@ -1,28 +1,14 @@
-/* Dati di esempio ripresi *alla lettera* dai due artboard canonici
-   (DEF_Inbox min.dc.html e DEF_Inbox max.dc.html), titoli e scadenze compresi.
-   Servono a rendere le schermate confrontabili con gli artboard: il diff pixel
-   non chiude se i contenuti non sono gli stessi.
+/* Due cose diverse vivono in questo file, e conviene tenerle distinte.
 
-   Non sono i dati dell'app: quando le schermate verranno collegate al core
-   (src/core via preload), questi restano solo per la pagina di anteprima. */
+   1. Le costanti grafiche prese dagli artboard — icone delle viste e delle
+      sorgenti. Sono disegno, non dati: restano qui per sempre.
 
-/* I colori sono i token Tailwind decisi in DESIGN_LOCK.md, non gli hex degli
-   artboard: `Nessuna` nell'artboard è var(--color-neutral-700) → neutral-700. */
-export const PRIORITY_COLOR = {
-  Alta: "var(--color-priority-high)",
-  Media: "var(--color-priority-medium)",
-  Bassa: "var(--color-priority-low)",
-  Nessuna: "var(--color-neutral-700)",
-};
-
-export const PROJECTS = [
-  { id: "casa", label: "Casa", dot: "var(--color-project-casa)", count: 4 },
-  { id: "lavoro", label: "Lavoro", dot: "var(--color-project-lavoro)", count: 3 },
-  { id: "salute", label: "Salute", dot: "var(--color-project-salute)", count: 2 },
-  { id: "personale", label: "Personale", dot: "var(--color-project-personale)", count: 1 },
-];
-
-export const PROJECT_NAMES = { casa: "Casa", lavoro: "Lavoro", salute: "Salute", personale: "Personale" };
+   2. Il dataset di anteprima (`demoDataset`), usato **solo** da preview.jsx.
+      Serve perché quella pagina gira in Vite, fuori da Electron, dove il core
+      non è raggiungibile, e senza card non si può confrontare la geometria con
+      gli artboard. Nell'app non viene mai importato: là i dati arrivano dal
+      core via AliaProvider. Titoli e scadenze sono quelli degli artboard alla
+      lettera, perché il confronto non chiude se i contenuti differiscono. */
 
 /* Percorsi SVG delle icone vista, presi dall'artboard: non sono di Lucide
    (sono varianti ridisegnate), quindi restano path letterali. */
@@ -43,57 +29,91 @@ export const SOURCE_ICONS = {
 };
 export const SOURCE_LABELS = { mail: "Mail", discord: "Discord", telegram: "Telegram" };
 
-/* — area contenuto della schermata principale (lista / kanban / calendario /
-     gantt). Resta una lista a sé: è l'ambito "Oggi", non l'inbox. — */
-export const CONTENT_TASKS = [
-  { id: 1, title: "Rispondere alla mail del fornitore", priority: "Media", due: "8 set", status: "done" },
-  { id: 2, title: "Allenamento in palestra", priority: "Bassa", due: "7 set", status: "done" },
-  { id: 3, title: "Pagare la bolletta della luce", priority: "Alta", due: "8 set", status: "doing" },
-  { id: 4, title: "Preparare la presentazione trimestrale", priority: "Alta", due: "11 set", status: "doing" },
-  { id: 5, title: "Inviare la fattura di agosto", priority: "Alta", due: "5 set", status: "todo" },
-  { id: 6, title: "Prenotare visita dal dentista", priority: "Media", due: "9 set", status: "todo" },
-  { id: 7, title: "Comprare il regalo di compleanno", priority: "Media", due: "14 set", status: "todo" },
-  { id: 8, title: "Rinnovare l’abbonamento in palestra", priority: "Bassa", due: "15 set", status: "todo" },
-  { id: 9, title: "Archiviare le ricevute", priority: "Nessuna", due: "30 set", status: "todo" },
+/* ═══ dataset di anteprima ═══════════════════════════════════════════════════
+   Nella forma già normalizzata (vedi lib/tasks.js), perché è la forma che i
+   componenti consumano: passare da righe grezze e rinormalizzarle qui
+   aggiungerebbe un giro senza guadagno. */
+
+const STATI = [
+  { id: 1, label: "Nuovo", role: "start", stepOrder: 1 },
+  { id: 2, label: "In corso", role: "mid", stepOrder: 2 },
+  { id: 3, label: "Migrato", role: "end", stepOrder: 3 },
+  { id: 4, label: "Archiviato", role: "end", stepOrder: 4 },
+  { id: 5, label: "Fatto", role: "end", stepOrder: 5 },
 ];
 
-export const GANTT_BARS = [
-  { label: "Fattura agosto", left: 5, width: 20 },
-  { label: "Passaporto", left: 15, width: 35 },
-  { label: "Dentista", left: 40, width: 12 },
-  { label: "Presentazione", left: 30, width: 45 },
-  { label: "Valigia Firenze", left: 60, width: 25 },
+const PROGETTI = [
+  { id: "casa", name: "Casa", color: "var(--color-project-casa)" },
+  { id: "lavoro", name: "Lavoro", color: "var(--color-project-lavoro)" },
+  { id: "salute", name: "Salute", color: "var(--color-project-salute)" },
+  { id: "personale", name: "Personale", color: "var(--color-project-personale)" },
 ];
 
-export const CALENDAR_DOTS = [3, 7, 12, 18, 22];
+const PRIORITA = {
+  high: { label: "Alta", color: "var(--color-priority-high)" },
+  medium: { label: "Media", color: "var(--color-priority-medium)" },
+  low: { label: "Bassa", color: "var(--color-priority-low)" },
+  none: { label: "Nessuna", color: "var(--color-priority-none)" },
+};
 
-/* — Le task dell'inbox: una lista sola. —
+/* Gli artboard datano al settembre 2026 con "oggi" all'8. Le scadenze sono
+   scritte come scarto in giorni da oggi, così l'anteprima resta coerente
+   qualunque sia la data in cui la si apre. */
+function fraGiorni(scarto) {
+  if (scarto == null) return null;
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() + scarto);
+  return d.toISOString();
+}
 
-   Prima erano due elenchi separati, uno per la Small Inbox e uno per la board
-   della Full Inbox, e non coincidevano (7 elementi contro 5). Con il movimento
-   di scorrimento la colonna di sinistra *è* la colonna "Da smistare" che
-   finisce a destra: se le card non fossero le stesse, a metà movimento
-   cambierebbero sotto gli occhi. Quindi una lista, e le due colonne ne leggono
-   lo stesso sottoinsieme. */
-export const TASKS = [
-  { id: 1, title: "Inviare la fattura di agosto", project: null, pending: false, priority: "Alta", due: "5 set" },
-  { id: 2, title: "Pagare la bolletta della luce", project: "casa", pending: false, priority: "Alta", due: "8 set" },
-  { id: 3, title: "Prenotare visita dal dentista", project: null, pending: false, priority: "Media", due: "9 set" },
-  { id: 4, title: "Preparare la presentazione trimestrale", project: "lavoro", pending: false, priority: "Alta", due: "11 set" },
-  { id: 5, title: "Comprare il regalo di compleanno", project: null, pending: false, priority: "Media", due: "14 set" },
-  { id: 6, title: "Rinnovare l’abbonamento in palestra", project: null, pending: false, priority: "Bassa", due: "15 set" },
-  { id: 7, title: "Portare l’auto in officina", project: "casa", pending: false, priority: "Bassa", due: "20 set" },
-  { id: 8, title: "Archiviare le ricevute", project: null, pending: false, priority: "Nessuna", due: "30 set" },
-  { id: 9, title: "Rispondere alla mail del fornitore", project: "lavoro", pending: false, priority: "Media", due: "8 set" },
-  { id: 10, title: "Allenamento in palestra", project: "salute", pending: false, priority: "Bassa", due: "7 set" },
-  { id: 101, title: "Rinnovo contratto fornitore", project: null, pending: true, source: "mail", priority: "", due: "" },
-  { id: 102, title: "Idea proposta nel canale #progetti", project: null, pending: true, source: "discord", priority: "", due: "" },
-  { id: 103, title: "Promemoria spedito dal bot", project: null, pending: true, source: "telegram", priority: "", due: "" },
+const RIGHE = [
+  { id: 1, title: "Inviare la fattura di agosto", project: null, priority: "high", due: -3, state: 1 },
+  { id: 2, title: "Pagare la bolletta della luce", project: "casa", priority: "high", due: 0, state: 2 },
+  { id: 3, title: "Prenotare visita dal dentista", project: null, priority: "medium", due: 1, state: 1 },
+  { id: 4, title: "Preparare la presentazione trimestrale", project: "lavoro", priority: "high", due: 3, state: 2 },
+  { id: 5, title: "Comprare il regalo di compleanno", project: null, priority: "medium", due: 6, state: 1 },
+  { id: 6, title: "Rinnovare l’abbonamento in palestra", project: null, priority: "low", due: 7, state: 1 },
+  { id: 7, title: "Portare l’auto in officina", project: "casa", priority: "low", due: 12, state: 1 },
+  { id: 8, title: "Archiviare le ricevute", project: null, priority: "none", due: 22, state: 1 },
+  { id: 9, title: "Rispondere alla mail del fornitore", project: "lavoro", priority: "medium", due: 0, state: 5 },
+  { id: 10, title: "Allenamento in palestra", project: "salute", priority: "low", due: -1, state: 5 },
+  { id: 11, title: "Rivedere il preventivo del fornitore", project: "lavoro", priority: "medium", due: null, state: 1 },
+  { id: 101, title: "Rinnovo contratto fornitore", project: null, priority: "none", due: null, state: 1, source: "mail" },
+  { id: 102, title: "Idea proposta nel canale #progetti", project: null, priority: "none", due: null, state: 1, source: "discord" },
+  { id: 103, title: "Promemoria spedito dal bot", project: null, priority: "none", due: null, state: 1, source: "telegram" },
 ];
 
-/* Le task senza progetto e già confermate: sono il contenuto della Small Inbox
-   e, a movimento finito, della colonna "Da smistare". */
-export const unassignedOf = (tasks) => tasks.filter((t) => !t.pending && t.project === null);
-
-/* Le task arrivate da una sorgente esterna e non ancora confermate. */
-export const pendingOf = (tasks) => tasks.filter((t) => t.pending);
+export function demoDataset() {
+  const stato = (id) => STATI.find((s) => s.id === id);
+  return {
+    states: STATI,
+    projects: PROGETTI.map((p) => ({
+      ...p,
+      taskCount: RIGHE.filter((r) => r.project === p.id).length,
+    })),
+    tasks: RIGHE.map((r, i) => ({
+      id: r.id,
+      parentId: null,
+      title: r.title,
+      description: null,
+      notes: null,
+      priority: r.priority,
+      priorityLabel: PRIORITA[r.priority].label,
+      priorityColor: PRIORITA[r.priority].color,
+      dueAt: fraGiorni(r.due),
+      startAt: null,
+      reminderAt: null,
+      createdAt: fraGiorni(-30 + i),
+      position: i,
+      sourceType: r.source ?? "manual",
+      sourceUrl: null,
+      done: stato(r.state).role === "end",
+      state: stato(r.state),
+      project: PROGETTI.find((p) => p.id === r.project) ?? null,
+      milestone: null,
+      childCount: 0,
+      childDoneCount: 0,
+    })),
+  };
+}

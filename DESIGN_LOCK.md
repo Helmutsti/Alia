@@ -164,6 +164,8 @@ sull'accento `blue-300`, che sull'azzurro scuro si stacca bene.
 | `DEF_Inbox min` | `InboxWorkspace.jsx` (riposo a p=0) | ricostruito e verificato |
 | `DEF_Inbox max` | `InboxWorkspace.jsx` (riposo a p=1) | ricostruito e verificato |
 | movimento min↔max | `useInboxMorph.js` | ridisegnato come scorrimento (vedi sotto) |
+| `DEF_Content` (testata) | `renderer/src/inbox/ContentPane.jsx` | ricostruita e verificata |
+| `DEF_Row` | `renderer/src/inbox/TaskRow.jsx` | ricostruito e verificato |
 | `DEF_Card` | — | non ancora: nessuna delle due Inbox usa la card piena |
 | `DEF_Task Detail` | segnaposto in `InboxFull.jsx` | solo il contenitore (640px, max-h 690px, padding 28px) |
 
@@ -292,6 +294,83 @@ card, non di più.
 Geometria invariata (2×44px, dall'artboard) e accento in hover invariato: è
 cambiato solo il valore a riposo.
 
+### La riga è un componente distinto dalla card (DEF_Row)
+
+`TaskRow.jsx` per la vista Lista, `InboxCard.jsx` per le colonne dell'Inbox e
+del Kanban. Non è una distinzione di nome: una **card** è un oggetto autonomo
+che sta in una colonna, si trascina, e il bordo la chiude perché deve reggere da
+sola; una **riga** è un elemento di un elenco, occupa tutta la larghezza e vive
+dell'allineamento con le righe sopra e sotto.
+
+Una prima versione della sezione contenuto usava `InboxCard` anche nella Lista:
+sbagliato, ed è stato corretto.
+
+Implementata la **disposizione A**: pallino di priorità, titolo elastico
+troncato, meta in coda con scadenza, progetto e stato. Il progetto compare solo
+quando non è già la chiave del raggruppamento e l'ambito è su tutti — altrimenti
+sarebbe la stessa parola su ogni riga.
+
+**La forma è una sola**, quella scelta in DEF_Row: **R1** la scatola — fondo
+`elevated` e bordo proprio che schiarisce in hover — e **S2** il chip di stato
+pieno, che è ciò che gli dà il peso che gli mancava. La riga misura 46px: uno in
+più della versione col tag sottile, perché il chip pieno è alto 20 invece di 19.
+
+Una versione intermedia le aveva lasciate come proprietà con l'alternativa
+accanto, in attesa della revisione. Rimosse: opzioni che nessuno sceglierà fanno
+credere che una scelta sia ancora aperta, e invecchiano male.
+
+### Testata della sezione contenuto (DEF_Content)
+
+Due righe, **94px** in tutto contro i 141 della versione a tre file — misurato
+sul reso, uguale all'artboard.
+
+- **Riga 1**: a sinistra il progetto (20px, senza bordi, pallino a sinistra e
+  freccia a destra, fondo solo in hover) col conteggio accanto; a destra il
+  selettore di vista. Riga alta 34, entrambi sullo stesso centro.
+- **Riga 2**: gli strumenti della vista. In Lista: ordinamento, filtro,
+  raggruppamento — in quest'ordine. Il raggruppatore compare **solo** in Lista.
+
+Tolti dalla testata precedente: la barra di ricerca (mai decisa), le chip
+Priorità e Milestone (confluite nel menu filtri) e la tab "Oggi" (gli intervalli
+temporali stanno nel filtro, quindi la tab non serviva più).
+
+**Il vocabolario è applicato, non solo disegnato** — è ciò che tiene in piedi la
+testata:
+
+| comando | cosa fa | può nascondere task |
+|---|---|---|
+| filtro | restringe | **sì** — perciò è l'unico col contatore |
+| ordinamento | dispone | no |
+| raggruppamento | divide in gruppi | no |
+
+Dettagli che discendono da questa distinzione, tutti in `contentQuery.js`:
+dentro un gruppo di filtri le voci valgono in OR, fra gruppi in AND;
+raggruppando, l'ordinamento vale **dentro** il gruppo; "Senza scadenza" va in
+fondo in entrambe le direzioni, perché è assenza di data e non una data
+lontanissima; l'ordine dei gruppi segue il significato e non i dati (In ritardo
+prima di Oggi, Alta prima di Media, "Senza progetto" in fondo).
+
+**"Mostra completate"** sta fuori dal gruppo "Stato" anche se nel menu gli è
+accanto: non restringe, allarga. Dentro quel gruppo si comporterebbe al
+contrario delle sue vicine. Le completate sono nascoste finché non la si accende.
+
+Il selettore di progetto **non ha** la voce "Senza progetto": quelle task vivono
+nella sezione "Da smistare", e due strade per lo stesso insieme sarebbero una di
+troppo. Compaiono qui come *gruppo*, raggruppando per progetto — che è un'altra
+cosa.
+
+Conseguenza sui dati: `CONTENT_TASKS` ora porta `day` numerico (null = senza
+scadenza) e `project`, perché ordinamento, raggruppamento e filtri per
+intervallo devono confrontarli. L'etichetta della scadenza si calcola con
+`dueLabel()`, stessa logica di DEF_Card.
+
+Verificato interagendo: ordinamento per priorità riordina dentro i gruppi;
+raggruppamento per scadenza produce In ritardo / Oggi / Questa settimana / Più
+avanti / Senza scadenza; il filtro "Oggi" porta la lista da 9 a 1 riga col
+contatore a 1, e il menu resta aperto per accendere il secondo filtro;
+"Azzera" riporta a 9; l'ambito su un progetto aggiorna titolo, conteggio e
+righe; passando a Kanban il raggruppatore sparisce e il filtro resta.
+
 ### Comando di ritorno
 
 Non è più il pulsante con testo in alto a destra del quadro, come nell'artboard:
@@ -412,6 +491,38 @@ Gli artboard sono *stati*, non *transizioni*. Il grafo dei flussi vive in
 `Rinascita.md` — `## Flussi (macchina a stati)` (righe 179-258) e `## Interfaccia`
 (righe 260-337). Serve un inventario stato-per-stato in cui ogni voce è coperta da un
 artboard o da una regola scritta.
+
+## La UI vecchia è stata rimossa (2026-09-09)
+
+L'app è ora la sola schermata a tre sezioni, a tutta finestra. Rimossi per
+intero: `Sidebar`, `TaskComposer`, `TaskDetailModal`, `FilterBar`,
+`KanbanBoard`, la vecchia `components/TaskRow`, tutte le `screens/`
+(Oggi, Lista, Calendario, Gantt, Sorgenti, Impostazioni), `lib/format.js`,
+`lib/composerSyntax.js`, `lib/projectsStore.js`, `lib/api.js` e
+`styles/tokens.css`. Erano costruiti sul design vecchio e sul vecchio schema
+del core: non c'era niente da riportare, e restano nella storia del repo.
+
+Conseguenza utile: senza `lib/api.js` — che lanciava fuori da Electron — l'app
+si apre anche nel browser. La pagina `preview.html` resta perché blocca la
+schermata a 1180×760, la dimensione con cui si confronta con gli artboard.
+
+**La geometria non è più ancorata a 1180×760.** `useInboxMorph` misura il quadro
+con un `ResizeObserver` e ricava da lì le posizioni finali; restano fisse solo
+le misure che vengono dagli artboard (padding 20/18, colonne a 63 dall'alto,
+distanza 14, colonna "Da smistare" larga 300). Verificato: a 1180×760 i valori
+sono identici all'artboard (origini 20,63 826×675 · colonna 860,63 300×675), e
+a 1500×920 diventano 20,63 1146×835 e 1180,63 300×835 — cioè la stessa formula.
+
+### Il core nuovo non esiste ancora
+
+Le schermate girano su dati di esempio. Il core attuale ha il vecchio schema
+(`status: inbox|active|completed|archived`, `priority: none|low|medium|high|urgent`,
+il progetto come stringa); quello nuovo — `t_task`, `t_project`, `t_milestone`,
+`t_state`, sotto-task — è descritto in `Rinascita.md` e non è mai stato scritto.
+
+Collegare le schermate al core vecchio richiederebbe uno strato di mappatura
+destinato a essere buttato con la migrazione. **Il prossimo passo è il core
+nuovo**, poi l'innesto.
 
 ## Miglioramenti grafici da discutere
 

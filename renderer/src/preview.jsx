@@ -1,15 +1,17 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { InboxWorkspace } from "./inbox/InboxWorkspace.jsx";
+import { demoDataset } from "./inbox/data.js";
+import { AliaProvider } from "./lib/AliaProvider.jsx";
 import "./styles/theme.css";
 
 /* Pagina di anteprima delle schermate ricostruite dagli artboard.
 
-   Esiste perché il renderer dell'app non gira nel browser: src/lib/api.js
-   lancia un'eccezione se `window.schedulerCore` non è presente, cioè fuori da
-   Electron. Queste schermate invece non toccano il core (dati da inbox/data.js,
-   gli stessi degli artboard), quindi si possono aprire in Vite e confrontare
-   con gli artboard.
+   Esiste perché il core non è raggiungibile fuori da Electron: `window.alia`
+   lo espone il preload, che nel browser non c'è. Qui il provider riceve quindi
+   un dataset dichiaratamente finto (`demoDataset`, gli stessi contenuti degli
+   artboard) e non parla con nessun core: le schermate si aprono in Vite e si
+   confrontano con gli artboard. Nell'app quel dataset non viene mai caricato.
 
    Uso: `npm run dev:renderer` → http://localhost:5173/preview.html
      ?screen=min   schermata principale a due colonne (DEF_Inbox min)
@@ -30,12 +32,21 @@ const SCREENS = {
 function Preview() {
   const initial = new URLSearchParams(window.location.search).get("screen");
   const [screen, setScreen] = useState(SCREENS[initial] ? initial : "min");
+  const dataset = useMemo(() => demoDataset(), []);
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4 p-6">
-      <div data-frame>
+      {/* La cornice sta qui e non nel componente: nell'app la schermata riempie
+          la finestra, qui è bloccata a 1180×760 perché è la dimensione con cui
+          si confronta con gli artboard. */}
+      <div
+        data-frame
+        className="w-[1180px] h-[760px] rounded-[14px] overflow-hidden shadow-elev-md"
+      >
         {/* `key` per rimontare: lo stato di partenza è un valore iniziale. */}
-        <InboxWorkspace key={screen} startFull={SCREENS[screen].startFull} />
+        <AliaProvider dataset={dataset}>
+          <InboxWorkspace key={screen} startFull={SCREENS[screen].startFull} />
+        </AliaProvider>
       </div>
 
       <div className="flex gap-2">

@@ -30,27 +30,44 @@ import { useCallback, useEffect, useRef, useState } from "react";
    verticale, cromatura della colonna, dissolvenza incrociata dell'intestazione,
    spegnimento del pannello destro, comparsa dell'intestazione di quadro. */
 
-export const FRAME_W = 1180;
-export const FRAME_H = 760;
-
 export const MIN_PCT = 12;
 export const SLIDE_START = 50; // inizio fase B
 export const DOCK_PCT = 70; // inizio fase C
 
-/* Geometria finale, misurata su DEF_Inbox max. */
-export const FULL = {
-  colTop: 63,
-  colH: 675,
-  originsLeft: 20,
-  originsW: 826,
-  noneLeft: 860,
-  noneW: 300,
-};
+/* Geometria finale, ricavata dalla dimensione reale del quadro e non da
+   costanti: nell'app riempie la finestra, negli artboard stava in 1180×760.
+
+   Le misure fisse vengono da DEF_Inbox max e restano tali a ogni larghezza:
+   padding 20 orizzontale e 18 verticale, intestazione di quadro alta 31 con
+   14 di distacco (quindi le colonne cominciano a 63), 4 di respiro sotto la
+   board, distanza fra colonne 14, colonna "Da smistare" larga 300.
+
+   A 1180×760 questa formula restituisce esattamente i numeri misurati
+   sull'artboard: origini 20/826, colonna 860/300, colonne alte 675. */
+const PAD_X = 20;
+const COL_TOP = 63;
+const BOARD_BOTTOM = 22; // 18 di padding + 4 sotto la board
+const COL_GAP = 14;
+const NONE_W = 300;
+/* Sotto questa larghezza le origini diventerebbero più strette delle proprie
+   card: il movimento resta, ma smette di stringere. */
+const ORIGINS_MIN_W = 320;
+
+function fullGeometry({ w, h }) {
+  const noneLeft = Math.max(PAD_X + ORIGINS_MIN_W + COL_GAP, w - PAD_X - NONE_W);
+  return {
+    colTop: COL_TOP,
+    colH: Math.max(120, h - COL_TOP - BOARD_BOTTOM),
+    originsLeft: PAD_X,
+    originsW: Math.max(ORIGINS_MIN_W, noneLeft - COL_GAP - PAD_X),
+    noneLeft,
+    noneW: NONE_W,
+  };
+}
 
 /* Geometria della vista divisa, misurata su DEF_Inbox min. */
 const SPLIT = {
   colTop: 0,
-  colH: FRAME_H,
   headerSlot: 91, // intestazione "Inbox" + "Aggiungi task"
   listPadX: 16,
   listPadBottom: 16,
@@ -90,6 +107,25 @@ export function useInboxMorph(initialPct = 20, startCommitted = false) {
   });
 
   useEffect(() => () => clearTimeout(exitTimer.current), []);
+
+  /* La dimensione del quadro è misurata, non assunta: nell'app riempie la
+     finestra e cambia quando la si ridimensiona. I valori iniziali sono quelli
+     degli artboard, così il primo fotogramma è già giusto nell'anteprima. */
+  const [size, setSize] = useState({ w: 1180, h: 760 });
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return undefined;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setSize((s) =>
+        Math.abs(s.w - width) < 0.5 && Math.abs(s.h - height) < 0.5 ? s : { w: width, h: height },
+      );
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const FULL = fullGeometry(size);
 
   const onHandleDown = useCallback((e) => {
     if (e.button !== undefined && e.button !== 0) return;
@@ -152,11 +188,11 @@ export function useInboxMorph(initialPct = 20, startCommitted = false) {
     noneLeft = FULL.noneLeft;
     noneW = FULL.noneW;
   } else if (pct < SLIDE_START) {
-    noneW = (pct / 100) * FRAME_W;
+    noneW = (pct / 100) * size.w;
     noneLeft = 0;
   } else {
-    const pointerX = (pct / 100) * FRAME_W;
-    noneW = lerp((SLIDE_START / 100) * FRAME_W, FULL.noneW, p);
+    const pointerX = (pct / 100) * size.w;
+    noneW = lerp((SLIDE_START / 100) * size.w, FULL.noneW, p);
     noneLeft = pointerX - noneW;
   }
 
@@ -175,7 +211,7 @@ export function useInboxMorph(initialPct = 20, startCommitted = false) {
       left: noneLeft,
       width: noneW,
       top: lerp(SPLIT.colTop, FULL.colTop, p),
-      height: lerp(SPLIT.colH, FULL.colH, p),
+      height: lerp(size.h, FULL.colH, p),
       radius: lerp(0, 14, p),
       headerSlot: lerp(SPLIT.headerSlot, FULL_COL.headerSlot, p),
       listPadX: lerp(SPLIT.listPadX, FULL_COL.listPadX, p),
@@ -203,7 +239,7 @@ export function useInboxMorph(initialPct = 20, startCommitted = false) {
       left: FULL.originsLeft,
       width: FULL.originsW,
       top: lerp(SPLIT.colTop, FULL.colTop, p),
-      height: lerp(SPLIT.colH, FULL.colH, p),
+      height: lerp(size.h, FULL.colH, p),
       x: noneLeft - FULL.noneLeft,
       transition: transition(["transform", "top", "height"]),
     },

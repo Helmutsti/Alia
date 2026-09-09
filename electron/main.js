@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { appendFileSync } from "node:fs";
-import { createItemCore } from "../src/index.js";
+import { ALIA_OPERATIONS, createAliaCore } from "../src/core/alia-core.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -19,43 +19,11 @@ function debugLog(...parts) {
   }
 }
 
-const CORE_OPERATIONS = [
-  "createItem",
-  "getItem",
-  "listItems",
-  "updateItem",
-  "completeItem",
-  "activateItem",
-  "moveToInbox",
-  "archiveItem",
-  "deleteItem",
-  "restoreItem",
-  "getItemHistory",
-  "addSubtask",
-  "toggleSubtask",
-  "removeSubtask",
-  "addComment",
-  "listStatuses",
-  "createStatus",
-  "updateStatus",
-  "deleteStatus",
-  "reorderStatuses",
-  "listProjects",
-  "createProject",
-  "updateProject",
-  "deleteProject",
-  "reorderProjects",
-  "createList",
-  "updateList",
-  "deleteList",
-  "reorderLists",
-];
-
 let core;
 
 function registerCoreHandlers() {
-  for (const operation of CORE_OPERATIONS) {
-    ipcMain.handle(`scheduler:${operation}`, async (_event, ...args) => {
+  for (const operation of ALIA_OPERATIONS) {
+    ipcMain.handle(`alia:${operation}`, async (_event, ...args) => {
       try {
         return await core[operation](...args);
       } catch (err) {
@@ -104,7 +72,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   debugLog("app ready, userData =", app.getPath("userData"));
-  core = createItemCore({
+  core = createAliaCore({
     databasePath: join(app.getPath("userData"), "scheduler.sqlite"),
   });
 

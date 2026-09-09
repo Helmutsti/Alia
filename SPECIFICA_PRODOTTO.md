@@ -8,7 +8,7 @@ Questo documento raccoglie le decisioni prese finora sul prodotto e le prime sce
 
 ### Fatto
 
-- **Core** (`src/core/item-core.js`, `src/core/database.js`): CRUD completo su un item con lo schema descritto più sotto, persistenza SQLite, storico eventi (`item_history`), cancellazione logica e ripristino, filtri (`status`, `priority`, `sourceType`, `search`, `dueBefore/After`, paginazione, ordinamento). Coperto da test automatici (`test/item-core.test.js`).
+- **Core** (`src/core/task-core.js`, `src/core/rinascita-schema.js`, `src/core/database.js`): CRUD sulle task con lo schema `t_task` ricorsivo, macchina a stati configurabile, persistenza SQLite, storico, cancellazione logica. Coperto da test automatici (`test/task-core.test.js`, `test/rinascita-migration.test.js`). **Sostituisce** `item-core.js` e lo schema `items`/`subtasks`/`statuses` descritti nel resto di questo documento, che sono stati rimossi il 2026-09-09: la descrizione autorevole del modello è ora `Rinascita.md`, e quanto segue qui va letto come storia del prodotto, non come schema corrente.
 - **Interfaccia grafica** (`electron/`, `renderer/`): app Electron + React, stile "Nocturne" con accento blu copiato dal mockup Alia (Claude Design). Il main process apre il core reale e lo espone al renderer solo tramite IPC (`electron/main.js`, `electron/preload.js`); il renderer non tocca mai il database direttamente.
   - **Inbox** (`renderer/src/screens/InboxScreen.jsx`): elenco item con `status:'inbox'`, composer inline per l'inserimento manuale, azioni rapide "Attiva" e "Scarta".
   - **Oggi** (`TodayScreen.jsx`): item con `status:'active'` raggruppati in Scaduti / Oggi / Senza scadenza in base a `dueAt`.

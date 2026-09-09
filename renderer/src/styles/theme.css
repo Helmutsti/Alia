@@ -67,7 +67,13 @@
      un gradino chiaro dell'accento. */
   --color-accent: var(--color-blue-300); /* #8ec5ff, oklch(80.9% 0.105 251.8) */
 
-  /* — priorità — token di prodotto, assenti da qualsiasi palette — */
+  /* — priorità — token di prodotto, assenti da qualsiasi palette —
+     Il core ne ha cinque (`none|low|medium|high|urgent`), il design ne aveva
+     quattro: `urgent` è quello scoperto con l'innesto. Prende il rosso più
+     saturo della rampa (red-500, chroma 0.245 contro 0.194 di red-400) invece
+     del più luminoso, così si distingue da `high` senza rifare la scala.
+     Da confermare sull'artboard. */
+  --color-priority-urgent: var(--color-red-500); /* #fb2c36 */
   --color-priority-high: var(--color-red-400); /* #d4614f → #ff6467, ΔE 0.088 */
   --color-priority-medium: var(--color-amber-400); /* #c9a24d → #ffb900, ΔE 0.123 */
   --color-priority-low: var(--color-emerald-400); /* #5fae86 → #00d492, ΔE 0.109 */
@@ -142,9 +148,8 @@
     line-height: normal;
   }
 
-  /* Fuoco da tastiera, come in tutti gli artboard. Stava solo in tokens.css,
-     che la pagina di anteprima non carica: senza questa, un tasto icona senza
-     testo non dà nessun segnale a chi naviga da tastiera.
+  /* Fuoco da tastiera, come in tutti gli artboard: senza questa, un tasto icona
+     senza testo non dà nessun segnale a chi naviga da tastiera.
 
      Vale per i controlli che non hanno un proprio segnale di fuoco. I campi
      che invece si segnalano da sé — il titolo modificabile nelle card, che
