@@ -1,6 +1,6 @@
 # Alia
 
-Task manager locale (core Node.js + interfaccia grafica Electron/React in stile "Alia", design system Nocturne, accento blu).
+Task manager locale: core Node.js su SQLite + interfaccia Electron/React. Interfaccia neutra con un solo accento azzurro, Tailwind puro — le decisioni grafiche sono in `DESIGN_LOCK.md`, il modello dei dati e i flussi in `Rinascita.md`.
 
 ## Requisiti
 

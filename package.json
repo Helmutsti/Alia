@@ -1,10 +1,10 @@
 {
   "name": "alia",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
-  "description": "Task manager locale con interfaccia grafica Electron + React (\"Alia\", design system Nocturne)",
+  "description": "Task manager locale con interfaccia grafica Electron + React (\"Alia\")",
   "main": "electron/main.js",
   "bin": {
     "alia": "./bin/alia.js"
