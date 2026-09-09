@@ -1,0 +1,204 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Tema Alia — Tailwind puro.
+
+   Decisione del 2026-09-09: il design system Nocturne è fuori, colori inclusi.
+   Ogni colore viene dalla palette Tailwind.
+
+   Seconda decisione, stessa data: **tutta l'interfaccia è neutra, con un solo
+   accento, `blue-600`**. Quindi non si inseguono più i colori del design (che
+   erano un blurple su fondi tinti di blu): la struttura passa alla famiglia
+   `neutral`, l'unica davvero acromatica di Tailwind — è definita
+   `oklch(L 0 none)`, chroma zero e nessuna tinta — mentre slate, zinc e gray
+   hanno tutte una punta di colore.
+
+   Le rampe non vengono ricostruite: si usano quelle di Tailwind così come
+   sono (blue-* per l'accento, neutral-* per la struttura). Gli alias qui
+   sotto servono solo a dare un nome di ruolo ai gradini scelti.
+
+   `static` perché questi token sono consumati anche via var() da CSS scritto
+   a mano (tokens.css, in dismissione) e non solo dalle utility: senza static
+   Tailwind li rimuoverebbe non vedendoli usati.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme static {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* — ruoli di superficie — famiglia neutral, tre livelli —
+     Il design ne aveva due (fondo e superficie) e usava lo stesso valore per
+     le colonne e per le card, che così sparivano l'una nell'altra. Qui i
+     livelli sono tre e crescono di luminosità con l'elevazione:
+
+       bg        neutral-950  L 0.145  il fondo, il più scuro
+       surface   neutral-900  L 0.205  colonne e pannelli: più scuri delle
+                                       card, ma non quanto il fondo
+       elevated  neutral-800  L 0.269  le card, il livello più chiaro
+
+     Le card hanno anche un bordo proprio (`--color-card-line`), non più
+     trasparente: è quello che le fa leggere come card dentro la colonna. */
+  --color-bg: var(--color-neutral-950); /* #0a0a0a */
+  --color-surface: var(--color-neutral-900); /* #171717 */
+  --color-elevated: var(--color-neutral-800); /* #262626 */
+  --color-card-line: var(--color-neutral-700); /* #404040, bordo a riposo */
+  /* Bordo della card in hover. Negli artboard era l'accento, che ora è azzurro
+     e risultava troppo vistoso e colorato: resta un neutro, appena meno
+     luminoso dell'azzurro (neutral-400 L 0.708 contro blue-300 L 0.809). */
+  --color-card-line-hover: var(--color-neutral-400); /* #a1a1a1 */
+
+  /* — card delle origini, e solo loro —
+     Unica eccezione al grigio: un azzurro scuro e desaturato, cioè la famiglia
+     `slate` (chroma ~0.04, un quarto dell'accento; tinta ~258°). I gradini
+     sono scelti per coincidere in luminosità con quelli neutri delle altre
+     card, così cambia la tinta e non la gerarchia dei livelli:
+       superficie  slate-800 L 0.279  contro neutral-800 L 0.269
+       bordo       slate-700 L 0.372  contro neutral-700 L 0.371
+       bordo hover slate-400 L 0.704  contro neutral-400 L 0.708
+     Sostituisce la tinta d'accento al 9% usata prima, che a chroma ~0.01
+     risultava di fatto grigia. */
+  --color-origin-surface: var(--color-slate-800); /* #1d293d */
+  --color-origin-line: var(--color-slate-700); /* #314158 */
+  --color-origin-line-hover: var(--color-slate-400); /* #90a1b9 */
+  --color-content: var(--color-neutral-200); /* #e5e5e5 */
+
+  /* — accento — unico colore dell'interfaccia —
+     È l'azzurro già usato per le origini: come riempimento e come testo su
+     fondo scuro funziona allo stesso modo, quindi non serve più distinguere
+     un gradino chiaro dell'accento. */
+  --color-accent: var(--color-blue-300); /* #8ec5ff, oklch(80.9% 0.105 251.8) */
+
+  /* — priorità — token di prodotto, assenti da qualsiasi palette — */
+  --color-priority-high: var(--color-red-400); /* #d4614f → #ff6467, ΔE 0.088 */
+  --color-priority-medium: var(--color-amber-400); /* #c9a24d → #ffb900, ΔE 0.123 */
+  --color-priority-low: var(--color-emerald-400); /* #5fae86 → #00d492, ΔE 0.109 */
+  --color-priority-none: var(--color-neutral-500);
+
+  /* — progetti — */
+  --color-project-casa: var(--color-sky-400); /* #45aeee → #00bcff, ΔE 0.043 */
+  --color-project-lavoro: var(--color-purple-400); /* #c78bff → #c27aff, ΔE 0.042 */
+  --color-project-salute: var(--color-emerald-400); /* #3ddc97 → #00d492, ΔE 0.036 */
+  --color-project-personale: var(--color-orange-300); /* #ffb454 → #ffb86a, ΔE 0.020 */
+  --color-project-fallback: var(--color-neutral-400);
+
+  /* — esiti azione, usati inline negli artboard — */
+  --color-confirm: var(--color-emerald-400); /* #3ddc97, ΔE 0.036 */
+  --color-danger: var(--color-red-400); /* #d4614f, ΔE 0.088 */
+
+  /* — scala tipografica —
+     La scala di Tailwind NON viene toccata: 12px = text-xs, 14px = text-sm,
+     20px = text-xl sono già suoi. Qui si aggiungono solo i gradini del design
+     che in Tailwind non esistono, con nomi che non collidono con i suoi. */
+  --text-micro: 10px; /* iniziali avatar, tag "oggi", label giorno */
+  --text-mini: 11px; /* meta card, intestazioni colonna, assi gantt */
+  --text-meta: 13px; /* testo secondario: hint, tab, descrizioni */
+  --text-card: 13.5px; /* titolo card — da DEF_Card */
+
+  /* — elevazioni — hairline + ombra ambientale, come negli artboard, con i
+     bordi ripresi dalla rampa neutral. Danno le utility shadow-elev-*. */
+  --shadow-elev-sm: 0 0 0 1px var(--color-neutral-700);
+  --shadow-elev-md: 0 0 0 1px var(--color-neutral-600), 0 6px 18px rgb(0 0 0 / 0.55);
+  --shadow-elev-lg: 0 0 0 1px var(--color-neutral-400), 0 16px 40px rgb(0 0 0 / 0.65);
+  --shadow-drag: 0 12px 22px rgb(0 0 0 / 0.45); /* clone trascinato, Inbox min */
+  --shadow-drag-lg: 0 14px 26px rgb(0 0 0 / 0.5); /* clone trascinato, Inbox max */
+}
+
+/* Il divisore dipende dal colore del testo, quindi non è un token di palette. */
+@theme static {
+  --color-divider: color-mix(in srgb, var(--color-neutral-200) 16%, transparent);
+}
+
+/* Tutto quello che segue sta in `@layer base`, non fuori dai layer.
+   Non è un dettaglio: le regole non stratificate battono ogni layer, quindi
+   una utility come `outline-none` o `leading-*` non riuscirebbe a scavalcarle
+   sul singolo elemento. Dentro `base` invece vincono sul preflight di Tailwind
+   (che è nello stesso layer, ma prima) e restano scavalcabili dalle utility,
+   che stanno in un layer successivo. */
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-content);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+}
+
+/* Il preflight di Tailwind applica `font: inherit` ai controlli, e la
+   scorciatoia `font` porta con sé anche il line-height del body (1.55). Gli
+   artboard non hanno quel reset, quindi i loro bottoni restano al
+   `line-height: normal` del browser: senza questa riga ogni bottone ad altezza
+   automatica risulta ~5px più alto dell'artboard (misurato sulla tab "Oggi":
+   30.9px contro 26). Dove serve un'interlinea controllata la si dichiara con
+   una utility `leading-*` sul singolo elemento. */
+@layer base {
+  button {
+    line-height: normal;
+  }
+
+  /* Fuoco da tastiera, come in tutti gli artboard. Stava solo in tokens.css,
+     che la pagina di anteprima non carica: senza questa, un tasto icona senza
+     testo non dà nessun segnale a chi naviga da tastiera.
+
+     Vale per i controlli che non hanno un proprio segnale di fuoco. I campi
+     che invece si segnalano da sé — il titolo modificabile nelle card, che
+     cambia bordo e fondo — spengono questo anello con `outline-none`, che ora
+     funziona perché la regola sta in un layer. */
+  :focus {
+    outline: none;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  }
+}
+
+@layer base {
+  /* Scrollbar sottili e invisibili finché non si passa sopra il contenitore.
+     È una regola di tutti gli artboard (in DEF_Inbox min/max sta nel loro
+     <style>), non una preferenza: senza questa le liste mostrano una barra
+     opaca che negli artboard non c'è. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  *:hover {
+    scrollbar-color: color-mix(in srgb, var(--color-content) 26%, transparent) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+    background: transparent;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+    border: none;
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+    transition: background 160ms ease;
+  }
+  *:hover::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-content) 24%, transparent);
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--color-content) 40%, transparent);
+    background-clip: content-box;
+  }
+}

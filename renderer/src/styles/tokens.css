@@ -1,48 +1,41 @@
-/* Design system "Nocturne" (Claude Design, progetto Alia) con l'override
-   blu locale usato in tutti gli artboard del mockup. Trascritto staticamente:
-   non è un import del design system remoto. */
+/* CSS legacy, IN DISMISSIONE.
+   I colori non sono più definiti qui: ogni token è un alias sui token Tailwind
+   dichiarati in theme.css (Nocturne è fuori, colori inclusi — decisione del
+   2026-09-09, vedi DESIGN_LOCK.md). Questo file conserva solo le classi di
+   componente ancora usate dagli schermi non ancora ricostruiti dagli artboard;
+   va svuotato man mano che i componenti passano alle utility Tailwind. */
 
 :root {
-  --color-bg: #17191a;
-  --color-surface: #212426;
-  --color-text: #e9eaea;
-  --color-divider: color-mix(in srgb, #e9eaea 16%, transparent);
+  --color-text: var(--color-content);
 
-  --color-neutral-100: #f4f5f5;
-  --color-neutral-200: #e6e7e8;
-  --color-neutral-300: #d1d3d4;
-  --color-neutral-400: #b3b5b7;
-  --color-neutral-500: #94979a;
-  --color-neutral-600: #767a7d;
-  --color-neutral-700: #5a5e61;
-  --color-neutral-800: #3f4245;
-  --color-neutral-900: #292b2c;
+  /* I --color-neutral-* usati da questo CSS legacy non hanno più bisogno di
+     alias: la rampa neutral di Tailwind è già la struttura dell'app. */
 
-  --color-accent: #45aeee;
-  --color-accent-100: #eff8ff;
-  --color-accent-200: #d7ecfd;
-  --color-accent-300: #b0dcfa;
-  --color-accent-400: #79c5f5;
-  --color-accent-500: #45aeee;
-  --color-accent-600: #2f8fca;
-  --color-accent-700: #25709e;
-  --color-accent-800: #1d4f6e;
-  --color-accent-900: #173340;
+  /* accento → rampa blue di Tailwind */
+  --color-accent-100: var(--color-blue-100);
+  --color-accent-200: var(--color-blue-200);
+  --color-accent-300: var(--color-blue-300);
+  --color-accent-400: var(--color-blue-400);
+  --color-accent-500: var(--color-blue-500);
+  --color-accent-600: var(--color-blue-600);
+  --color-accent-700: var(--color-blue-700);
+  --color-accent-800: var(--color-blue-800);
+  --color-accent-900: var(--color-blue-900);
 
-  --priority-high: #d4614f;
-  --priority-medium: #c9a24d;
-  --priority-low: #5fae86;
-  --priority-none: #5a5e61;
+  --priority-high: var(--color-priority-high);
+  --priority-medium: var(--color-priority-medium);
+  --priority-low: var(--color-priority-low);
+  --priority-none: var(--color-priority-none);
 
-  --project-casa: #45aeee;
-  --project-lavoro: #c78bff;
-  --project-salute: #3ddc97;
-  --project-personale: #ffb454;
-  --project-fallback: #94979a;
+  --project-casa: var(--color-project-casa);
+  --project-lavoro: var(--color-project-lavoro);
+  --project-salute: var(--color-project-salute);
+  --project-personale: var(--color-project-personale);
+  --project-fallback: var(--color-project-fallback);
 
-  --font-heading: "Inter", system-ui, sans-serif;
+  --font-heading: var(--font-sans);
   --font-heading-weight: 500;
-  --font-body: "Inter", system-ui, sans-serif;
+  --font-body: var(--font-sans);
 
   /* Scala tipografica per gli usi inline (oltre al body 15px e h1-h3 già
      definiti sotto). 6 gradini interi, ciascuno con un ruolo preciso, per
@@ -67,32 +60,14 @@
   --radius-md: 8px;
   --radius-lg: 14px;
 
-  --shadow-sm: 0 0 0 1px #3f4245;
-  --shadow-md: 0 0 0 1px #5a5e61, 0 6px 18px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 0 0 1px #94979a, 0 16px 40px rgba(0, 0, 0, 0.65);
+  --shadow-sm: var(--shadow-elev-sm);
+  --shadow-md: var(--shadow-elev-md);
+  --shadow-lg: var(--shadow-elev-lg);
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-}
-
-body {
-  margin: 0;
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.55;
-  font-weight: 400;
-}
+/* Reset, altezze e stili di body stanno in theme.css (preflight Tailwind +
+   ruoli di superficie). Qui restano solo i titoli, che il preflight azzera e
+   che gli schermi non ancora ricostruiti si aspettano dimensionati. */
 
 h1,
 h2,
