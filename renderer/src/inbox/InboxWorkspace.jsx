@@ -49,6 +49,9 @@ const BACK_BTN =
 export function InboxWorkspace({ startFull = false }) {
   const m = useInboxMorph(20, startFull);
   const boardRef = useRef(null);
+  /* La colonna del triage: e' l'ambito in cui il FLIP puo' animare (vedi la
+     nota in dragKit). */
+  const colonnaRef = useRef(null);
   const alia = useAlia();
 
   /* Copia locale delle task, riallineata a ogni caricamento del core.
@@ -108,13 +111,19 @@ export function InboxWorkspace({ startFull = false }) {
   const patchPerBersaglio = useCallback(
     ({ colId, groupId }) => {
       if (groupId) {
+        /* Nessuna anteprima sui gruppi quando l'ordine e' calcolato: spostare
+           la riga nell'elenco non dice dove finira', perche' l'ordinamento la
+           rimette dove vuole lui, e la ri-impaginazione a ogni pixel e' il
+           difetto per cui trascinando si muoveva tutto. Con l'ordine manuale
+           invece la posizione conta, e vederla in anteprima serve. */
+        if (ordinamento !== "manuale") return null;
         const progetto = alia.projects.find((p) => p.id === groupId) ?? null;
         return { project: progetto, milestone: null, inbox: false };
       }
       if (colId === "none") return { inbox: true };
       return {};
     },
-    [alia.projects],
+    [alia.projects, ordinamento],
   );
 
   /* L'ordine da scrivere: la posizione vive fra i fratelli di primo livello,
@@ -204,6 +213,7 @@ export function InboxWorkspace({ startFull = false }) {
     onEditTitle: setEditingTask,
     onDrop,
     patchPerBersaglio,
+    flipRef: colonnaRef,
   });
 
   const detail = tasks.find((t) => t.id === detailTask);
@@ -323,6 +333,7 @@ export function InboxWorkspace({ startFull = false }) {
 
       {/* ═══ la colonna che si sposta: Small Inbox → "Da smistare" ═══ */}
       <div
+        ref={colonnaRef}
         data-drop-col="none"
         /* La cromatura (fondo, bordo, raggio) sta sulla colonna stessa, non su
            uno strato sovrapposto: un tempo era un div a `-inset-px`, cioè 1px

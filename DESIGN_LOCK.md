@@ -774,6 +774,30 @@ niente**: il gesto sembrava funzionare e non produceva nulla. Le decisioni si
 prendono su `alia.tasks` (lo stato vero); la lista ottimistica serve solo a
 ricavare l'ordine.
 
+### Difetto grave, corretto subito dopo: trascinando una riga si muoveva tutto
+
+Appena si iniziava a trascinare una riga del pannello, **tutte** le altre righe
+partivano in ogni direzione. Due errori sovrapposti, entrambi introdotti con
+questo meccanismo:
+
+1. **Il FLIP prendeva tutta la board.** Le righe hanno ricevuto `data-task`
+   perché serve al trascinamento, ed è lo stesso attributo con cui `useFlip`
+   fotografa gli elementi da animare: da quel momento le quaranta righe della
+   lista erano tutte candidate all'animazione. Ora il FLIP è ristretto alla
+   colonna del triage (`flipRef`), che è il solo posto dove il riordino esiste
+   per davvero, ed è lì che l'animazione serve.
+2. **L'anteprima ri-impaginava il pannello a ogni pixel.** Il riordino
+   ottimistico rimescola l'array dei task, e il pannello lo rende: ogni
+   movimento del puntatore rifaceva l'impaginazione di tutti i gruppi. Ora
+   `patchPerBersaglio` può restituire `null` — "nessuna anteprima" — e lo fa
+   per i gruppi quando l'ordinamento è calcolato: lì un'anteprima non direbbe
+   nemmeno il vero, perché l'ordinamento rimette il task dove vuole lui. Con
+   l'ordine manuale l'anteprima resta, perché la posizione conta.
+
+Verificato: 0 righe estranee spostate a ogni passo del trascinamento, entrambi
+i versi del gesto ancora funzionanti, e il riordino dentro la colonna intatto
+con la sua animazione.
+
 ### Scostamento consapevole: la posizione
 
 Il rilascio scrive anche la **posizione** dentro il gruppo, su richiesta

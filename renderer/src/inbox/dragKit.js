@@ -102,12 +102,25 @@ export function useBoardDrag({
   onOpen,
   onEditTitle,
   onDrop,
-  /* Come deve *apparire* il task mentre sta sopra un bersaglio. Il motore non
-     sa cosa significhi rilasciare da qualche parte — sono regole di prodotto —
-     quindi chiede a chi lo usa una toppa da applicare all'anteprima. */
+  /* Come deve *apparire* il task mentre sta sopra un bersaglio, oppure `null`
+     per dire "non fare nessuna anteprima". Il motore non sa cosa significhi
+     rilasciare da qualche parte — sono regole di prodotto — quindi lo chiede a
+     chi lo usa. */
   patchPerBersaglio = () => ({}),
+  /* Dove il FLIP ha diritto di animare. Volutamente piu' piccolo della board:
+     vedi la nota sotto. */
+  flipRef,
 }) {
-  const capture = useFlip(boardRef, "data-task");
+  /* Il FLIP e' ristretto alla colonna del triage, non a tutta la board.
+
+     Non e' un'ottimizzazione, e' una correzione: da quando anche le righe della
+     vista Lista portano `data-task` — serve al trascinamento — un FLIP sulla
+     board intera le includeva tutte. Ogni anteprima rimescolava l'array dei
+     task, il pannello si ri-impaginava, e il FLIP animava quaranta righe verso
+     le loro posizioni precedenti: appena si iniziava a trascinare, tutto si
+     muoveva in ogni direzione. Nella colonna il riordino c'e' per davvero ed e'
+     la' che l'animazione serve; nel pannello no. */
+  const capture = useFlip(flipRef ?? boardRef, "data-task");
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
 
@@ -238,7 +251,14 @@ export function useBoardDrag({
           lastColId = info.colId;
           lastGroupId = info.groupId;
           lastBeforeId = info.beforeId;
-          reorder(id, patchPerBersaglio(info), info.beforeId);
+
+          /* `null` = nessuna anteprima. Serve per i bersagli dove spostare il
+             task nella lista non aiuta a capire dove finira' — un elenco
+             ordinato per scadenza lo rimetterebbe subito altrove — e dove
+             l'anteprima costerebbe una ri-impaginazione a ogni pixel. Li' il
+             bersaglio lo dicono il contorno acceso e la larghezza del clone. */
+          const patch = patchPerBersaglio(info);
+          if (patch) reorder(id, patch, info.beforeId);
         }
       };
 
