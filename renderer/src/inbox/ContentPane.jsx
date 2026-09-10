@@ -43,7 +43,7 @@ const PICK =
   "font-medium tracking-[-0.015em] px-1 py-0.5 rounded-md leading-[1.2] text-lg " +
   "hover:bg-[color-mix(in_srgb,var(--color-content)_7%,transparent)]";
 
-export function ContentPane({ onOpenTask }) {
+export function ContentPane({ onOpenTask, onRowPointerDown }) {
   const alia = useAlia();
   const [scope, setScope] = useState("all");
   /* Parte da "lista", l'unica vista non bloccata, e `setView` rifiuta le altre:
@@ -354,7 +354,15 @@ export function ContentPane({ onOpenTask }) {
             </p>
           ) : (
             gruppi.map((g) => (
-              <div key={g.id} className="flex flex-col gap-2">
+              <div
+                key={g.id}
+                /* Bersaglio del rilascio solo raggruppando per progetto: e' il
+                   solo raggruppamento in cui il gruppo identifica un valore
+                   assegnabile senza ambiguita'. Sugli altri l'attributo non
+                   c'e', quindi il motore non trova bersagli e il rilascio viene
+                   rifiutato da se' — senza un elenco di casi da mantenere. */
+                data-drop-group={group === "progetto" ? g.id : undefined}
+                className="flex flex-col gap-2 rounded-lg transition-colors duration-[120ms]">
                 {g.label ? (
                   <div className="flex items-center gap-2 pt-0.5">
                     <span className="flex items-center gap-1.5 text-[10.5px] tracking-[0.1em] uppercase font-medium text-content/62">
@@ -378,6 +386,11 @@ export function ContentPane({ onOpenTask }) {
                     states={states}
                     onChangeState={(task, stato) => alia.cambiaStato(task.id, stato.id)}
                     onOpen={onOpenTask ? () => onOpenTask(t.id) : undefined}
+                    onPointerDown={
+                      onRowPointerDown && group === "progetto"
+                        ? (e) => onRowPointerDown(t.id, e)
+                        : undefined
+                    }
                   />
                 ))}
               </div>

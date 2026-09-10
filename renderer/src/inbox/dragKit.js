@@ -5,6 +5,10 @@ import { useCallback, useLayoutEffect, useRef } from "react";
    vengono dagli artboard: cambiarle cambia il design. */
 
 export const FLIP_DURATION = 200;
+
+/* Quanto il clone resta piu' stretto del contenitore che lo ospitera': i due
+   pixel del bordo piu' un filo d'aria, cosi' non sembra incastrato nei lati. */
+const MARGINE_BERSAGLIO = 4;
 export const FLIP_EASING = "cubic-bezier(.2,.8,.2,1)";
 
 /* FLIP: si fotografano le posizioni prima del riordino, si rimette ogni
@@ -77,7 +81,7 @@ function makeClone(el, transformSuffix, shadowVar, opacity) {
     `${el.getAttribute("style") || ""};position:fixed;left:0;top:0;width:${rect.width}px;` +
       `margin:0;pointer-events:none;z-index:9999;` +
       `transform:translate(${rect.left}px,${rect.top}px) ${transformSuffix};` +
-      `box-shadow:var(${shadowVar});opacity:${opacity}`,
+      `box-shadow:var(${shadowVar});opacity:${opacity};transition:width 140ms ${FLIP_EASING}`,
   );
   document.body.appendChild(clone);
   return { clone, rect };
@@ -90,13 +94,25 @@ function makeClone(el, transformSuffix, shadowVar, opacity) {
    colonna sotto il puntatore prende la classe `hit`, e al rilascio senza
    movimento si apre il dettaglio — o la rinomina, se il puntatore era sul
    titolo. */
-export function useBoardDrag({ boardRef, tasks, setTasks, onDragChange, onOpen, onEditTitle, onDrop }) {
+export function useBoardDrag({
+  boardRef,
+  tasks,
+  setTasks,
+  onDragChange,
+  onOpen,
+  onEditTitle,
+  onDrop,
+  /* Come deve *apparire* il task mentre sta sopra un bersaglio. Il motore non
+     sa cosa significhi rilasciare da qualche parte — sono regole di prodotto —
+     quindi chiede a chi lo usa una toppa da applicare all'anteprima. */
+  patchPerBersaglio = () => ({}),
+}) {
   const capture = useFlip(boardRef, "data-task");
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
 
   const reorder = useCallback(
-    (id, projectId, beforeId) => {
+    (id, patch, beforeId) => {
       const current = tasksRef.current;
       const idx = current.findIndex((t) => t.id === id);
       if (idx === -1) return;
@@ -104,10 +120,11 @@ export function useBoardDrag({ boardRef, tasks, setTasks, onDragChange, onOpen, 
       capture();
       const next = current.slice();
       const [task] = next.splice(idx, 1);
-      /* Anteprima ottimistica dello spostamento. `projectId` è null per la
-         colonna "Da smistare", che è l'unico bersaglio di questa board: le
-         origini non ricevono. La scrittura vera avviene in `onDrop`. */
-      const moved = { ...task, project: projectId ? task.project : null };
+      /* Anteprima ottimistica: il task si sposta e prende l'aspetto che avrà
+         dopo il rilascio (progetto, triage), così lo si vede entrare nel
+         gruppo mentre lo si trascina. Vive nello stato locale; la scrittura
+         vera avviene una volta sola in `onDrop`. */
+      const moved = { ...task, ...patch };
       let insertAt = next.length;
       if (beforeId != null) {
         const bIdx = next.findIndex((t) => String(t.id) === String(beforeId));
@@ -137,29 +154,52 @@ export function useBoardDrag({ boardRef, tasks, setTasks, onDragChange, onOpen, 
       let clone = null;
       let moved = false;
       let lastColId = null;
+      let lastGroupId = null;
       let lastBeforeId = "none-yet";
+      let lastWidth = rect.width;
 
-      const targetInfo = (ev) => {
-        const cols = [
-          ...document.querySelectorAll('[data-drop-col]:not([data-drop-col="origin"])'),
-        ].map((el) => ({ id: el.getAttribute("data-drop-col"), el, r: el.getBoundingClientRect() }));
-        const col = cols.find(
-          ({ r }) =>
-            ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom,
-        );
-        if (!col) return null;
-        const cardsInCol = [...col.el.querySelectorAll("[data-task]")].filter(
+      /* Dentro un contenitore, prima di quale elemento cadrebbe il task: si
+         confronta col centro di ognuno. `null` = in fondo. */
+      const primaDi = (host, ev) => {
+        const altri = [...host.querySelectorAll("[data-task]")].filter(
           (el) => el.getAttribute("data-task") !== String(id),
         );
-        let beforeId = null;
-        for (const el of cardsInCol) {
+        for (const el of altri) {
           const cr = el.getBoundingClientRect();
-          if (ev.clientY < cr.top + cr.height / 2) {
-            beforeId = el.getAttribute("data-task");
-            break;
-          }
+          if (ev.clientY < cr.top + cr.height / 2) return el.getAttribute("data-task");
         }
-        return { colId: col.id, beforeId };
+        return null;
+      };
+
+      /* Due famiglie di bersagli: le colonne della board (`data-drop-col`) e i
+         gruppi della vista Lista (`data-drop-group`).
+
+         I gruppi hanno la precedenza perché stanno *dentro* il pannello
+         contenuto, che a sua volta sta dentro la board: cercando le colonne per
+         prime, un rilascio su un gruppo verrebbe letto come rilascio sulla
+         colonna che lo contiene.
+
+         Quali gruppi siano bersagli non lo decide il motore: lo dichiara il
+         DOM, mettendo `data-drop-group` solo dove il rilascio ha un significato
+         (oggi il raggruppamento per progetto e nient'altro). Così un
+         raggruppamento non assegnabile non produce bersagli, e il rilascio
+         viene rifiutato senza che qui ci sia un elenco da tenere aggiornato. */
+      const targetInfo = (ev) => {
+        const dentro = (r) =>
+          ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+
+        const gruppo = [...document.querySelectorAll("[data-drop-group]")]
+          .map((el) => ({ id: el.getAttribute("data-drop-group"), el, r: el.getBoundingClientRect() }))
+          .find(({ r }) => dentro(r));
+        if (gruppo) {
+          return { colId: null, groupId: gruppo.id, el: gruppo.el, beforeId: primaDi(gruppo.el, ev) };
+        }
+
+        const col = [...document.querySelectorAll('[data-drop-col]:not([data-drop-col="origin"])')]
+          .map((el) => ({ id: el.getAttribute("data-drop-col"), el, r: el.getBoundingClientRect() }))
+          .find(({ r }) => dentro(r));
+        if (!col) return null;
+        return { colId: col.id, groupId: null, el: col.el, beforeId: primaDi(col.el, ev) };
       };
 
       const move = (ev) => {
@@ -175,17 +215,39 @@ export function useBoardDrag({ boardRef, tasks, setTasks, onDragChange, onOpen, 
         document.querySelectorAll("[data-drop-col]").forEach((el) => {
           el.classList.toggle("hit", !!info && el.getAttribute("data-drop-col") === info.colId);
         });
-        if (info && (info.colId !== lastColId || info.beforeId !== lastBeforeId)) {
+        document.querySelectorAll("[data-drop-group]").forEach((el) => {
+          el.classList.toggle("hit", !!info && el.getAttribute("data-drop-group") === info.groupId);
+        });
+
+        /* Card a sinistra, row a destra: il clone prende la larghezza del
+           bersaglio passando da una parte all'altra. È il segnale che il
+           rilascio è valido, oltre a essere la forma giusta — una card è un
+           oggetto autonomo, una row un elemento di un elenco (DESIGN_LOCK).
+           Cambia la larghezza, non l'impaginazione interna: il clone resta una
+           copia del DOM di partenza. */
+        const larghezza = info?.el ? info.el.clientWidth - MARGINE_BERSAGLIO : rect.width;
+        if (Math.abs(larghezza - lastWidth) > 1) {
+          lastWidth = larghezza;
+          clone.style.width = `${larghezza}px`;
+        }
+
+        if (
+          info &&
+          (info.colId !== lastColId || info.groupId !== lastGroupId || info.beforeId !== lastBeforeId)
+        ) {
           lastColId = info.colId;
+          lastGroupId = info.groupId;
           lastBeforeId = info.beforeId;
-          reorder(id, info.colId === "none" ? null : info.colId, info.beforeId);
+          reorder(id, patchPerBersaglio(info), info.beforeId);
         }
       };
 
       const up = () => {
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
-        document.querySelectorAll("[data-drop-col]").forEach((el) => el.classList.remove("hit"));
+        document
+          .querySelectorAll("[data-drop-col], [data-drop-group]")
+          .forEach((el) => el.classList.remove("hit"));
         clone?.remove();
         if (!moved) {
           if (onTitle) onEditTitle(id);
@@ -196,14 +258,20 @@ export function useBoardDrag({ boardRef, tasks, setTasks, onDragChange, onOpen, 
         /* Il riordino durante il trascinamento è ottimistico: serve alla
            anteprima e vive nello stato locale. La scrittura avviene qui, una
            volta sola, quando il puntatore si stacca — non a ogni pixel. */
-        onDrop?.({ id, colId: lastColId, tasks: tasksRef.current });
+        onDrop?.({
+          id,
+          colId: lastColId,
+          groupId: lastGroupId,
+          beforeId: lastBeforeId === "none-yet" ? null : lastBeforeId,
+          tasks: tasksRef.current,
+        });
       };
 
       window.addEventListener("pointermove", move);
       window.addEventListener("pointerup", up);
       e.preventDefault();
     },
-    [reorder, onDragChange, onOpen, onEditTitle, onDrop],
+    [reorder, onDragChange, onOpen, onEditTitle, onDrop, patchPerBersaglio],
   );
 
   return { start, reorder };

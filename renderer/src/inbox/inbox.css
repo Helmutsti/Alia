@@ -8,6 +8,16 @@
   outline-offset: -2px;
 }
 
+/* Stesso segnale sui gruppi della vista Lista, che sono l'altro bersaglio del
+   rilascio. Qui l offset e positivo e c e un fondo appena acceso: un gruppo non
+   ha un bordo proprio come la colonna, quindi il contorno va staccato dalle
+   righe per non sembrare il bordo di una di esse. */
+[data-drop-group].hit {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+}
+
 /* Sottolineatura della tab attiva — da `.sp-tab.active::after` di
    DEF_Inbox min: uno pseudo-elemento non è esprimibile come utility. */
 .sp-tab-active::after {

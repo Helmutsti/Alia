@@ -37,19 +37,30 @@ const CHIP_RUOLO = {
   end: `${CHIP} border border-card-line text-content/45`,
 };
 
-export function TaskRow({ task, showProject = false, states = [], onChangeState, onOpen }) {
+export function TaskRow({ task, showProject = false, states = [], onChangeState, onOpen, onPointerDown }) {
   const [menuAperto, setMenuAperto] = useState(false);
   const interattivo = typeof onChangeState === "function" && states.length > 0;
   const apribile = typeof onOpen === "function";
+  const trascinabile = typeof onPointerDown === "function";
 
   return (
     <div
       data-row={task.id}
+      /* `data-task` oltre a `data-row`: e' l'attributo con cui il motore del
+         trascinamento riconosce un oggetto spostabile e con cui il FLIP misura
+         le posizioni. Averli entrambi tiene in piedi i selettori che cercano
+         una riga e fa entrare la riga nella stessa macchina delle card. */
+      data-task={trascinabile ? task.id : undefined}
+      onPointerDown={onPointerDown}
       /* La riga intera apre il dettaglio, come la card dell'Inbox. Il chip di
          stato e il suo menu, che stanno dentro la riga, fermano la
          propagazione: cambiare stato da qui e un gesto suo, e non deve anche
-         aprire la scheda. */
-      onClick={apribile ? () => onOpen(task) : undefined}
+         aprire la scheda.
+
+         Quando la riga e' trascinabile l'apertura NON sta piu' qui: la decide
+         il motore, che distingue un click da un trascinamento con la soglia dei
+         4px. Tenere anche un `onClick` aprirebbe il dettaglio due volte. */
+      onClick={apribile && !trascinabile ? () => onOpen(task) : undefined}
       role={apribile ? "button" : undefined}
       tabIndex={apribile ? 0 : undefined}
       onKeyDown={
@@ -65,6 +76,7 @@ export function TaskRow({ task, showProject = false, states = [], onChangeState,
       className={
         "flex items-start gap-2.5 px-[13px] py-3 rounded-lg border-[1.5px] border-card-line " +
         "bg-elevated transition-colors duration-[120ms] hover:border-card-line-hover " +
+        (trascinabile ? "cursor-grab touch-none " : "") +
         (apribile ? "cursor-pointer" : "")
       }
     >

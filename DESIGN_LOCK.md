@@ -722,3 +722,64 @@ nessuno dei casi, Esc torna allo span e la card torna a 44.
 **Resta un'incoerenza dichiarata:** il titolo nel dettaglio del task
 (`TaskDetailModal`) è ancora un `<input>`. Se la prova si conferma va allineato
 anche quello; se si torna indietro, non c'è niente da fare.
+
+---
+
+## Trascinamento fra colonna Inbox e pannello contenuto (2026-09-10)
+
+Meccanismo nuovo, non presente negli artboard: si trascina una card dalla
+colonna del triage a un gruppo della vista Lista, e una riga dalla vista Lista
+alla colonna. Il clone cambia larghezza attraversando il confine — card 236px a
+sinistra, riga 926px a destra, misurati — che è il segnale che il rilascio è
+valido oltre a essere la forma giusta: una card è un oggetto autonomo, una row
+un elemento di un elenco.
+
+### Il pannello di destra non è un contenitore
+
+È il risultato di una query: filtrata, ordinata, raggruppata. Quindi il gesto
+non è "spostare un oggetto" ma **assegnare l'attributo che il bersaglio
+rappresenta**, e il bersaglio non è il pannello: è il **gruppo**. Da cui le
+scelte:
+
+- **Solo il raggruppamento per progetto** accetta il rilascio, per ora. È il
+  solo in cui il gruppo identifica un valore assegnabile senza ambiguità (Stato
+  e Priorità lo sarebbero, Scadenza solo in parte, "Nessuno" per niente).
+- **Quali gruppi siano bersagli lo dichiara il DOM**, non il motore:
+  `data-drop-group` viene messo solo dove il rilascio ha significato. Un
+  raggruppamento non assegnabile non produce bersagli, e il rilascio è rifiutato
+  da sé — senza un elenco di casi da tenere aggiornato in `dragKit`.
+- **I gruppi hanno la precedenza sulle colonne** nella ricerca del bersaglio:
+  stanno dentro il pannello, che sta dentro la board, quindi cercando le colonne
+  per prime un rilascio su un gruppo verrebbe letto come rilascio sulla colonna
+  che lo contiene.
+
+### Cosa scrive il rilascio
+
+| Direzione | Effetto |
+|---|---|
+| Card → gruppo progetto | assegna quel progetto **e** toglie dal triage (`isInbox = 0`) |
+| Card → gruppo "Senza progetto" | progetto a `null` **e** toglie dal triage: "deciso che non ha progetto" non è "non ancora guardato" |
+| Riga → colonna Inbox | rimette in triage (`isInbox = 1`) e **non tocca nient'altro**: progetto e date restano |
+
+Il trascinamento verso destra *è* lo smistamento, perché è un gesto mirato e
+deliberato: chi lo fa ha deciso dove va quel task.
+
+### Difetto trovato in prova, e vale la pena ricordarlo
+
+`onDrop` prendeva lo stato del task dalla lista **ottimistica** — quella in cui
+l'anteprima aveva già scritto il risultato del rilascio per farlo vedere durante
+il movimento. I controlli "il progetto è diverso?" e "è in triage?" trovavano
+quindi il lavoro apparentemente già fatto, rispondevano no, e **non scrivevano
+niente**: il gesto sembrava funzionare e non produceva nulla. Le decisioni si
+prendono su `alia.tasks` (lo stato vero); la lista ottimistica serve solo a
+ricavare l'ordine.
+
+### Scostamento consapevole: la posizione
+
+Il rilascio scrive anche la **posizione** dentro il gruppo, su richiesta
+esplicita. Va saputo che si vede solo con l'ordinamento **Manuale**: con
+Scadenza, Priorità o Titolo la posizione viene scritta e conservata, ma il task
+salta subito dove lo mette l'ordinamento, e il rilascio sembra non aver
+posizionato niente. Se dà fastidio, le strade sono due — passare
+automaticamente a "Manuale" al primo rilascio posizionale, oppure scrivere la
+posizione solo quando l'ordinamento è Manuale.

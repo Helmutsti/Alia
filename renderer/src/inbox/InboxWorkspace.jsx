@@ -98,21 +98,77 @@ export function InboxWorkspace({ startFull = false }) {
     [tasks],
   );
 
+  /* Che aspetto prende il task nell'anteprima, mentre sta sopra un bersaglio.
+     Deve dire la stessa cosa che `onDrop` scrivera' davvero, altrimenti si vede
+     una cosa e ne succede un'altra al rilascio. */
+  const patchPerBersaglio = useCallback(
+    ({ colId, groupId }) => {
+      if (groupId) {
+        const progetto = alia.projects.find((p) => p.id === groupId) ?? null;
+        return { project: progetto, milestone: null, inbox: false };
+      }
+      if (colId === "none") return { inbox: true };
+      return {};
+    },
+    [alia.projects],
+  );
+
+  /* L'ordine da scrivere: la posizione vive fra i fratelli di primo livello,
+     quindi si rinumera tutto l'insieme delle radici nell'ordine in cui
+     l'anteprima le ha lasciate. Vale sia per la colonna sia per i gruppi. */
+  const ordineDelleRadici = (locali) => locali.filter((t) => t.parentId === null).map((t) => t.id);
+
   const onDrop = useCallback(
-    ({ id, colId, tasks: locali }) => {
-      if (colId !== "none") return;
-      const task = locali.find((t) => t.id === id);
+    async ({ id, colId, groupId, tasks: locali }) => {
+      /* Due liste, e vanno tenute distinte con cura.
+
+         `locali` e la lista ottimistica: durante il trascinamento l'anteprima
+         ci ha gia scritto dentro il risultato del rilascio (progetto nuovo,
+         fuori dal triage) per farlo vedere. Serve solo a ricavare l'ordine.
+
+         Le decisioni su cosa scrivere si prendono su `alia.tasks`, che e lo
+         stato vero. Leggerle da `locali` e il difetto che questo codice ha
+         avuto per un giro: i controlli "il progetto e diverso?" e "e in
+         triage?" trovavano l'anteprima che aveva gia finto il risultato,
+         rispondevano no, e non scrivevano niente. */
+      const task = alia.tasks.find((t) => t.id === id);
       if (!task) return;
+
+      /* ── verso destra: rilascio su un gruppo della vista Lista ──
+         Assegna il progetto del gruppo e toglie dal triage: il trascinamento
+         *e'* lo smistamento, perche' e' un gesto mirato e deliberato — chi lo
+         fa ha deciso dove va quel task. Il gruppo "Senza progetto" e' un
+         bersaglio valido: significa "deciso che non ha progetto", che non e' la
+         stessa cosa di "non ancora guardato". */
+      if (groupId) {
+        const idProject = groupId === "__nessuno__" ? null : groupId;
+        if (task.project?.id !== idProject) {
+          await alia.assegnaProgetto(id, idProject, null);
+        }
+        if (task.inbox) await alia.smista(id, false);
+        await alia.riordina(null, ordineDelleRadici(locali));
+        return;
+      }
+
+      if (colId !== "none") return;
+
+      /* ── verso sinistra: rilascio sulla colonna del triage ──
+         Rimette in triage e non tocca nient'altro: progetto e date restano.
+         E' il senso del flag — "da rivedere", non "da azzerare". */
+      if (!task.inbox) {
+        await alia.smista(id, true);
+        await alia.riordina(null, ordineDelleRadici(locali));
+        return;
+      }
 
       /* Trascinare fuori dalle origini vale come conferma; l'ordine della
          colonna si scrive comunque, perché il rilascio può essere solo un
          riordino. */
       if (pending.some((p) => p.id === id)) {
-        alia.smista(id, false);
+        await alia.smista(id, false);
         return;
       }
-      const ordine = locali.filter((t) => t.parentId === null).map((t) => t.id);
-      alia.riordina(null, ordine);
+      await alia.riordina(null, ordineDelleRadici(locali));
     },
     [alia, pending],
   );
@@ -132,6 +188,7 @@ export function InboxWorkspace({ startFull = false }) {
     onOpen: setDetailTask,
     onEditTitle: setEditingTask,
     onDrop,
+    patchPerBersaglio,
   });
 
   const detail = tasks.find((t) => t.id === detailTask);
@@ -180,7 +237,7 @@ export function InboxWorkspace({ startFull = false }) {
         {/* `onOpenTask` porta l'apertura del dettaglio fin dentro le righe della
             vista Lista: lo stato di quale task e aperto vive qui, perche il
             modale copre tutta la schermata e non solo il pannello. */}
-        <ContentPane onOpenTask={setDetailTask} />
+        <ContentPane onOpenTask={setDetailTask} onRowPointerDown={start} />
       </div>
 
       {/* ═══ colonna origini — geometria finale, tirata dentro da sinistra ═══ */}
