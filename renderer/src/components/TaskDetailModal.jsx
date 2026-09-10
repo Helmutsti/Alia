@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAlia } from "../lib/AliaProvider.jsx";
+import { useTrappolaFuoco } from "../lib/fuoco.js";
 import { PRIORITIES, dueLabel, priorityOf } from "../lib/tasks.js";
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from "../inbox/Dropdown.jsx";
 /* Le icone vengono da icons.jsx, non da Lucide: il progetto le trascrive dagli
@@ -7,7 +8,7 @@ import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from "../inb
    a icons.jsx). Close, Send e MoreDots sono state aggiunte da questo artboard. */
 import { Alarm, Check, ChevronDown, Close, MailBox, MoreDots, Pencil, PriorityFlag, Send, Trash } from "./icons.jsx";
 
-/* Il dettaglio del task — trascritto da `DEF_Task Detail` (vedi DESIGN_LOCK).
+/* Il dettaglio del task — trascritto da `DEF_Task Detail` (vedi Rinascita.md, § Interfaccia).
 
    Struttura dell'artboard, nell'ordine: una testata di chip (priorità,
    progetto / milestone, origine, menu azioni, chiudi); un corpo che scorre con
@@ -144,6 +145,10 @@ function fraseStorico(riga, statiPerId) {
 }
 
 export function TaskDetailModal({ task, onClose }) {
+  const rifCard = useRef(null);
+  /* Stessa trappola del composer e delle impostazioni: senza, il Tab usciva
+     dietro il velo, su comandi appena visibili che rispondono lo stesso. */
+  useTrappolaFuoco(rifCard);
   const alia = useAlia();
   const { states = [], projects = [], milestones = [], tasks = [] } = alia;
 
@@ -327,6 +332,10 @@ export function TaskDetailModal({ task, onClose }) {
       }
     >
       <div
+        ref={rifCard}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Dettaglio della task"
         onClick={(e) => e.stopPropagation()}
         className={
           "w-[640px] max-w-full max-h-full flex flex-col rounded-[14px] " +
@@ -486,7 +495,7 @@ export function TaskDetailModal({ task, onClose }) {
                     disabilitato dice che a questo database manca il posto dove
                     andare. "Sposta in Output" e spento per decisione: la
                     migrazione verso le destinazioni esterne non e ancora
-                    implementata (vedi SPECIFICA_PRODOTTO, punto 4: solo
+                    implementata (solo
                     collegamento, nessuna sincronizzazione). */}
                 <DropdownItem
                   disabled={!statoArchivio}
@@ -1007,7 +1016,7 @@ export function TaskDetailModal({ task, onClose }) {
             promemoria e stato stanno insieme a sinistra — sono le due cose che
             dicono "quando" e "dove" sta il task, e da vicino si leggono come un
             gruppo — e la destra e libera per le azioni di chiusura della
-            scheda. Registrato in DESIGN_LOCK come scostamento voluto. */}
+            scheda. Registrato in Rinascita.md come scostamento voluto. */}
         <div className="flex items-center justify-between gap-3 px-[11px] py-2.5 border-t border-divider">
           <div className="flex items-center gap-2">
             <div className="relative inline-flex">

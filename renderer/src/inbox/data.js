@@ -32,7 +32,7 @@ export const VIEW_ORDER = ["lista", "kanban", "calendario", "gantt"];
 
    Perche sono bloccate, oggi: Kanban ha il padding delle card da correggere e
    le colonne larghe 220px fisse che con molti progetti fanno un tabellone da
-   migliaia di pixel (vedi TODO.md); Calendario e Gantt sono impianti presi
+   migliaia di pixel (vedi Rinascita.md, § ToDo); Calendario e Gantt sono impianti presi
    dagli artboard e non ancora verificati sui dati reali. */
 export const VIEW_BLOCKED = new Set(["kanban", "calendario", "gantt"]);
 
@@ -84,25 +84,37 @@ function fraGiorni(scarto) {
 
 const RIGHE = [
   { id: 1, title: "Inviare la fattura di agosto", project: null, priority: "high", due: -3, state: 1 },
-  { id: 2, title: "Pagare la bolletta della luce", project: "casa", priority: "high", due: 0, state: 2 },
+  { id: 2, title: "Pagare la bolletta della luce", project: "casa", priority: "high", due: 0, state: 2, tags: ["urgente", "casa"] },
   { id: 3, title: "Prenotare visita dal dentista", project: null, priority: "medium", due: 1, state: 1 },
-  { id: 4, title: "Preparare la presentazione trimestrale", project: "lavoro", priority: "high", due: 3, state: 2 },
+  { id: 4, title: "Preparare la presentazione trimestrale", project: "lavoro", priority: "high", due: 3, state: 2, tags: ["urgente"] },
   { id: 5, title: "Comprare il regalo di compleanno", project: null, priority: "medium", due: 6, state: 1 },
   { id: 6, title: "Rinnovare l’abbonamento in palestra", project: null, priority: "low", due: 7, state: 1 },
   { id: 7, title: "Portare l’auto in officina", project: "casa", priority: "low", due: 12, state: 1 },
   { id: 8, title: "Archiviare le ricevute", project: null, priority: "none", due: 22, state: 1 },
   { id: 9, title: "Rispondere alla mail del fornitore", project: "lavoro", priority: "medium", due: 0, state: 5 },
   { id: 10, title: "Allenamento in palestra", project: "salute", priority: "low", due: -1, state: 5 },
-  { id: 11, title: "Rivedere il preventivo del fornitore", project: "lavoro", priority: "medium", due: null, state: 1 },
-  { id: 101, title: "Rinnovo contratto fornitore", project: null, priority: "none", due: null, state: 1, source: "mail" },
+  { id: 11, title: "Rivedere il preventivo del fornitore", project: "lavoro", priority: "medium", due: null, state: 1, tags: ["fornitori"] },
+  { id: 101, title: "Rinnovo contratto fornitore", project: null, priority: "none", due: null, state: 1, source: "mail", nuovo: true },
   { id: 102, title: "Idea proposta nel canale #progetti", project: null, priority: "none", due: null, state: 1, source: "discord" },
-  { id: 103, title: "Promemoria spedito dal bot", project: null, priority: "none", due: null, state: 1, source: "telegram" },
+  { id: 103, title: "Promemoria spedito dal bot", project: null, priority: "none", due: null, state: 1, source: "telegram", nuovo: true },
+];
+
+/* Le fasi dei progetti, per l'anteprima. Servono da quando esiste la sezione
+   Progetti delle Impostazioni: senza, quella schermata si vedrebbe sempre vuota
+   sotto ogni progetto, e non si potrebbe giudicare il rientro delle fasi. */
+const FASI = [
+  { idMilestone: "ms-casa-1", idProject: "casa", label: "Manutenzione", position: 0 },
+  { idMilestone: "ms-casa-2", idProject: "casa", label: "Bollette", position: 1 },
+  { idMilestone: "ms-lavoro-1", idProject: "lavoro", label: "Analisi", position: 0 },
+  { idMilestone: "ms-lavoro-2", idProject: "lavoro", label: "Consegna", position: 1 },
+  { idMilestone: "ms-salute-1", idProject: "salute", label: "Visite", position: 0 },
 ];
 
 export function demoDataset() {
   const stato = (id) => STATI.find((s) => s.id === id);
   return {
     states: STATI,
+    milestones: FASI,
     projects: PROGETTI.map((p) => ({
       ...p,
       taskCount: RIGHE.filter((r) => r.project === p.id).length,
@@ -123,6 +135,18 @@ export function demoDataset() {
       position: i,
       sourceType: r.source ?? "manual",
       sourceUrl: null,
+      /* `inbox` e `isNew` erano assenti, e da quando la colonna "Da smistare"
+         legge il flag invece di dedurlo dall'assenza di progetto (schema 8)
+         l'anteprima usciva vuota: nessuna riga era `inbox`, quindi nessuna card
+         in scena e niente da confrontare con gli artboard.
+
+         Il valore riproduce la vecchia deduzione — di primo livello e senza
+         progetto — perché è esattamente ciò che gli artboard disegnano. `isNew`
+         è acceso su due origini su tre, per avere in scena sia il badge sia una
+         card già vista. */
+      tags: r.tags ?? [],
+      inbox: r.project == null,
+      isNew: r.nuovo === true,
       done: stato(r.state).role === "end",
       state: stato(r.state),
       project: PROGETTI.find((p) => p.id === r.project) ?? null,

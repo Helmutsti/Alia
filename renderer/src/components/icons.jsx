@@ -150,6 +150,115 @@ export const Layers = ({ size = 13, ...p }) => (
   </Glyph>
 );
 
+/* — chrome d'applicazione — */
+
+/* Ingranaggio delle impostazioni: il glifo `settings` di Lucide, quello vero,
+   corona a otto denti e mozzo al centro.
+
+   **Non viene da un artboard**: `DEF_Impostazioni` non è ancora trascritto e
+   `Impostazioni.dc.html` è un'esplorazione precedente (vedi Rinascita.md,
+   § Interfaccia). Da
+   verificare quando l'artboard arriva.
+
+   Un primo tentativo aveva sostituito i denti con una ghiera e quattro tacche,
+   temendo che a 15px la corona si impastasse. Sbagliato due volte: si impastava
+   comunque, e soprattutto senza denti quel disegno non era più un ingranaggio —
+   leggeva come un otturatore. I denti sono ciò che rende l'icona riconoscibile,
+   quindi restano, e il tratto scende a 1.6 per far respirare gli intagli. */
+export const Gear = ({ size = 15, ...p }) => (
+  <Glyph size={size} sw={1.6} join {...p}>
+    <path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z" />
+    <circle cx="12" cy="12" r="3" />
+  </Glyph>
+);
+
+/* — glifi di DEF_Impostazioni —
+   Trascritti dall'artboard: sono resi a 15px con `stroke-width` 1.8, che è la
+   coppia con cui li disegna. La maniglia di riordino fa eccezione: non è un
+   glifo a tratto ma sei cerchi pieni in un riquadro 10×14, e resta tale. */
+
+export const Bell = ({ size = 15, ...p }) => (
+  <Glyph size={size} sw={1.8} {...p}>
+    <path d="M18 8a6 6 0 10-12 0c0 3.5-1.2 5.3-2 6.5h16c-.8-1.2-2-3-2-6.5z" />
+    <path d="M10.5 19a1.7 1.7 0 003 0" />
+  </Glyph>
+);
+
+export const Sorgenti = ({ size = 15, ...p }) => (
+  <Glyph size={size} sw={1.8} {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M3 9h18M8 4v5" />
+  </Glyph>
+);
+
+export const Tastiera = ({ size = 15, ...p }) => (
+  <Glyph size={size} sw={1.8} {...p}>
+    <rect x="4" y="8" width="16" height="8" rx="1.5" />
+    <path d="M7.5 12h.01M10.5 12h.01M13.5 12h.01M16.5 12h.01" />
+  </Glyph>
+);
+
+export const Flusso = ({ size = 15, ...p }) => (
+  <Glyph size={size} sw={1.8} {...p}>
+    <circle cx="8" cy="7" r="2.3" />
+    <circle cx="8" cy="17" r="2.3" />
+    <path d="M8 9.5v5" />
+    <path d="M14 7h6M14 17h6" />
+  </Glyph>
+);
+
+/* Voce "Progetti" della navigazione. Una cartella, alla stessa misura e con lo
+   stesso tratto degli altri quattro glifi della barra. */
+export const Cartella = ({ size = 15, ...p }) => (
+  <Glyph size={size} sw={1.8} join {...p}>
+    <path d="M3 7a2 2 0 012-2h4l2 2.5h8a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+  </Glyph>
+);
+
+export const ManigliaRiordino = ({ ...p }) => (
+  <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true" {...p}>
+    <circle cx="3" cy="3" r="1" />
+    <circle cx="7" cy="3" r="1" />
+    <circle cx="3" cy="7" r="1" />
+    <circle cx="7" cy="7" r="1" />
+    <circle cx="3" cy="11" r="1" />
+    <circle cx="7" cy="11" r="1" />
+  </svg>
+);
+
+/* — glifi di DEF_Task Composer —
+   Le cinque chip della barra: scadenza, priorita, promemoria, progetto, tag.
+   Trascritti dall'artboard, resi a 13px con tratto 2. `Alarm` del promemoria
+   c'e' gia da DEF_Card ed e' lo stesso disegno: non si duplica. */
+
+export const Calendario = ({ size = 13, ...p }) => (
+  <Glyph size={size} {...p}>
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path d="M8 3v4M16 3v4M3 11h18" />
+  </Glyph>
+);
+
+export const Bandierina = ({ size = 13, ...p }) => (
+  <Glyph size={size} {...p}>
+    <path d="M5 21V4h9l-1 3 1 3H5" />
+  </Glyph>
+);
+
+export const Etichette = ({ size = 13, ...p }) => (
+  <Glyph size={size} {...p}>
+    <path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16" />
+  </Glyph>
+);
+
+/* Passaggio da inserimento rapido a completo: due frecce che divaricano. Non
+   una lente e non una matita — non si sta guardando ne correggendo, si sta
+   aprendo la stessa cosa piu' in grande. */
+export const Espandi = ({ size = 12, ...p }) => (
+  <Glyph size={size} sw={2} join {...p}>
+    <path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" />
+  </Glyph>
+);
+
 /* Icone a path variabile: viste (Lista/Kanban/Calendario/Gantt) e sorgenti
    esterne (Mail/Discord/Telegram). I path stanno in inbox/data.js, presi
    dagli artboard. */

@@ -1,17 +1,13 @@
-/* Le due sole regole degli artboard dell'Inbox che non possono essere utility:
-   la classe `hit` viene aggiunta e togliata via classList durante il
-   trascinamento (Tailwind non vede classi create a runtime). Da DEF_Inbox max,
-   `.fi-col.hit`. */
+/* **Niente si illumina piu' durante il trascinamento** (2026-09-10).
 
-[data-drop-col].hit {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -2px;
-}
-
-/* I gruppi della vista Lista NON si illuminano, per scelta: la destinazione la
-   dice il varco che si apre fra le righe. Un contorno acceso su un gruppo c'e'
-   stato per un giro e non convinceva — un disegno migliore per sottolineare la
-   destinazione e' da studiare. */
+   Qui stava `[data-drop-col].hit`, il contorno azzurro della colonna bersaglio
+   preso da `.fi-col.hit` di DEF_Inbox max. E' stato tolto per la stessa ragione
+   per cui un giro prima lo avevano perso i gruppi della vista Lista: la
+   destinazione la dicono gia' il varco che si apre e il clone che cambia
+   larghezza passando da card a riga: il contorno era una terza voce che
+   ripeteva, e sulla colonna diventata card di superficie era anche la piu'
+   rumorosa. Un disegno migliore per sottolineare la destinazione resta da
+   studiare (vedi Rinascita.md, § Interfaccia). */
 
 /* Sottolineatura della tab attiva — da `.sp-tab.active::after` di
    DEF_Inbox min: uno pseudo-elemento non è esprimibile come utility. */

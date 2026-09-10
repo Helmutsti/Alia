@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, MailBox, Plus } from "../components/icons.jsx";
+import { ArrowLeft, Espandi, Gear, MailBox, Plus } from "../components/icons.jsx";
 import { ContentPane } from "./ContentPane.jsx";
+import { SettingsModal } from "../components/SettingsModal.jsx";
+import { TaskComposer } from "../components/TaskComposer.jsx";
 import { TaskDetailModal } from "../components/TaskDetailModal.jsx";
 import { InboxCard } from "./InboxCard.jsx";
 import { OriginCard } from "./OriginCard.jsx";
 import { useBoardDrag } from "./dragKit.js";
-import { useInboxMorph } from "./useInboxMorph.js";
+import { FRAME, useInboxMorph } from "./useInboxMorph.js";
 import { useAlia } from "../lib/AliaProvider.jsx";
+import { SCORCIATOIA_COMPOSER, SCORCIATOIA_NUOVA_TASK, eComposer, eNuovaTask } from "../lib/piattaforma.js";
 import "./inbox.css";
 
 /* Inbox — vista divisa e Full Inbox nello stesso componente.
@@ -31,12 +34,51 @@ import "./inbox.css";
    La versione precedente le passava a 13px nello stato finale, e sbagliava di
    0.7px per card. */
 
+/* Bottone del chrome di finestra (oggi: l'ingranaggio).
+
+   La posizione è **ottica su tutti e due gli assi**: quello che deve stare a 12
+   dal bordo è il contorno dell'icona, non quello del bottone. L'icona è 15
+   dentro un bottone di 24, quindi rientra di 4.5 per conto suo, e il bottone va
+   portato a 7 perché l'icona finisca a ~12. Da qui `top: 7` e `right: 7`.
+
+   Vale la pena dire perché non sta nella riga dell'intestazione insieme alla
+   scritta "Inbox", dove era finito per un giro. Quella riga è alta 31 (misura
+   di DEF_Inbox max) e centra i suoi figli: un bottone di 24 centrato in 31 cade
+   a 15.5, e l'icona dentro di lui a 20 — otto pixel più in basso di quanto
+   disti dal bordo destro, e si vedeva. Un'etichetta di testo e un'icona vogliono
+   regole di allineamento diverse: la prima si allinea per riquadro, la seconda
+   per contorno visibile. Tenerle nello stesso flex costringeva a sbagliarne
+   una. */
+const CHROME_BTN =
+  "grid place-items-center w-6 h-6 shrink-0 rounded-md border-0 bg-transparent " +
+  "cursor-pointer text-content/55 hover:text-content " +
+  "hover:bg-[color-mix(in_srgb,var(--color-content)_10%,transparent)]";
+/* Il badge delle origini nuove, accanto alla scritta "Inbox": è il conteggio di
+   quella colonna, quindi sta attaccato al suo nome e non insieme ai comandi di
+   finestra. Stesso disegno del contatore filtri in ContentPane — pieno
+   d'accento (l'azzurro del tema) con il testo nel colore del fondo. */
+const BADGE =
+  "inline-flex items-center justify-center min-w-4 h-4 px-1 shrink-0 rounded-full " +
+  "bg-accent text-bg text-micro font-medium tabular-nums";
+
 const ORIGIN_HEAD = "flex items-center gap-2 pt-3 pb-2 shrink-0 cursor-grab touch-none";
-const ADD_BTN =
-  "flex items-center gap-1.5 px-[9px] py-2 rounded-lg bg-transparent cursor-pointer shrink-0 " +
+/* Il campo che crea: tratteggiato, sempre in fondo alla colonna.
+
+   Ha sostituito il bottone "Aggiungi" di DEF_Inbox max, ed e' un cambio di
+   gesto e non di aspetto. Il bottone creava una task intitolata "Nuova task" e
+   apriva la sua riga in modifica: due passaggi e un titolo finto da cancellare.
+   Qui si scrive e si preme Invio; il campo si svuota da se' e resta pronto,
+   perche' le task si scrivono a raffica — la stessa cosa che nelle Impostazioni
+   fa il campo delle fasi.
+
+   Sta in fondo, sotto l'ultima card, e non in cima: e' il posto in cui la task
+   comparira'. Un campo in cima farebbe scrivere in un punto e comparire in un
+   altro. */
+const NUOVA_TASK =
+  "flex items-center gap-2 w-full h-8 px-2.5 rounded-lg shrink-0 " +
   "border border-dashed border-[color-mix(in_srgb,var(--color-content)_18%,transparent)] " +
-  "text-[11.5px] text-content/50 hover:text-content " +
-  "hover:border-[color-mix(in_srgb,var(--color-content)_30%,transparent)]";
+  "focus-within:border-accent";
+
 /* Ritorno alla vista divisa: tondo, senza testo, nell'angolo in basso a destra
    della colonna origini — quindi appena a sinistra della colonna "Da smistare".
    Fondo `surface` e non trasparente perché galleggia sullo spazio vuoto della
@@ -67,9 +109,34 @@ export function InboxWorkspace({ startFull = false }) {
      che il pannello si disegna da solo (vedi ContentPane). */
   const [anteprima, setAnteprima] = useState(null);
 
+  /* Le origini nuove, e il gesto che le spegne.
+
+     Regola: la campanella si spegne **entrando** nella Full Inbox. È lì che le
+     origini sono davanti agli occhi, ed è quello che "viste" vuol dire; nella
+     vista divisa la colonna non esiste, quindi finché si sta di qua il badge
+     deve restare acceso anche a fissarlo.
+
+     `nuoveViste` è l'istantanea di quali erano nuove nell'istante in cui si è
+     entrati. Serve perché la scrittura ricarica subito i dati, e senza questa
+     copia i pallini sulle card si spegnerebbero sotto gli occhi nel momento
+     esatto in cui l'utente arriva a guardarli — cioè il flag direbbe il vero e
+     l'interfaccia non servirebbe a niente. L'istantanea vive quanto la
+     permanenza nella board e si svuota all'uscita.
+
+     `segnate` evita di riscrivere a ogni render: `pending` è un array nuovo
+     ogni volta, e senza guardia l'effetto si rincorrerebbe con il ricaricamento
+     che lui stesso provoca. */
+  const [nuoveViste, setNuoveViste] = useState(() => new Set());
+  const segnate = useRef(false);
+
   const [draggingTask, setDraggingTask] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [detailTask, setDetailTask] = useState(null);
+
+  /* Impostazioni: il pannello di `DEF_Impostazioni`. Sta qui e non dentro una
+     delle due metà perché copre tutta la finestra, come il dettaglio del task. */
+  const [impostazioniAperte, setImpostazioniAperte] = useState(false);
+  const apriImpostazioni = useCallback(() => setImpostazioniAperte(true), []);
 
   const commitTitle = useCallback(
     (id, value) => {
@@ -105,6 +172,22 @@ export function InboxWorkspace({ startFull = false }) {
     () => tasks.filter((t) => t.sourceType && t.sourceType !== "manual" && t.inbox),
     [tasks],
   );
+
+  const nuoveOrigini = useMemo(() => pending.filter((t) => t.isNew).length, [pending]);
+
+  useEffect(() => {
+    if (!m.committed) {
+      segnate.current = false;
+      setNuoveViste((prec) => (prec.size === 0 ? prec : new Set()));
+      return;
+    }
+    if (segnate.current) return;
+    segnate.current = true;
+    const nuove = pending.filter((t) => t.isNew).map((t) => t.id);
+    if (nuove.length === 0) return;
+    setNuoveViste(new Set(nuove));
+    alia.segnaOriginiViste();
+  }, [m.committed, pending, alia]);
 
   /* Che aspetto prende il task nell'anteprima, mentre sta sopra un bersaglio.
      Deve dire la stessa cosa che `onDrop` scrivera' davvero, altrimenti si vede
@@ -196,10 +279,105 @@ export function InboxWorkspace({ startFull = false }) {
 
   /* Creazione: la task nasce senza progetto (è un'inbox) e con il titolo già
      in modifica, così si scrive subito invece di crearla e poi cercarla. */
-  const aggiungi = useCallback(async () => {
-    const esito = await alia.creaTask({ title: "Nuova task" });
-    if (esito?.esito === "applicato" && esito.idTask) setEditingTask(esito.idTask);
-  }, [alia]);
+  /* La creazione ha tre porte e due stanze.
+
+     Le prime due portano nella stessa: il campo in fondo alla colonna Inbox. La
+     scorciatoia da tastiera non apre niente di suo — mette il cursore li'. Cosi'
+     non ci sono due modi di creare che possono divergere.
+
+     La terza e' il campo in fondo a ogni gruppo della vista Lista, che crea
+     *dentro un progetto*: vive in ContentPane, che e' l'unico posto a sapere di
+     quale gruppo si tratta.
+
+     Sulla riga "Inbox" c'e' stato per un giro un `+` che portava al campo della
+     colonna. Tolto: quella riga ha gia' la scritta con il suo badge e, all'altro
+     capo, l'ingranaggio — e il campo che il `+` andava ad aprire e' visibile lo
+     stesso, tre centimetri piu' sotto. Era un comando per arrivare a un comando
+     che si vedeva gia'. */
+  const rifNuova = useRef(null);
+  const [composerAperto, setComposerAperto] = useState(null);
+  const [titoloNuova, setTitoloNuova] = useState("");
+
+  const apriNuova = useCallback(() => {
+    rifNuova.current?.focus();
+    rifNuova.current?.scrollIntoView({ block: "nearest" });
+  }, []);
+
+  /* Due modi di inserire, e la differenza non e' quanto si scrive: e' **dove si
+     finisce**.
+
+       rapido    Invio. La task nasce e il campo resta li', vuoto e a fuoco, per
+                 la prossima. Non si va da nessuna parte, e questo e' il punto:
+                 di cose da buttare dentro se ne butta una dopo l'altra.
+       completo  Si apre la scheda della task, quella vera, e si compila.
+
+     Nessuna scorciatoia con Maiusc. C'era la tentazione di dare a `Maiusc+Invio`
+     il modo completo, ed e' stata scartata: `Maiusc+Invio` in un campo di testo
+     vuol dire "vai a capo" in mezzo mondo, e girarlo a "apri un'altra finestra"
+     sorprende invece di aiutare. Il modo completo ha un comando che si vede.
+
+     Il completo **crea prima e apre dopo**, non il contrario. La scheda e'
+     l'editor di una task che esiste — e' cosi' che funziona per tutte le altre,
+     e un secondo editor per le task non ancora nate sarebbe lo stesso disegno
+     due volte, con due possibilita' di divergere. La conseguenza da conoscere:
+     chiudendo la scheda senza toccare niente, la task resta. Con un titolo
+     scritto da chi l'ha aperta, pero': non e' un fantasma, e' una task scarna. */
+  const creaRapido = useCallback(async () => {
+    const titolo = titoloNuova.trim();
+    if (!titolo) return;
+    setTitoloNuova("");
+    await alia.creaTask({ title: titolo });
+  }, [alia, titoloNuova]);
+
+  /* Il modo completo apre `DEF_Task Composer`, non la scheda del task: il
+     composer e' fatto per **creare** — titolo, nota e cinque chip, e finche' non
+     si preme invio non esiste niente — mentre la scheda e' l'editor di una task
+     che gia' c'e'. La differenza si sente sull'annullamento: da qui Esc non
+     lascia dietro niente.
+
+     Il titolo scritto nel campo rapido entra nel composer gia' dentro: e' la
+     prop `seedTitle` dell'artboard, che quel passaggio lo prevede. */
+
+  const creaCompleto = useCallback(() => {
+    setComposerAperto({ titolo: titoloNuova, inbox: true, idProgetto: null });
+    setTitoloNuova("");
+  }, [titoloNuova]);
+
+  /* La scorciatoia sta sulla finestra e non sul campo, perche' deve funzionare
+     ovunque si trovi il fuoco. Non scatta mentre si sta gia' scrivendo da
+     qualche parte: rubare il tasto a chi ha il cursore in un campo di testo e'
+     il modo piu' rapido di rendere odiosa una scorciatoia. */
+  useEffect(() => {
+    const onKey = (e) => {
+      const rapida = eNuovaTask(e);
+      const grande = eComposer(e);
+      if (!rapida && !grande) return;
+
+      const dove = e.target;
+      const scrivendo =
+        dove instanceof HTMLElement &&
+        (dove.tagName === "INPUT" || dove.tagName === "TEXTAREA" || dove.isContentEditable);
+      /* La rapida non ruba il tasto a chi sta scrivendo altrove; la grande sì,
+         perché apre una finestra sopra tutto e non sposta il cursore di
+         nascosto — l'unico posto in cui non deve scattare è dentro il composer
+         stesso, che a quel punto è già aperto. */
+      if (rapida && scrivendo && dove !== rifNuova.current) return;
+      e.preventDefault();
+
+      if (grande) {
+        /* Quello che era scritto nel campo rapido viene portato dentro: se si
+           sta scrivendo lì e ci si accorge che serve di più, non si ricomincia. */
+        setComposerAperto((aperto) =>
+          aperto ?? { titolo: titoloNuova, inbox: true, idProgetto: null },
+        );
+        setTitoloNuova("");
+        return;
+      }
+      apriNuova();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [apriNuova, titoloNuova]);
 
   const { start } = useBoardDrag({
     boardRef,
@@ -231,26 +409,92 @@ export function InboxWorkspace({ startFull = false }) {
         `font-sans ${m.dragging ? "cursor-col-resize select-none" : ""}`
       }
     >
-      {/* ═══ intestazione di quadro — appare col layout della Full Inbox ═══ */}
+      {/* ═══ intestazione di quadro — vale per **entrambe** le geometrie ═══
+
+          Non si dissolve più e non ha una seconda copia dentro la colonna: è un
+          elemento solo, sempre acceso, sempre nello stesso punto. Tiene le tre
+          cose che non appartengono né alla colonna né al contenuto — il nome
+          della schermata, il conto delle origini nuove, le impostazioni — e per
+          questo sta fuori da entrambi i contenitori. Un ingranaggio *dentro* la
+          card dell'Inbox leggerebbe come "impostazioni dell'inbox".
+
+          Da qui viene la semplificazione del movimento: siccome questa riga c'è
+          sempre, le colonne cominciano sotto di lei anche a p=0, e `top` e
+          `height` smettono di essere interpolati (vedi useInboxMorph).
+
+          Il badge sta attaccato alla scritta perché è il conto di *questa*
+          schermata; l'ingranaggio va all'altro capo, ed è lì che andranno le
+          notifiche quando ci saranno. */}
+      {/* La riga sta a `pad − 5`, non a `pad`, ed è la **stessa compensazione
+          ottica dell'ingranaggio**: quello che deve distare 12 dal bordo è il
+          contorno visibile, non il riquadro che lo contiene. Un'etichetta di 11px
+          maiuscoli sta in una riga di testo alta 17, e le maiuscole cominciano
+          circa 4.5 più in basso del riquadro — esattamente come l'icona da 15
+          dentro un bottone da 24. Stesso scarto, stesso recupero, e i due tornano
+          allineati anche fra loro.
+          Non ha più un'altezza fissa: prende quella del testo. I 31px di
+          `FRAME.headerH` restano la **fascia riservata** da cui si ricava
+          `colTop`, non la misura di questa riga — centrare un'icona in quella
+          fascia era ciò che la spingeva otto pixel troppo in basso. */}
       <div
-        className="absolute left-5 right-5 top-[18px] h-[31px] flex items-center gap-3 z-[6]"
-        style={{
-          opacity: m.fullHeaderOpacity,
-          transition: m.fadeTransition,
-          pointerEvents: m.committed ? "auto" : "none",
-        }}
+        className="absolute flex items-center gap-2.5 z-[7]"
+        style={{ left: FRAME.pad, right: FRAME.pad, top: FRAME.headerTop }}
       >
         <span className="text-mini tracking-[0.14em] uppercase text-accent">Inbox</span>
+        {nuoveOrigini > 0 ? (
+          <span
+            className={BADGE}
+            title={`${nuoveOrigini} ${nuoveOrigini === 1 ? "nuova origine" : "nuove origini"}`}
+          >
+            {nuoveOrigini}
+          </span>
+        ) : null}
       </div>
 
-      {/* ═══ pannello contenuto della vista divisa ═══ */}
+      {/* L'ingranaggio: elemento a sé, posizionato per contorno dell'icona e non
+          per riquadro del bottone (vedi CHROME_BTN). Resta il vicino di casa
+          delle notifiche, quando ci saranno. */}
       <div
-        className="absolute flex overflow-hidden bg-surface rounded-[14px] shadow-elev-md z-[1]"
+        className="absolute flex items-center gap-1 z-[7]"
+        style={{ top: FRAME.headerTop, right: FRAME.pad - 5 }}
+      >
+        <button
+          type="button"
+          onClick={apriImpostazioni}
+          title="Impostazioni"
+          aria-label="Impostazioni"
+          className={CHROME_BTN}
+        >
+          <Gear size={15} />
+        </button>
+      </div>
+
+      {/* ═══ area contenuto della vista divisa ═══
+
+          Non è più una card: niente fondo, niente bordo, niente raggio, niente
+          ombra. Il contenitore è passato alla colonna (vedi la nota in
+          useInboxMorph): qui resta una regione appoggiata sul fondo, e le due
+          metà della vista divisa si distinguono per elevazione — la colonna sta
+          sopra, il contenuto sta sul tavolo — invece che per un bordo ciascuna.
+
+          Margini: gli stessi delle colonne, presi da `FRAME`. Comincia alla
+          quota `colTop`, come loro, e finisce sul margine del quadro a destra e
+          in basso. Prima erano 16 su tre lati, che era il margine di una card;
+          senza card non c'è più niente che li giustifichi, e allineare il
+          contenuto alle colonne è ciò che tiene insieme le due geometrie. */}
+      <div
+        className="absolute flex overflow-hidden z-[1]"
         style={{
           left: m.content.left,
-          top: 16,
-          right: 16,
-          bottom: 16,
+          top: FRAME.colTop,
+          /* Fino al bordo, non a `FRAME.pad`: il margine destro è passato ai
+             figli dentro ContentPane. Il motivo è la barra di scorrimento —
+             quando non è in sovrimpressione si prende ~10px **dentro** il
+             contenitore che scorre, e le righe finivano a 22 dal bordo mentre la
+             colonna a sinistra stava a 12. Lasciando che il contenitore arrivi
+             al bordo, la barra cade nel margine e le righe tornano a 12. */
+          right: 0,
+          bottom: FRAME.pad,
           opacity: m.content.opacity,
           transition: m.content.transition,
           pointerEvents: m.p === 0 ? "auto" : "none",
@@ -261,6 +505,7 @@ export function InboxWorkspace({ startFull = false }) {
             modale copre tutta la schermata e non solo il pannello. */}
         <ContentPane
           onOpenTask={setDetailTask}
+          onApriComposer={setComposerAperto}
           onRowPointerDown={start}
           onOrdinamento={setOrdinamento}
           anteprima={anteprima}
@@ -297,6 +542,10 @@ export function InboxWorkspace({ startFull = false }) {
             <OriginCard
               key={task.id}
               task={task}
+              /* Nuova secondo il flag, oppure secondo l'istantanea presa
+                 entrando: il flag si spegne appena si mette piede qui dentro,
+                 l'istantanea è ciò che lo tiene visibile finché si guarda. */
+              nuova={task.isNew || nuoveViste.has(task.id)}
               editing={editingTask === task.id}
               dragging={draggingTask === task.id}
               onPointerDown={(e) => start(task.id, e)}
@@ -335,8 +584,9 @@ export function InboxWorkspace({ startFull = false }) {
         /* La cromatura (fondo, bordo, raggio) sta sulla colonna stessa, non su
            uno strato sovrapposto: un tempo era un div a `-inset-px`, cioè 1px
            fuori dal padding box, e `overflow-hidden` lo ritagliava — il bordo
-           risultava tagliato. Il bordo di 1px è sempre presente e cambia solo
-           colore, così rientra il contenuto come negli artboard anche a p=0. */
+           risultava tagliato. Ora quei tre valori non si muovono nemmeno più: la
+           colonna è una card di superficie in entrambe le geometrie, quindi il
+           bordo di 1px c'è sempre e sempre dello stesso colore. */
         className="absolute flex flex-col overflow-hidden border z-[4]"
         style={{
           left: m.none.left,
@@ -349,32 +599,13 @@ export function InboxWorkspace({ startFull = false }) {
           transition: m.none.transition,
         }}
       >
-        {/* Intestazione: le due varianti sono sovrapposte nello stesso spazio,
-            che si stringe da 91px a 41px, così le card scorrono verso l'alto
-            insieme al resto del movimento invece di saltare alla conferma. */}
+        {/* Intestazione della colonna: ne è rimasta una sola, quella della Full
+            Inbox. Nella vista divisa la colonna non ha testata — la scritta
+            "Inbox" è uscita nell'intestazione di quadro e "Aggiungi task" è da
+            ridecidere — quindi il riquadro parte da altezza 0 e cresce fino ai
+            40.9px di "Da smistare" mentre si trascina. Le card scendono insieme
+            al movimento, invece di saltare alla conferma. */}
         <div className="relative shrink-0 overflow-hidden" style={{ height: m.none.headerSlot }}>
-          <div
-            className="absolute inset-x-0 top-0 px-5 pt-5 pb-3 flex flex-col gap-2.5"
-            style={{ opacity: m.splitHeaderOpacity, transition: m.fadeTransition }}
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-mini tracking-[0.14em] uppercase text-accent">Inbox</span>
-            </div>
-            <button
-              type="button"
-              onClick={aggiungi}
-              className={
-                "flex items-center w-full h-8 px-2.5 gap-2 rounded-lg bg-transparent cursor-pointer " +
-                "border border-dashed border-divider text-content/65 text-[12.5px] " +
-                "hover:border-accent hover:text-accent"
-              }
-            >
-              <Plus size={13} />
-              Aggiungi task
-              <span className="ml-auto text-[10.5px] opacity-75">⌘K</span>
-            </button>
-          </div>
-
           <div
             className="absolute inset-x-0 top-0 pt-3 px-3 pb-2 flex items-center gap-2"
             style={{ opacity: m.fullHeaderOpacity, transition: m.fadeTransition }}
@@ -418,28 +649,47 @@ export function InboxWorkspace({ startFull = false }) {
               onPointerDown={(e) => start(task.id, e)}
             />
           ))}
-          {/* Il pulsante appartiene alla Full Inbox: nella vista divisa non c'e.
-              Sfumarlo con la sola opacita non bastava — restava in flusso, alto
-              32px, e sotto l'ultima card si vedevano 32+8 di gap+16 di padding
-              = 56px di vuoto inspiegabile in fondo alla colonna. Ora la sua
-              altezza segue il movimento (0 -> 32) e a riposo, a p=0, non viene
-              montato affatto: cosi non lascia nemmeno il gap del flex. */}
-          {m.fullHeaderOpacity > 0 ? (
-            <div
-              className="shrink-0 overflow-hidden flex"
-              style={{ height: 32 * m.fullHeaderOpacity }}
+          {/* Il campo della nuova task. Non e' piu' legato alla Full Inbox come
+              il bottone che ha sostituito: c'e' in tutte e due le geometrie,
+              perche' la colonna e' la stessa e il gesto anche. */}
+          <div className={NUOVA_TASK}>
+            <Plus size={12} className="text-content/40 shrink-0" />
+            <input
+              ref={rifNuova}
+              type="text"
+              value={titoloNuova}
+              placeholder="Nuova task…"
+              aria-label="Titolo della nuova task"
+              onChange={(e) => setTitoloNuova(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setTitoloNuova("");
+                  e.currentTarget.blur();
+                }
+                if (e.key === "Enter") creaRapido();
+              }}
+              className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[12.5px] text-content placeholder:text-content/45"
+            />
+            {/* La scorciatoia si mostra solo a campo vuoto: a cursore dentro e
+                parola scritta, ripeterla e' rumore. Il segno cambia col sistema
+                — vedi lib/piattaforma.js. */}
+            {/* La scorciatoia si mostra solo a campo vuoto: a parola scritta,
+                ripeterla e' rumore. Il comando del modo completo invece resta,
+                perche' e' l'unica cosa che lo annuncia. */}
+            {titoloNuova === "" ? (
+              <span className="text-[10.5px] text-content/38 shrink-0">{SCORCIATOIA_NUOVA_TASK}</span>
+            ) : null}
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={creaCompleto}
+              title={`Apri il composer (${SCORCIATOIA_COMPOSER})`}
+              aria-label="Apri il composer"
+              className="grid place-items-center w-5 h-5 shrink-0 rounded-md border-0 bg-transparent cursor-pointer text-content/38 hover:text-accent hover:bg-[color-mix(in_srgb,var(--color-content)_10%,transparent)]"
             >
-              <button
-                type="button"
-                onClick={aggiungi}
-                className={ADD_BTN}
-                style={{ opacity: m.fullHeaderOpacity, transition: m.fadeTransition }}
-              >
-                <Plus size={12} />
-                Aggiungi
-              </button>
-            </div>
-          ) : null}
+              <Espandi size={11} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -467,6 +717,19 @@ export function InboxWorkspace({ startFull = false }) {
           }
         />
       </div>
+
+      {/* ═══ composer — DEF_Task Composer ═══ */}
+      {composerAperto ? (
+        <TaskComposer
+          titoloIniziale={composerAperto.titolo}
+          idProgetto={composerAperto.idProgetto}
+          inbox={composerAperto.inbox}
+          onChiudi={() => setComposerAperto(null)}
+        />
+      ) : null}
+
+      {/* ═══ impostazioni — DEF_Impostazioni ═══ */}
+      {impostazioniAperte ? <SettingsModal onClose={() => setImpostazioniAperte(false)} /> : null}
 
       {/* ═══ dettaglio task — DEF_Task Detail ═══ */}
       {detail ? <TaskDetailModal task={detail} onClose={() => setDetailTask(null)} /> : null}

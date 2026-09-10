@@ -1,15 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, PathIcon } from "../components/icons.jsx";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Espandi, PathIcon } from "../components/icons.jsx";
 import { InboxCard } from "./InboxCard.jsx";
 import { TaskRow } from "./TaskRow.jsx";
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from "./Dropdown.jsx";
 import {
   GROUP_KEYS,
+  SENZA_PROGETTO,
   SHOW_DONE,
   SORT_KEYS,
   activeFilterCount,
+  eFiltroTag,
   filterGroups,
   filterTasks,
+  filtroDaTag,
+  tagDaFiltro,
   groupTasks,
   sortTasks,
 } from "./contentQuery.js";
@@ -46,13 +50,49 @@ const CTL =
   "inline-flex items-center gap-[7px] h-8 px-3 rounded-lg border border-divider bg-transparent " +
   "cursor-pointer text-[12.5px] hover:border-accent";
 const CTL_MUT = `${CTL} text-content/70`;
+/* Il selettore di progetto. `h-8` come i comandi accanto, e non e' un dettaglio:
+   il testo qui e' 18px contro i 12.5 del selettore vista, quindi a riquadri
+   liberi il suo e' alto 25.6 contro 32. Centrati nella stessa riga i due
+   condividono il centro ma non il bordo alto — e siccome quello a destra ha un
+   contorno visibile e questo no, si vede il suo riquadro cominciare tre pixel
+   piu in alto del testo di questo, e la riga sembra sfalsata. Alla stessa
+   altezza i due riquadri cominciano insieme. */
 const PICK =
-  "inline-flex items-center gap-[9px] border-0 bg-transparent cursor-pointer text-content " +
-  "font-medium tracking-[-0.015em] px-1 py-0.5 rounded-md leading-[1.2] text-lg " +
+  "inline-flex items-center gap-[9px] h-8 border-0 bg-transparent cursor-pointer text-content " +
+  "font-medium tracking-[-0.015em] px-1.5 rounded-md leading-[1.2] text-lg " +
   "hover:bg-[color-mix(in_srgb,var(--color-content)_7%,transparent)]";
 
-export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, anteprima }) {
+/* Quanto si prende la barra di scorrimento dentro l'elemento che scorre.
+
+   Serve perché il margine destro non può essere una costante: la barra non e
+   in sovrimpressione dappertutto. Nell'app lo e (Electron parte con
+   `--enable-features=OverlayScrollbar`) e non occupa niente; in un browser
+   normale — la pagina di anteprima — si prende una decina di pixel **dentro**
+   il riquadro, e un `padding-right` di 12 non li annulla: gli si somma, e le
+   righe finiscono a 22 dal bordo mentre la colonna a sinistra sta a 12. E
+   l'asimmetria che si vedeva.
+
+   Quindi si misura invece di assumere, e il margine diventa `12 - barra`: 12
+   dove la barra non occupa spazio, 2 dove se ne prende 10. In tutti e due i
+   casi il bordo destro delle righe cade a 12, come la colonna a sinistra.
+
+   La misura si rifa a ogni cambio di contenuto perche la barra va e viene con
+   la lunghezza dell'elenco. */
+function useLarghezzaBarra(rif, dipendenze) {
+  const [barra, setBarra] = useState(0);
+  useLayoutEffect(() => {
+    const el = rif.current;
+    if (!el) return;
+    const misurata = el.offsetWidth - el.clientWidth;
+    setBarra((prec) => (Math.abs(prec - misurata) < 0.5 ? prec : misurata));
+  });
+  return barra;
+}
+
+export function ContentPane({ onOpenTask, onApriComposer, onRowPointerDown, onOrdinamento, anteprima }) {
   const alia = useAlia();
+  const rifLista = useRef(null);
+  const barra = useLarghezzaBarra(rifLista);
   const [scope, setScope] = useState("all");
   /* Parte da "lista", l'unica vista non bloccata, e `setView` rifiuta le altre:
      `view` non puo quindi assumere il valore di una vista bloccata. */
@@ -62,6 +102,110 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
   const [group, setGroup] = useState("progetto");
   const [filters, setFilters] = useState(() => new Set());
   const [menu, setMenu] = useState(null);
+  /* Quello che si sta scrivendo nel campo dei tag. Vive qui e non nel filtro:
+     finche' non si preme Invio non e' un filtro, e' una parola a meta. */
+  const [tagScritto, setTagScritto] = useState("");
+
+  /* Il doppio clic dentro un gruppo apre un campo **in quel gruppo**, e la task
+     nasce gia' nel progetto: e' l'unico gesto di creazione che non passa dalla
+     colonna Inbox, ed e' anche il motivo per cui vive qui — ContentPane e'
+     l'unico posto che sa su quale gruppo si e' cliccato.
+
+     Vale **solo raggruppando per progetto**, come il rilascio del
+     trascinamento e per la stessa ragione: e' il solo raggruppamento in cui il
+     gruppo identifica un valore assegnabile senza ambiguita'. Dentro "In corso"
+     o "Alta", cosa vorrebbe dire creare li'? Una regola diversa per ogni
+     raggruppamento sarebbe una regola che nessuno ricorda.
+
+     `apertoIn` tiene l'id del gruppo con il campo aperto — uno per volta, che
+     e' quanti ne servono.
+
+     Il doppio clic non e' pero' l'unico modo di arrivarci, ed e' bene che non lo
+     sia: un gesto che non lascia traccia a schermo non lo trova chi non sa gia'
+     che c'e'. In fondo a ogni gruppo c'e' un campo **sempre presente**, appena
+     visibile, che si accende al passaggio del mouse. Il doppio clic e' la
+     scorciatoia per quello stesso campo, non un secondo gesto. */
+  const [apertoIn, setApertoIn] = useState(null);
+  const [titoloNuovo, setTitoloNuovo] = useState("");
+
+  const apriIn = useCallback(
+    (idGruppo) => {
+      if (group !== "progetto") return;
+      setTitoloNuovo("");
+      setApertoIn(idGruppo);
+    },
+    [group],
+  );
+
+  /* Un doppio clic *su una riga* non deve aprire niente: li' il doppio clic e'
+     un gesto della riga. Si apre solo dal vuoto del gruppo — che e' esattamente
+     il posto in cui la task comparira'. */
+  const doppioClic = useCallback(
+    (e, idGruppo) => {
+      if (e.target.closest("[data-task]")) return;
+      apriIn(idGruppo);
+    },
+    [apriIn],
+  );
+
+  /* Gli stessi due modi del campo in colonna — rapido con Invio, completo con
+     il comando che apre la scheda — con in piu' il progetto del gruppo. Vedi la
+     nota estesa in InboxWorkspace: la differenza fra i due non e' quanto si
+     scrive, e' dove si finisce. */
+  const creaNelGruppo = useCallback(
+    async (idGruppo, { completo = false } = {}) => {
+      const titolo = titoloNuovo.trim();
+      if (!titolo && !completo) return;
+      setTitoloNuovo("");
+      /* `isInbox: false` perche' questa task e' gia' decisa: chi la scrive la
+         sta mettendo in un progetto preciso, e mandarla in triage vorrebbe dire
+         chiedergli di ridecidere una cosa che ha appena deciso. E' l'opposto
+         del campo della colonna Inbox, dove la task nasce da smistare proprio
+         perche' li' non si e' scelto niente. */
+      if (completo) {
+        /* Il completo non crea: apre il composer con dentro quello che era
+           stato scritto e il progetto del gruppo gia' scelto. Chi lo apre da
+           qui ha gia' detto dove va. */
+        setApertoIn(null);
+        onApriComposer?.({
+          titolo,
+          idProgetto: idGruppo === SENZA_PROGETTO ? null : idGruppo,
+          inbox: false,
+        });
+        return;
+      }
+      await alia.creaTask({
+        title: titolo,
+        idProject: idGruppo === SENZA_PROGETTO ? null : idGruppo,
+        isInbox: false,
+      });
+    },
+    [alia, onApriComposer, titoloNuovo],
+  );
+
+  /* I gruppi chiusi della vista Lista.
+
+     La chiave porta con sé **anche il raggruppamento** (`progetto:casa`, non
+     `casa`): gli id dei gruppi vengono da domini diversi a seconda di come si
+     raggruppa — un progetto, uno stato, una priorità — e senza il prefisso il
+     progetto con id "1" e lo stato con id "1" si chiuderebbero a vicenda.
+
+     Vive quanto la schermata: chiudere un gruppo è un gesto di lettura, come
+     scorrere, non una preferenza da ricordare. Se un giorno lo diventasse, il
+     posto è la tabella delle preferenze che ancora non c'è (vedi TODO). */
+  const [chiusi, setChiusi] = useState(() => new Set());
+  const chiaveGruppo = useCallback((idGruppo) => `${group}:${idGruppo}`, [group]);
+  const alterna = useCallback(
+    (idGruppo) =>
+      setChiusi((prec) => {
+        const next = new Set(prec);
+        const k = `${group}:${idGruppo}`;
+        if (next.has(k)) next.delete(k);
+        else next.add(k);
+        return next;
+      }),
+    [group],
+  );
 
   /* L'ordinamento in uso viene riferito a chi ospita il pannello, perche' il
      rilascio del trascinamento deve sapere se la posizione ha un senso: con un
@@ -70,6 +214,22 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
   useEffect(() => {
     onOrdinamento?.(sortKey);
   }, [onOrdinamento, sortKey]);
+
+  /* Un gruppo chiuso che diventa bersaglio del trascinamento si apre, e resta
+     aperto dopo il rilascio. Senza, il task finirebbe dentro una scatola chiusa
+     e sparirebbe davanti agli occhi di chi lo ha appena spostato: il varco che
+     dovrebbe mostrarne la destinazione non ha dove disegnarsi. */
+  useEffect(() => {
+    const bersaglio = anteprima?.groupId;
+    if (!bersaglio) return;
+    setChiusi((prec) => {
+      const k = `${group}:${bersaglio}`;
+      if (!prec.has(k)) return prec;
+      const next = new Set(prec);
+      next.delete(k);
+      return next;
+    });
+  }, [anteprima?.groupId, group]);
 
   const chiudi = useCallback(() => setMenu(null), []);
   const apri = (id) => setMenu((m) => (m === id ? null : id));
@@ -85,7 +245,9 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
   const { tasks, projects, states } = alia;
   const progetto = projects.find((p) => p.id === scope);
   const nFiltri = activeFilterCount(filters);
-  const gruppiFiltro = useMemo(() => filterGroups(states), [states]);
+  /* I gruppi dipendono anche dai filtri accesi, non solo dai dati: quello dei
+     tag e' fatto di quelli scritti (vedi contentQuery). */
+  const gruppiFiltro = useMemo(() => filterGroups(states, filters), [states, filters]);
 
   /* L'area contenuto mostra le task di primo livello: i sotto-task appartengono
      al loro padre e si leggono nel dettaglio, non come righe pari agli altri.
@@ -227,9 +389,43 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
   );
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col px-6 py-5 overflow-hidden relative">
+    /* Imbottitura: quasi tutta via (era `px-6 py-5`).
+
+       Quei 24/20 erano l'imbottitura **interna della card** che avvolgeva il
+       contenuto. La card non c'è più — il contenitore è passato alla colonna —
+       e sono rimasti a fare il doppio del margine di quadro, che nel frattempo
+       il riquadro qui fuori applica già da sé (`FRAME.pad` su destra e basso,
+       `colTop` in alto). Toglierli è ciò che riallinea il contenuto alle
+       colonne invece di farlo galleggiare più dentro di loro.
+
+       Resta il solo `pl`, e non è simmetria mancata: a sinistra c'è la maniglia
+       di trascinamento, larga 22 e centrata sul bordo della colonna, quindi
+       sporge di 11 dentro quest'area. 18 la scavalca con 7 di respiro.
+
+       A destra il margine (`pr-3`, 12) sta sui **figli** e non qui, ed è la
+       barra di scorrimento a chiederlo: quando non è in sovrimpressione se ne
+       prende una decina dentro l'elemento che scorre. Con il margine sulla
+       radice l'elenco finirebbe 12 prima del bordo e la barra dentro di lui,
+       cioè le righe a 22 dal bordo contro i 12 della colonna a sinistra —
+       l'asimmetria che si vedeva. Con il margine sui figli la barra cade nel
+       margine e le righe tornano a 12.
+
+       In alto **niente**, e prima c'erano 13. Allineavano la prima riga di
+       comandi alla prima *card* della colonna — 1 di bordo piu 12 di
+       imbottitura — e per un giro e' stata la cosa giusta, quando in cima alla
+       colonna c'era il bottone "Aggiungi task" a cui agganciarsi. Quel bottone
+       non c'e' piu, e l'aggancio e' morto con lui: restava un rientro di 13 che
+       non allineava piu niente.
+
+       Adesso il riferimento e' il **bordo alto del contenitore** a sinistra, che
+       e' la linea forte della schermata: una card con un bordo visibile taglia
+       l'immagine in orizzontale, e tutto quello che le sta a fianco deve
+       cominciare li'. La prima card della colonna resta piu in basso, ed e'
+       giusto: e' contenuto dentro un contenitore, non un comando accanto a
+       esso. */
+    <div className="flex-1 min-w-0 flex flex-col pl-[18px] overflow-hidden relative">
       {/* ═══ riga 1 — cosa guardo · in che forma ═══ */}
-      <div className="flex items-center h-[34px] mb-3 shrink-0">
+      <div className="flex items-center h-[34px] mb-3 pr-3 shrink-0">
         <div className="relative">
           <button type="button" onClick={() => apri("progetto")} className={PICK}>
             {progetto ? (
@@ -308,7 +504,7 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
       </div>
 
       {/* ═══ riga 2 — strumenti della vista ═══ */}
-      <div className="flex items-center gap-2 mb-4 shrink-0">
+      <div className="flex items-center gap-2 mb-4 pr-3 shrink-0">
         <div className="relative">
           <button type="button" onClick={() => apri("ordina")} className={CTL_MUT}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -371,6 +567,44 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
                 ))}
               </div>
             ))}
+            {/* I tag si scrivono, non si scelgono.
+
+                Gli altri gruppi elencano quello che c'e' — le priorita' del
+                modello, gli stati configurati — perche' sono pochi e chiusi. I
+                tag no: un elenco di tutti diventerebbe un menu che cresce senza
+                limite, e sarebbe inutile proprio quando i tag servono davvero,
+                cioe' quando sono tanti. Qui si scrive quello che si cerca e si
+                preme Invio; il tag scritto compare sopra il campo, acceso, e si
+                spegne cliccandolo come qualsiasi altro filtro.
+
+                Il gruppo non ha bisogno di una riga sua sopra: e' l'unico che
+                puo' essere vuoto e comparire lo stesso, perche' il campo c'e'
+                sempre. */}
+            {gruppiFiltro.some((g) => g.id === "tag") ? null : (
+              <>
+                <DropdownSeparator />
+                <DropdownLabel>Tag</DropdownLabel>
+              </>
+            )}
+            <div className="px-[9px] pb-1.5 pt-0.5">
+              <input
+                type="text"
+                value={tagScritto}
+                placeholder="Scrivi un tag e premi Invio…"
+                aria-label="Filtra per tag"
+                onChange={(e) => setTagScritto(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setTagScritto("");
+                  if (e.key !== "Enter") return;
+                  const pulito = tagScritto.trim();
+                  if (!pulito) return;
+                  setTagScritto("");
+                  setFilters((prec) => new Set(prec).add(filtroDaTag(pulito)));
+                }}
+                className="w-full h-7 px-2 rounded-md border border-dashed border-divider bg-transparent text-[12.5px] text-content placeholder:text-content/38 focus:outline-none focus:border-accent"
+              />
+            </div>
+            <DropdownSeparator />
             <DropdownItem selected={filters.has(SHOW_DONE.id)} onClick={() => toggleFiltro(SHOW_DONE.id)}>
               <span className="flex-1">{SHOW_DONE.label}</span>
             </DropdownItem>
@@ -411,7 +645,11 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
 
       {/* ═══ vista Lista ═══ */}
       {view === "lista" ? (
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
+        <div
+          ref={rifLista}
+          className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2"
+          style={{ paddingRight: Math.max(0, 12 - barra) }}
+        >
           {totale === 0 ? (
             <p className="text-meta text-content/45 m-0 pt-2">
               Nessuna task con questi filtri.
@@ -426,10 +664,31 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
                    c'e', quindi il motore non trova bersagli e il rilascio viene
                    rifiutato da se' — senza un elenco di casi da mantenere. */
                 data-drop-group={group === "progetto" ? g.id : undefined}
+                onDoubleClick={group === "progetto" ? (e) => doppioClic(e, g.id) : undefined}
                 className="flex flex-col gap-2 rounded-lg transition-colors duration-[120ms]">
                 {g.label ? (
-                  <div className="flex items-center gap-2 pt-0.5">
-                    <span className="flex items-center gap-1.5 text-[10.5px] tracking-[0.1em] uppercase font-medium text-content/62">
+                  /* La testata è il comando che apre e chiude il gruppo, tutta
+                     intera — freccia, pallino, nome, conteggio e filo. Un
+                     bersaglio grande per un gesto frequente, invece di una
+                     freccia da centrare; e resta un `button`, quindi ci si
+                     arriva col tabulatore e si preme con Invio.
+                     Il filo non è decorazione riciclata: era già lì a chiudere
+                     la riga, e continua a farlo. */
+                  <button
+                    type="button"
+                    onClick={() => alterna(g.id)}
+                    aria-expanded={!chiusi.has(chiaveGruppo(g.id))}
+                    title={chiusi.has(chiaveGruppo(g.id)) ? "Apri il gruppo" : "Chiudi il gruppo"}
+                    className="flex items-center gap-2 pt-0.5 w-full text-left bg-transparent border-0 p-0 cursor-pointer group/testata"
+                  >
+                    <ChevronDown
+                      size={11}
+                      className={
+                        "shrink-0 text-content/45 transition-transform duration-[140ms] group-hover/testata:text-content/75 " +
+                        (chiusi.has(chiaveGruppo(g.id)) ? "-rotate-90" : "")
+                      }
+                    />
+                    <span className="flex items-center gap-1.5 text-[10.5px] tracking-[0.1em] uppercase font-medium text-content/62 group-hover/testata:text-content/80">
                       {g.dot ? (
                         <span className="w-1.5 h-1.5 rounded-full" style={{ background: g.dot }} />
                       ) : null}
@@ -438,14 +697,15 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
                       ) : null}
                       {g.label}
                     </span>
-                    {/* Il varco non e un task: non va contato. */}
+                    {/* Il varco non e un task: non va contato. Chiuso, questo
+                        numero è l'unica cosa che dice cosa c'è dentro. */}
                     <span className="text-mini text-content/42">
                       {g.items.filter((t) => t !== VARCO).length}
                     </span>
                     <span className="flex-1 h-px bg-divider" />
-                  </div>
+                  </button>
                 ) : null}
-                {g.items.map((t) =>
+                {chiusi.has(chiaveGruppo(g.id)) ? null : g.items.map((t) =>
                   t === VARCO ? (
                     /* Il varco: spazio e nient'altro. Nessun bordo e nessun
                        fondo — la destinazione la dice lo spazio che si apre, e
@@ -467,6 +727,64 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
                     />
                   ),
                 )}
+
+                {/* La riga fantasma del gruppo: in coda, che e' dove la task
+                    comparira'. C'e' sempre, ma sta indietro — tratteggio e testo
+                    al 24%, che al passaggio del mouse salgono. Non e' timidezza:
+                    con dieci gruppi aperti, dieci campi a piena voce sarebbero
+                    dieci righe di rumore fra un elenco e l'altro. Cosi' invece
+                    si conta come uno spazio, finche' non lo si guarda.
+
+                    Scrivendo, resta aperto dopo Invio: di task in un progetto se
+                    ne scrivono piu' d'una per volta. */}
+                {apertoIn === g.id ? (
+                  <div className="flex items-center gap-2 w-full h-[38px] pl-3 pr-2 rounded-lg border border-dashed border-accent">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={titoloNuovo}
+                      placeholder={`Nuova task in ${g.label ?? "questo gruppo"}…`}
+                      aria-label="Titolo della nuova task"
+                      onChange={(e) => setTitoloNuovo(e.target.value)}
+                      onBlur={() => setApertoIn(null)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          setTitoloNuovo("");
+                          e.currentTarget.blur();
+                        }
+                        if (e.key === "Enter") creaNelGruppo(g.id);
+                      }}
+                      className="flex-1 min-w-0 bg-transparent border-0 outline-none text-card text-content placeholder:text-content/45"
+                    />
+                    {/* `onMouseDown` con `preventDefault` e non `onClick` da
+                        solo: senza, il campo perde il fuoco prima che il click
+                        arrivi, `onBlur` chiude la riga e il comando non viene
+                        premuto mai. */}
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => creaNelGruppo(g.id, { completo: true })}
+                      title="Apri la scheda completa"
+                      aria-label="Apri la scheda completa"
+                      className="grid place-items-center w-6 h-6 shrink-0 rounded-md border-0 bg-transparent cursor-pointer text-content/40 hover:text-accent hover:bg-[color-mix(in_srgb,var(--color-content)_10%,transparent)]"
+                    >
+                      <Espandi size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => apriIn(g.id)}
+                    className={
+                      "w-full h-[34px] px-3 rounded-lg bg-transparent cursor-pointer text-left " +
+                      "border border-dashed text-[12.5px] transition-colors duration-[120ms] " +
+                      "border-[color-mix(in_srgb,var(--color-content)_10%,transparent)] text-content/24 " +
+                      "hover:border-[color-mix(in_srgb,var(--color-content)_28%,transparent)] hover:text-content/60"
+                    }
+                  >
+                    Nuova task in {g.label ?? "questo gruppo"}…
+                  </button>
+                )}
               </div>
             ))
           )}
@@ -475,7 +793,7 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
 
       {/* ═══ vista Kanban ═══ */}
       {view === "kanban" ? (
-        <div className="flex-1 min-h-0 flex gap-3.5 overflow-x-auto">
+        <div className="flex-1 min-h-0 flex gap-3.5 overflow-x-auto pr-3">
           {colonneKanban.map((col) => (
             <div key={col.key} className="flex-[0_0_220px] flex flex-col gap-2 overflow-y-auto">
               <div className="text-mini tracking-[0.1em] uppercase font-medium text-content/62 px-0.5 mb-1">
@@ -489,7 +807,7 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
 
       {/* ═══ vista Calendario ═══ */}
       {view === "calendario" ? (
-        <div className="flex-1 min-h-0 grid grid-cols-7 auto-rows-fr gap-1.5">
+        <div className="flex-1 min-h-0 grid grid-cols-7 auto-rows-fr gap-1.5 pr-3">
           {Array.from({ length: giorniDelMese }, (_, i) => i + 1).map((day) => (
             <div key={day} className="border border-divider rounded-sm p-1.5 flex flex-col gap-1">
               <span className="text-micro text-content/50">{day}</span>
@@ -501,7 +819,7 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
 
       {/* ═══ vista Gantt ═══ */}
       {view === "gantt" ? (
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-2.5 justify-center">
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-2.5 justify-center pr-3">
           {barreGantt.length === 0 ? (
             <p className="text-meta text-content/45 m-0">
               Nessuna task con un intervallo: il Gantt mostra solo quelle che hanno sia inizio che

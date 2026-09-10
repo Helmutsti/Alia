@@ -12,11 +12,26 @@ export const bridge = typeof window !== "undefined" ? window.alia : undefined;
 
 export const hasCore = Boolean(bridge);
 
-/* Le chiamate al core attraversano l'IPC, quindi sono asincrone anche quando
-   il core sottostante è sincrono. Questo wrapper serve solo a dare un errore
-   leggibile invece di un `undefined is not a function` quando si chiama una
-   operazione che il preload non espone (i due elenchi vanno tenuti allineati:
-   vedi il commento in electron/preload.cjs). */
+/* Le chiamate al core attraversano l'IPC, quindi sono asincrone anche quando il
+   core sottostante è sincrono.
+
+   `core` **non è un elenco scritto a mano**, ed è una correzione: lo era, e si è
+   disallineato due volte nello stesso giorno. Gli elenchi delle operazioni erano
+   tre — `ALIA_OPERATIONS` nel core, la sua copia nel preload, e questo — e il
+   terzo era quello che nessuno si ricordava di aggiornare. Il sintomo era
+   pessimo: `core.createState is not a function`, cioè un `TypeError` grezzo su
+   un oggetto minificato, proprio il messaggio che il controllo qui sotto esiste
+   per evitare. E ne era passato uno inosservato (`markOriginsSeen`, che quindi
+   non spegneva mai il badge delle origini nuove).
+
+   Un Proxy toglie il terzo elenco: qualunque operazione il preload esponga è
+   chiamabile da qui senza doverla dichiarare due volte. Restano due elenchi, e
+   quei due sono duplicati per forza — il preload gira in CommonJS in un contesto
+   isolato e non può importare il modulo ESM del core.
+
+   Il controllo sul tipo resta, e ora vale davvero per tutti: chiedendo
+   un'operazione che il preload non espone si ottiene una frase che dice quale,
+   invece di un errore su una proprietà mancante. */
 function chiama(operazione, ...args) {
   if (!bridge) {
     return Promise.reject(new Error("Core non disponibile: questa pagina gira fuori da Electron."));
@@ -28,30 +43,16 @@ function chiama(operazione, ...args) {
   return fn(...args);
 }
 
-export const core = {
-  listTasks: (opzioni) => chiama("listTasks", opzioni),
-  getTask: (id) => chiama("getTask", id),
-  getTaskHistory: (id) => chiama("getTaskHistory", id),
-  listStates: () => chiama("listStates"),
-  listProjects: () => chiama("listProjects"),
-  listMilestones: (idProject) => chiama("listMilestones", idProject),
-
-  createTask: (input, decisioni) => chiama("createTask", input, decisioni),
-  updateTask: (id, patch) => chiama("updateTask", id, patch),
-  setTaskState: (id, idState, decisioni) => chiama("setTaskState", id, idState, decisioni),
-  setTaskProject: (id, idProject, idMilestone) => chiama("setTaskProject", id, idProject, idMilestone),
-  setTaskInbox: (id, inInbox) => chiama("setTaskInbox", id, inInbox),
-  reorderTasks: (idParent, orderedIds) => chiama("reorderTasks", idParent, orderedIds),
-  reparentTask: (id, idParent) => chiama("reparentTask", id, idParent),
-  deleteTask: (id) => chiama("deleteTask", id),
-  restoreTask: (id, decisioni) => chiama("restoreTask", id, decisioni),
-  migrateTask: (id, idState) => chiama("migrateTask", id, idState),
-
-  listTags: () => chiama("listTags"),
-  listTaskTags: (id) => chiama("listTaskTags", id),
-  addTaskTag: (id, label) => chiama("addTaskTag", id, label),
-  removeTaskTag: (id, idTag) => chiama("removeTaskTag", id, idTag),
-  listTaskComments: (id) => chiama("listTaskComments", id),
-  addTaskComment: (id, body) => chiama("addTaskComment", id, body),
-  removeTaskComment: (idCommento) => chiama("removeTaskComment", idCommento),
-};
+export const core = new Proxy(
+  {},
+  {
+    get(_, operazione) {
+      /* Le sole chiavi non-stringa che arrivano qui sono i simboli che React e
+         gli strumenti di sviluppo usano per fiutare i thenable e i tipi: se si
+         restituisse una funzione anche per quelli, `core` verrebbe scambiato per
+         una promessa. */
+      if (typeof operazione !== "string") return undefined;
+      return (...args) => chiama(operazione, ...args);
+    },
+  },
+);

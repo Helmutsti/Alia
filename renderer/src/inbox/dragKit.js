@@ -270,18 +270,30 @@ export function useBoardDrag({
           capture();
           onAnteprima?.(null);
         }
-        /* Solo la colonna si illumina, ed e' la sua illuminazione di sempre
-           (`.fi-col.hit` di DEF_Inbox max). I gruppi della lista non si
-           illuminano: la destinazione la dice il varco che si apre fra le
-           righe, e un disegno migliore per sottolinearla e' da studiare. */
-        document.querySelectorAll("[data-drop-col]").forEach((el) => {
-          el.classList.toggle("hit", !!info && el.getAttribute("data-drop-col") === info.colId);
+        /* **Nessun bersaglio si illumina piu'** (2026-09-10). Restava solo la
+           colonna, con il contorno azzurro di `.fi-col.hit` da DEF_Inbox max;
+           adesso non ce l'ha nemmeno lei.
+
+           Il motivo e' lo stesso per cui i gruppi della lista lo avevano perso
+           un giro prima: la destinazione la dicono gia' il varco che si apre e
+           il clone che cambia larghezza passando da card a riga. Il contorno
+           era una terza voce che diceva la stessa cosa, e da quando la colonna
+           e' diventata una card di superficie era anche la piu' rumorosa —
+           un rettangolo azzurro acceso sul bordo di un contenitore, in una
+           schermata che ha un solo accento e lo spende altrove.
+
+           La classe `hit` viene comunque tolta a ogni giro: se ne fosse rimasta
+           una appiccicata da una versione precedente, questo la spegne. Un
+           disegno migliore per sottolineare la destinazione resta da studiare
+           (vedi Rinascita.md, § Interfaccia). */
+        document.querySelectorAll("[data-drop-col].hit").forEach((el) => {
+          el.classList.remove("hit");
         });
 
         /* Card a sinistra, row a destra: il clone prende la larghezza del
            bersaglio passando da una parte all'altra. È il segnale che il
            rilascio è valido, oltre a essere la forma giusta — una card è un
-           oggetto autonomo, una row un elemento di un elenco (DESIGN_LOCK).
+           oggetto autonomo, una row un elemento di un elenco (Rinascita.md).
            Cambia la larghezza, non l'impaginazione interna: il clone resta una
            copia del DOM di partenza. */
         const larghezza = info?.el ? info.el.clientWidth - MARGINE_BERSAGLIO : rect.width;

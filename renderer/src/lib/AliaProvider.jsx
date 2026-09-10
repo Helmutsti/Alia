@@ -31,7 +31,9 @@ export function useAlia() {
 export function AliaProvider({ children, dataset = null }) {
   const [stato, setStato] = useState(dataset ? "pronto" : hasCore ? "caricamento" : "senza-core");
   const [errore, setErrore] = useState(null);
-  const [dati, setDati] = useState(dataset ?? { tasks: [], states: [], projects: [] });
+  const [dati, setDati] = useState(
+    dataset ?? { tasks: [], states: [], projects: [], milestones: [] },
+  );
 
   /* Ciò che l'ultima mutazione ha lasciato sul tavolo: una conferma da
      chiedere, un blocco da spiegare, degli avvisi da mostrare. */
@@ -43,15 +45,22 @@ export function AliaProvider({ children, dataset = null }) {
   const carica = useCallback(async () => {
     if (dataset || !hasCore) return;
     try {
-      const [tasks, states, projects] = await Promise.all([
+      /* Le milestone si caricano insieme al resto da quando esiste la sezione
+         Progetti. Prima non le caricava nessuno: il dettaglio del task le
+         chiedeva al provider (`const { milestones = [] } = alia`) e riceveva
+         sempre l'elenco vuoto, quindi la tendina delle fasi era vuota per
+         costruzione, non perche' non ce ne fossero. */
+      const [tasks, states, projects, milestones] = await Promise.all([
         core.listTasks(),
         core.listStates(),
         core.listProjects(),
+        core.listMilestones(),
       ]);
       setDati({
         tasks: tasks.map(normalizeTask),
         states: states.map(normalizeState),
         projects: projects.map(normalizeProject),
+        milestones,
       });
       setStato("pronto");
       setErrore(null);
@@ -74,6 +83,10 @@ export function AliaProvider({ children, dataset = null }) {
          fare nulla che far esplodere il ponte assente. */
       if (dataset) return null;
       setBloccato(null);
+      /* L'errore precedente si spegne all'inizio di ogni mutazione: senza,
+         resterebbe appeso dopo che l'operazione seguente è andata bene, e chi
+         lo mostra (il pannello Impostazioni) direbbe una cosa vecchia. */
+      setErrore(null);
       try {
         const esito = await chiamata({});
         return await gestisci(esito, chiamata);
@@ -172,6 +185,24 @@ export function AliaProvider({ children, dataset = null }) {
       /* Smistare: mette o toglie un task dal triage, senza toccare progetto,
          date o stato. */
       smista: (id, inInbox = false) => esegui(() => core.setTaskInbox(id, inInbox)),
+      /* Spegne la campanella su tutte le origini. Passa da `esegui` come le
+         altre mutazioni, quindi ricarica: il badge sparisce da solo. */
+      segnaOriginiViste: () => esegui(() => core.markOriginsSeen()),
+      /* Configurazione degli stati (pannello Impostazioni). `eliminaStato`
+         passa da `esegui` come le altre: può tornare indietro chiedendo su
+         quale stato spostare i task che usavano quello cancellato. */
+      /* Progetti e milestone. `eliminaProgetto` passa da `esegui` come le altre
+         negoziabili: puo' tornare indietro chiedendo dove mandare i task. */
+      creaProgetto: (input) => esegui(() => core.createProject(input)),
+      aggiornaProgetto: (id, patch) => esegui(() => core.updateProject(id, patch)),
+      eliminaProgetto: (id) => esegui((decisioni) => core.deleteProject(id, decisioni)),
+      creaMilestone: (input) => esegui(() => core.createMilestone(input)),
+      aggiornaMilestone: (id, patch) => esegui(() => core.updateMilestone(id, patch)),
+      eliminaMilestone: (id) => esegui(() => core.deleteMilestone(id)),
+      creaStato: (input) => esegui(() => core.createState(input)),
+      aggiornaStato: (id, patch) => esegui(() => core.updateState(id, patch)),
+      riordinaStati: (orderedIds) => esegui(() => core.reorderStates(orderedIds)),
+      eliminaStato: (id) => esegui((decisioni) => core.deleteState(id, decisioni)),
       riordina: (idParent, orderedIds) => esegui(() => core.reorderTasks(idParent, orderedIds)),
       cancellaTask: (id) => esegui(() => core.deleteTask(id)),
       migraTask: (id, idState) => esegui(() => core.migrateTask(id, idState)),

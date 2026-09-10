@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 /* Card minima dell'Inbox — trascritta da `.sp-card` / `.sp-check` di
    DEF_Inbox min. È la forma usata dalla colonna Small Inbox, dalle righe
    della vista Lista, dalle card del Kanban e (per decisione registrata in
-   DESIGN_LOCK.md) dalla colonna "Da smistare" della Full Inbox.
+   Rinascita.md) dalla colonna "Da smistare" della Full Inbox.
 
    Il pallino della priorità non è sempre visibile: parte a larghezza 0 e si
    apre in hover, spingendo il titolo a destra. È il gesto distintivo della
@@ -91,7 +91,7 @@ export function InboxCard({
    Invio conferma, Esc annulla, la perdita di fuoco conferma.
 
    È una `textarea`, non un `input` — scostamento voluto dall'artboard, in prova
-   (vedi DESIGN_LOCK). Il motivo: la card mostra il titolo su più righe, quindi
+   (vedi Rinascita.md, § Interfaccia). Il motivo: la card mostra il titolo su più righe, quindi
    con un `input` il testo cambiava forma nel momento in cui si entrava in
    modifica — una riga sola che scorre in orizzontale invece del blocco che si
    stava leggendo — e con i titoli lunghi si vedeva solo la parte finale.

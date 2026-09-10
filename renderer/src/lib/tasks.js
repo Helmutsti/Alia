@@ -85,6 +85,12 @@ export function normalizeTask(row) {
     /* `inbox`: ancora da smistare. Campo proprio, non derivato da progetto o
        date — vedi Rinascita.md, § Stati speciali del task. */
     inbox: row.isInbox === 1,
+    /* `isNew`: origine arrivata e non ancora guardata. È la campanella, non lo
+       stato di lavoro — si spegne entrando nella Full Inbox, non smistando. */
+    isNew: row.isNew === 1,
+    /* I tag arrivano concatenati da `listTasks` (vedi la nota li'). Qui tornano
+       un elenco, che e' la forma in cui li usa il filtro. */
+    tags: row.tagLabels ? row.tagLabels.split("\u001f") : [],
     state: {
       id: row.idState,
       label: row.stateLabel,

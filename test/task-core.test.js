@@ -3,19 +3,32 @@ import test from "node:test";
 
 import { openDatabase } from "../src/core/database.js";
 import {
+  createMilestone,
+  createProject,
+  createState,
   createTask,
+  deleteMilestone,
+  deleteProject,
+  deleteState,
   deleteTask,
   getTask,
+  listMilestones,
+  listProjects,
   listStates,
   listTasks,
   migrateTaskExternally,
   reorderRootTasks,
+  reorderStates,
   reorderTasks,
   reparentTask,
   restoreTaskTechnical,
+  markOriginsSeen,
   setTaskInbox,
   setTaskProject,
   setTaskState,
+  updateMilestone,
+  updateProject,
+  updateState,
   updateTask,
   addTaskComment,
   addTaskTag,
@@ -653,4 +666,478 @@ test("listTasks porta con se il flag di triage", () => {
   const id = crea(database, "Task");
   setTaskInbox(database, id, false);
   assert.equal(listTasks(database).find((t) => t.idTask === id).isInbox, 0);
+});
+
+/* ───────────────── isNew: la campanella delle origini ───────────────── */
+
+function creaOrigine(database, titolo, sourceType = "mail") {
+  const esito = createTask(database, { title: titolo, sourceType });
+  assert.equal(esito.esito, "applicato");
+  return esito.idTask;
+}
+
+test("nasce nuova solo l'origine esterna, non il task scritto a mano", () => {
+  const database = nuovoDatabase();
+  const manuale = crea(database, "Scritta da me");
+  const origine = creaOrigine(database, "Arrivata per mail");
+
+  assert.equal(getTask(database, manuale).isNew, 0, "chi la scrive ce l'ha davanti");
+  assert.equal(getTask(database, origine).isNew, 1);
+});
+
+test("un sotto-task da sorgente esterna non e nuovo: non compare fra le origini", () => {
+  const database = nuovoDatabase();
+  const padre = crea(database, "Padre");
+  const esito = createTask(database, { title: "Figlio", idParentTask: padre, sourceType: "mail" });
+
+  assert.equal(getTask(database, esito.idTask).isNew, 0);
+});
+
+test("un'origine creata gia fuori dal triage non e nuova", () => {
+  const database = nuovoDatabase();
+  const esito = createTask(database, { title: "Importata", sourceType: "mail", isInbox: false });
+
+  /* Non e in colonna, quindi non c'e niente da annunciare: la campanella e
+     legata al posto in cui si guarda, non alla provenienza. */
+  assert.equal(getTask(database, esito.idTask).isNew, 0);
+});
+
+test("isNew si puo imporre alla creazione, per il seed e le importazioni", () => {
+  const database = nuovoDatabase();
+  const spenta = createTask(database, { title: "Vecchia", sourceType: "mail", isNew: false });
+  const accesa = createTask(database, { title: "A mano ma da annunciare", isNew: true });
+
+  assert.equal(getTask(database, spenta.idTask).isNew, 0);
+  assert.equal(getTask(database, accesa.idTask).isNew, 1);
+});
+
+test("segnare le origini viste le spegne tutte insieme e dice quante erano", () => {
+  const database = nuovoDatabase();
+  const a = creaOrigine(database, "Prima");
+  const b = creaOrigine(database, "Seconda", "telegram");
+  crea(database, "Un task normale");
+
+  const esito = markOriginsSeen(database);
+  assert.equal(esito.esito, "applicato");
+  assert.equal(esito.viste, 2);
+  assert.equal(getTask(database, a).isNew, 0);
+  assert.equal(getTask(database, b).isNew, 0);
+
+  /* Due volte di fila: la seconda non ha piu niente da spegnere. */
+  assert.equal(markOriginsSeen(database).viste, 0);
+});
+
+test("vedere un'origine non la smista, e smistarla non la fa vedere", () => {
+  const database = nuovoDatabase();
+  const id = creaOrigine(database, "Rinnovo contratto");
+
+  markOriginsSeen(database);
+  assert.equal(getTask(database, id).isInbox, 1, "vista non vuol dire smistata");
+
+  const altra = creaOrigine(database, "Altro rinnovo");
+  setTaskInbox(database, altra, false);
+  assert.equal(getTask(database, altra).isNew, 1, "smistata non vuol dire vista");
+});
+
+test("vedere le origini non lascia traccia nello storico", () => {
+  const database = nuovoDatabase();
+  const id = creaOrigine(database, "Rinnovo contratto");
+  markOriginsSeen(database);
+
+  const righe = database
+    .prepare("SELECT field FROM t_task_history WHERE idTask = ? AND field = 'isNew'")
+    .all(id);
+  assert.equal(righe.length, 0, "non e successo niente al task, e successo a chi guarda");
+});
+
+test("isNew accetta solo 0 e 1, imposto dallo schema", () => {
+  const database = nuovoDatabase();
+  const id = crea(database, "Task");
+  assert.throws(
+    () => database.prepare("UPDATE t_task SET isNew = 7 WHERE idTask = ?").run(id),
+    /CHECK/,
+  );
+});
+
+test("listTasks porta con se la campanella", () => {
+  const database = nuovoDatabase();
+  const id = creaOrigine(database, "Rinnovo contratto");
+  assert.equal(listTasks(database).find((t) => t.idTask === id).isNew, 1);
+  markOriginsSeen(database);
+  assert.equal(listTasks(database).find((t) => t.idTask === id).isNew, 0);
+});
+
+/* ──────────────── configurazione degli stati (DEF_Impostazioni) ────────────────
+
+   La fila ha i due capi fissi: primo l'apertura, ultima la chiusura. In mezzo
+   passaggi liberi, ognuno conclusivo o no. I test qui sotto sono soprattutto
+   sui capi, perché è lì che stanno le regole. */
+
+function fila(database) {
+  return listStates(database).map((s) => ({
+    label: s.label,
+    ruolo: s.isStartState ? "apertura" : s.isEndState ? "conclusivo" : "passaggio",
+    ordine: s.stepOrder,
+  }));
+}
+
+function statoPerId(database, idState) {
+  return listStates(database).find((s) => s.idState === idState);
+}
+
+function capi(database) {
+  const stati = listStates(database);
+  return { apertura: stati[0], chiusura: stati[stati.length - 1], mezzo: stati.slice(1, -1) };
+}
+
+test("un passaggio nuovo nasce prima della chiusura, non in fondo", () => {
+  const database = nuovoDatabase();
+  const codaPrima = capi(database).chiusura.label;
+
+  const esito = createState(database, { label: "In revisione" });
+  assert.equal(esito.esito, "applicato");
+
+  const dopo = fila(database);
+  assert.equal(dopo[dopo.length - 1].label, codaPrima, "la chiusura resta l'ultima");
+  assert.equal(dopo[dopo.length - 2].label, "In revisione", "il nuovo si infila prima di lei");
+  assert.equal(dopo[dopo.length - 2].ruolo, "passaggio", "e nasce non conclusivo");
+  assert.deepEqual(dopo.map((s) => s.ordine), dopo.map((_, i) => i + 1), "le posizioni restano una fila");
+});
+
+test("l'etichetta non puo essere vuota ne ripetuta", () => {
+  const database = nuovoDatabase();
+  assert.throws(() => createState(database, { label: "   " }), /vuota/);
+  assert.throws(() => createState(database, { label: listStates(database)[0].label }), /Esiste gia/);
+});
+
+test("i due capi si possono rinominare, e restano quello che sono", () => {
+  const database = nuovoDatabase();
+  const { apertura, chiusura } = capi(database);
+
+  updateState(database, apertura.idState, { label: "Arrivata" });
+  updateState(database, chiusura.idState, { label: "Chiusa per sempre" });
+
+  const dopo = capi(database);
+  assert.equal(dopo.apertura.label, "Arrivata");
+  assert.equal(dopo.apertura.isStartState, 1);
+  assert.equal(dopo.chiusura.label, "Chiusa per sempre");
+  assert.equal(dopo.chiusura.isEndState, 1);
+});
+
+test("l'apertura non conta come conclusa, e la chiusura non smette di esserlo", () => {
+  const database = nuovoDatabase();
+  const { apertura, chiusura } = capi(database);
+  assert.throws(() => updateState(database, apertura.idState, { isEnd: true }), /apertura/);
+  assert.throws(() => updateState(database, chiusura.idState, { isEnd: false }), /chiusura/);
+});
+
+test("un passaggio di mezzo puo diventare una chiusura secondaria, e tornare indietro", () => {
+  const database = nuovoDatabase();
+  const passaggio = createState(database, { label: "Sospeso" });
+
+  updateState(database, passaggio.idState, { isEnd: true });
+  assert.equal(statoPerId(database, passaggio.idState).isEndState, 1);
+
+  updateState(database, passaggio.idState, { isEnd: false });
+  assert.equal(statoPerId(database, passaggio.idState).isEndState, 0);
+});
+
+test("accendere la conclusivita riallinea isCompleted dei task su quello stato", () => {
+  const database = nuovoDatabase();
+  const passaggio = createState(database, { label: "Consegnato" });
+  const id = crea(database, "Task");
+  setTaskState(database, id, passaggio.idState, { sovrascriviFigliChiusi: true });
+  assert.equal(getTask(database, id).isCompleted, 0);
+
+  /* Il task non si muove: si muove il terreno sotto di lui. I trigger dello
+     schema non scattano, quindi deve pensarci il core. */
+  const esito = updateState(database, passaggio.idState, { isEnd: true });
+  assert.equal(getTask(database, id).isCompleted, 1);
+  assert.ok(esito.avvisi.some((a) => a.includes("1 task")));
+
+  updateState(database, passaggio.idState, { isEnd: false });
+  assert.equal(getTask(database, id).isCompleted, 0, "e torna indietro insieme a lui");
+});
+
+test("il riordino vuole l'elenco completo e senza ripetizioni", () => {
+  const database = nuovoDatabase();
+  const ids = listStates(database).map((s) => s.idState);
+  assert.throws(() => reorderStates(database, ids.slice(1)), /completo/);
+  assert.throws(() => reorderStates(database, [ids[0], ids[0], ...ids.slice(1)]), /completo/);
+});
+
+test("il riordino non sposta i due capi", () => {
+  const database = nuovoDatabase();
+  createState(database, { label: "Passaggio" });
+  const ids = listStates(database).map((s) => s.idState);
+
+  assert.throws(() => reorderStates(database, [...ids].reverse()), /apertura/);
+  /* Apertura al suo posto ma chiusura spostata di un gradino indietro. */
+  const chiusuraInMezzo = [ids[0], ids[ids.length - 1], ...ids.slice(1, -1)];
+  assert.throws(() => reorderStates(database, chiusuraInMezzo), /chiusura/);
+});
+
+test("i passaggi in mezzo si riordinano fra loro", () => {
+  const database = nuovoDatabase();
+  const a = createState(database, { label: "Primo passaggio" });
+  const b = createState(database, { label: "Secondo passaggio" });
+  const ids = listStates(database).map((s) => s.idState);
+
+  const scambiati = [...ids];
+  const i = scambiati.indexOf(a.idState);
+  const j = scambiati.indexOf(b.idState);
+  [scambiati[i], scambiati[j]] = [scambiati[j], scambiati[i]];
+
+  const esito = reorderStates(database, scambiati);
+  assert.equal(esito.esito, "applicato");
+  assert.deepEqual(listStates(database).map((s) => s.idState), scambiati);
+  assert.deepEqual(listStates(database).map((s) => s.stepOrder), scambiati.map((_, k) => k + 1));
+});
+
+test("l'atterraggio dei padri chiusi per cascata e sempre la chiusura finale", () => {
+  const database = nuovoDatabase();
+  const secondaria = createState(database, { label: "Congelato" });
+  updateState(database, secondaria.idState, { isEnd: true });
+
+  /* Con i capi fissi c'e una sola risposta possibile: l'ultimo isEndState per
+     stepOrder e per costruzione la chiusura finale, anche con delle chiusure
+     secondarie in mezzo. */
+  const conclusivi = listStates(database).filter((s) => s.isEndState === 1);
+  assert.ok(conclusivi.length > 1, "ci sono chiusure secondarie in scena");
+  assert.equal(conclusivi[conclusivi.length - 1].idState, capi(database).chiusura.idState);
+});
+
+test("i due capi non si cancellano", () => {
+  const database = nuovoDatabase();
+  const { apertura, chiusura } = capi(database);
+  assert.throws(() => deleteState(database, apertura.idState), /apertura/);
+  assert.throws(() => deleteState(database, chiusura.idState), /chiusura/);
+});
+
+test("cancellare un passaggio non in uso non chiede niente e richiude la fila", () => {
+  const database = nuovoDatabase();
+  const passaggio = createState(database, { label: "Mai usato" });
+
+  const esito = deleteState(database, passaggio.idState);
+  assert.equal(esito.esito, "applicato");
+  assert.ok(!listStates(database).some((s) => s.idState === passaggio.idState));
+  const dopo = fila(database);
+  assert.deepEqual(dopo.map((s) => s.ordine), dopo.map((_, i) => i + 1), "niente buchi in stepOrder");
+});
+
+test("cancellare uno stato in uso chiede dove spostare i task", () => {
+  const database = nuovoDatabase();
+  const passaggio = createState(database, { label: "In pausa" });
+  const id = crea(database, "Task");
+  setTaskState(database, id, passaggio.idState, { sovrascriviFigliChiusi: true });
+
+  const domanda = deleteState(database, passaggio.idState);
+  assert.equal(domanda.esito, "conferma");
+  assert.equal(domanda.richiesta.tipo, "stato-in-uso");
+  assert.equal(domanda.richiesta.tasks, 1);
+  assert.ok(
+    !domanda.richiesta.destinazioni.some((d) => d.idState === passaggio.idState),
+    "non propone di spostarli su se stesso",
+  );
+  assert.ok(listStates(database).some((s) => s.idState === passaggio.idState), "non ha cancellato niente");
+
+  const destinazione = domanda.richiesta.destinazioni[0].idState;
+  const esito = deleteState(database, passaggio.idState, { idStateDestinazione: destinazione });
+  assert.equal(esito.esito, "applicato");
+  assert.equal(getTask(database, id).idState, destinazione);
+  assert.ok(!listStates(database).some((s) => s.idState === passaggio.idState));
+});
+
+test("spostare i task per cancellare uno stato passa dallo storico", () => {
+  const database = nuovoDatabase();
+  const passaggio = createState(database, { label: "In pausa" });
+  const id = crea(database, "Task");
+  setTaskState(database, id, passaggio.idState, { sovrascriviFigliChiusi: true });
+
+  const destinazione = listStates(database).find((s) => s.idState !== passaggio.idState).idState;
+  deleteState(database, passaggio.idState, { idStateDestinazione: destinazione });
+
+  /* Si cerca la riga, non l'ultima riga: `idTaskHistory` e un UUID casuale,
+     quindi ordinarci sopra darebbe un ordine arbitrario, e `changedAt` puo
+     pareggiare fra due scritture nello stesso millisecondo. */
+  const riga = database
+    .prepare(
+      "SELECT oldValue, newValue FROM t_task_history WHERE idTask = ? AND field = 'idState' AND oldValue = ? AND newValue = ?",
+    )
+    .get(id, String(passaggio.idState), String(destinazione));
+  assert.ok(riga, "lo spostamento forzato dalla cancellazione e tracciato come gli altri");
+});
+
+/* ──────────────────── progetti e milestone (Impostazioni) ──────────────────── */
+
+const BLU = "var(--color-sky-400)";
+
+function progettoPerId(database, idProject) {
+  return listProjects(database).find((p) => p.idProject === idProject);
+}
+
+test("un progetto nasce con nome, colore e posizione in fondo", () => {
+  const database = nuovoDatabase();
+  const quanti = listProjects(database).length;
+  const esito = createProject(database, { name: "Casa nuova", color: BLU });
+
+  assert.equal(esito.esito, "applicato");
+  const creato = progettoPerId(database, esito.idProject);
+  assert.equal(creato.name, "Casa nuova");
+  assert.equal(creato.color, BLU);
+  assert.equal(creato.position, quanti);
+});
+
+test("il nome di un progetto non puo essere vuoto ne ripetuto, e il colore serve", () => {
+  const database = nuovoDatabase();
+  createProject(database, { name: "Unico", color: BLU });
+  assert.throws(() => createProject(database, { name: "  ", color: BLU }), /vuoto/);
+  assert.throws(() => createProject(database, { name: "Unico", color: BLU }), /Esiste gia/);
+  assert.throws(() => createProject(database, { name: "Senza colore" }), /colore/);
+});
+
+test("nome e colore si cambiano, uno per volta o insieme", () => {
+  const database = nuovoDatabase();
+  const { idProject } = createProject(database, { name: "Prima", color: BLU });
+
+  const solo = updateProject(database, idProject, { color: "var(--color-rose-400)" });
+  assert.deepEqual(solo.cambi, ["color"]);
+
+  updateProject(database, idProject, { name: "Dopo" });
+  const dopo = progettoPerId(database, idProject);
+  assert.equal(dopo.name, "Dopo");
+  assert.equal(dopo.color, "var(--color-rose-400)");
+});
+
+test("cancellare un progetto vuoto non chiede niente", () => {
+  const database = nuovoDatabase();
+  const { idProject } = createProject(database, { name: "Mai usato", color: BLU });
+  const esito = deleteProject(database, idProject);
+
+  assert.equal(esito.esito, "applicato");
+  assert.ok(!progettoPerId(database, idProject));
+});
+
+test("cancellare un progetto con task chiede dove mandarle", () => {
+  const database = nuovoDatabase();
+  const { idProject } = createProject(database, { name: "Con roba dentro", color: BLU });
+  const id = crea(database, "Task");
+  setTaskProject(database, id, idProject);
+
+  const domanda = deleteProject(database, idProject);
+  assert.equal(domanda.esito, "conferma");
+  assert.equal(domanda.richiesta.tipo, "progetto-in-uso");
+  assert.equal(domanda.richiesta.tasks, 1);
+  assert.ok(
+    !domanda.richiesta.destinazioni.some((d) => d.idProject === idProject),
+    "non propone di spostarle su se stesso",
+  );
+  assert.ok(progettoPerId(database, idProject), "non ha cancellato niente");
+
+  const esito = deleteProject(database, idProject, { destinazione: "nessuno" });
+  assert.equal(esito.esito, "applicato");
+  assert.equal(getTask(database, id).idProject, null);
+  assert.ok(!progettoPerId(database, idProject));
+});
+
+test("le task si possono spostare su un altro progetto invece che toglierle", () => {
+  const database = nuovoDatabase();
+  const a = createProject(database, { name: "Da chiudere", color: BLU });
+  const b = createProject(database, { name: "Dove finiscono", color: BLU + "x" });
+  const id = crea(database, "Task");
+  setTaskProject(database, id, a.idProject);
+
+  deleteProject(database, a.idProject, { destinazione: b.idProject });
+  assert.equal(getTask(database, id).idProject, b.idProject);
+});
+
+test("cancellando un progetto i sotto-task seguono il padre", () => {
+  const database = nuovoDatabase();
+  const { idProject } = createProject(database, { name: "Con figli", color: BLU });
+  const padre = crea(database, "Padre");
+  const figlio = crea(database, "Figlio", padre);
+  setTaskProject(database, padre, idProject);
+  assert.equal(getTask(database, figlio).idProject, idProject, "il figlio eredita");
+
+  deleteProject(database, idProject, { destinazione: "nessuno" });
+  assert.equal(getTask(database, figlio).idProject, null, "e segue anche all'uscita");
+});
+
+test("una milestone vive dentro il suo progetto, e due progetti possono avere la stessa fase", () => {
+  const database = nuovoDatabase();
+  const a = createProject(database, { name: "Progetto A", color: BLU });
+  const b = createProject(database, { name: "Progetto B", color: BLU });
+
+  createMilestone(database, { idProject: a.idProject, label: "Analisi" });
+  const gemella = createMilestone(database, { idProject: b.idProject, label: "Analisi" });
+  assert.equal(gemella.esito, "applicato", "l'etichetta e unica dentro il progetto, non nel database");
+
+  assert.throws(
+    () => createMilestone(database, { idProject: a.idProject, label: "Analisi" }),
+    /gia una fase/,
+  );
+  assert.throws(() => createMilestone(database, { idProject: a.idProject, label: " " }), /vuota/);
+});
+
+test("le fasi si rinominano e si contano per progetto", () => {
+  const database = nuovoDatabase();
+  const { idProject } = createProject(database, { name: "Progetto", color: BLU });
+  const uno = createMilestone(database, { idProject, label: "Analisi" });
+  createMilestone(database, { idProject, label: "Sviluppo" });
+
+  updateMilestone(database, uno.idMilestone, { label: "Studio" });
+  const fasi = listMilestones(database, idProject);
+  assert.deepEqual(fasi.map((m) => m.label), ["Studio", "Sviluppo"]);
+  assert.deepEqual(fasi.map((m) => m.position), [0, 1]);
+});
+
+test("cancellare una fase non chiede niente: le task restano nel progetto", () => {
+  const database = nuovoDatabase();
+  const { idProject } = createProject(database, { name: "Progetto", color: BLU });
+  const fase = createMilestone(database, { idProject, label: "Analisi" });
+  const id = crea(database, "Task");
+  setTaskProject(database, id, idProject, fase.idMilestone);
+  assert.equal(getTask(database, id).idMilestone, fase.idMilestone);
+
+  const esito = deleteMilestone(database, fase.idMilestone);
+  assert.equal(esito.esito, "applicato");
+  assert.ok(esito.avvisi.some((a) => a.includes("1 task")));
+
+  const dopo = getTask(database, id);
+  assert.equal(dopo.idMilestone, null, "perde la fase");
+  assert.equal(dopo.idProject, idProject, "resta nel progetto");
+});
+
+test("cancellare un progetto porta via le sue fasi, e le task non si rompono", () => {
+  const database = nuovoDatabase();
+  const { idProject } = createProject(database, { name: "Progetto", color: BLU });
+  const fase = createMilestone(database, { idProject, label: "Analisi" });
+  const id = crea(database, "Task");
+  setTaskProject(database, id, idProject, fase.idMilestone);
+
+  /* Il caso che romperebbe il vincolo se lo spostamento non azzerasse anche
+     `idMilestone`: t_milestone se ne va per cascata, ma t_task.idMilestone non
+     ha cascata e resterebbe appeso al vuoto. */
+  const esito = deleteProject(database, idProject, { destinazione: "nessuno" });
+  assert.equal(esito.esito, "applicato");
+  assert.equal(listMilestones(database).filter((m) => m.idProject === idProject).length, 0);
+
+  const dopo = getTask(database, id);
+  assert.equal(dopo.idProject, null);
+  assert.equal(dopo.idMilestone, null);
+});
+
+test("listTasks porta con se le etichette dei tag, concatenate", () => {
+  const database = nuovoDatabase();
+  const id = crea(database, "Task con tag");
+  const senza = crea(database, "Task senza tag");
+  addTaskTag(database, id, "urgente");
+  addTaskTag(database, id, "da rivedere, forse");
+
+  const righe = listTasks(database);
+  const conTag = righe.find((t) => t.idTask === id);
+  /* Il separatore e il carattere 31: le etichette sono testo scritto da una
+     persona e possono contenere virgole — questa ce l'ha apposta. */
+  assert.deepEqual(conTag.tagLabels.split("\u001f").sort(), ["da rivedere, forse", "urgente"]);
+  assert.equal(righe.find((t) => t.idTask === senza).tagLabels, null);
 });

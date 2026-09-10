@@ -17,9 +17,9 @@
    sono (blue-* per l'accento, neutral-* per la struttura). Gli alias qui
    sotto servono solo a dare un nome di ruolo ai gradini scelti.
 
-   `static` perché questi token sono consumati anche via var() da CSS scritto
-   a mano (tokens.css, in dismissione) e non solo dalle utility: senza static
-   Tailwind li rimuoverebbe non vedendoli usati.
+   `static` perché questi token sono consumati anche via var() da CSS scritto a
+   mano (`inbox.css`, e gli stili in linea dei componenti) e non solo dalle
+   utility: senza static Tailwind li rimuoverebbe non vedendoli usati.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @theme static {

@@ -60,10 +60,47 @@ function gruppoStato(states) {
   };
 }
 
-export function filterGroups(states = []) {
+/* Il gruppo "Tag" e' l'unico che non si puo' costruire dai dati: gli altri
+   elencano quello che c'e' (le priorita' del modello, gli stati configurati), i
+   tag no. Elencarli tutti sarebbe un menu che cresce senza limite e che diventa
+   inutile proprio quando i tag servono davvero, cioe' quando sono tanti — quindi
+   **si scrivono**, e il gruppo si costruisce da quelli scritti.
+
+   Conseguenza: un tag filtrato non deve esistere. Si puo' scriverne uno che
+   nessuna task ha, e il risultato e' un elenco vuoto — che e' la risposta giusta
+   alla domanda fatta, non un errore da impedire.
+
+   Il confronto e' minuscolo contro minuscolo: chi filtra scrive "Urgente" o
+   "urgente" senza pensarci, e sono la stessa cosa. Il core, dal canto suo,
+   conserva l'etichetta come e' stata scritta la prima volta. */
+export const TAG_PREFISSO = "tag:";
+
+export const filtroDaTag = (etichetta) => `${TAG_PREFISSO}${etichetta.trim().toLowerCase()}`;
+export const tagDaFiltro = (id) => id.slice(TAG_PREFISSO.length);
+export const eFiltroTag = (id) => id.startsWith(TAG_PREFISSO);
+
+function gruppoTag(active) {
+  return {
+    id: "tag",
+    label: "Tag",
+    items: [...active].filter(eFiltroTag).map((id) => {
+      const cercato = tagDaFiltro(id);
+      return {
+        id,
+        label: cercato,
+        test: (t) => (t.tags ?? []).some((l) => l.toLowerCase() === cercato),
+      };
+    }),
+  };
+}
+
+export function filterGroups(states = [], active = new Set()) {
   const gruppi = [GRUPPO_QUANDO, GRUPPO_PRIORITA];
   const stati = gruppoStato(states);
-  return stati.items.length > 0 ? [...gruppi, stati] : gruppi;
+  if (stati.items.length > 0) gruppi.push(stati);
+  const tag = gruppoTag(active);
+  if (tag.items.length > 0) gruppi.push(tag);
+  return gruppi;
 }
 
 /* Voce a sé: non restringe, allarga. Le completate sono nascoste finché non la
@@ -133,7 +170,10 @@ export const GROUP_KEYS = [
   { id: "stato", label: "Stato" },
 ];
 
-const SENZA_PROGETTO = "__nessuno__";
+/* Esportata perche' la usa anche ContentPane: il doppio clic dentro un gruppo
+   deve poter distinguere "questo progetto" da "nessun progetto", e la chiave e'
+   questa. Meglio condividerla che riscriverla da due parti. */
+export const SENZA_PROGETTO = "__nessuno__";
 
 function chiave(task, group) {
   if (group === "progetto") return task.project?.id ?? SENZA_PROGETTO;

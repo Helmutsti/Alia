@@ -47,15 +47,68 @@ export const DOCK_PCT = 70; // inizio fase C
    costanti: nell'app riempie la finestra, negli artboard stava in 1180×760.
 
    Le misure fisse vengono da DEF_Inbox max e restano tali a ogni larghezza:
-   padding 20 orizzontale e 18 verticale, intestazione di quadro alta 31 con
-   14 di distacco (quindi le colonne cominciano a 63), 4 di respiro sotto la
-   board, distanza fra colonne 14, colonna "Da smistare" larga 300.
+   intestazione di quadro alta 31, distanza fra colonne 14, colonna "Da
+   smistare" larga 300. Il margine del quadro e il distacco dell'intestazione
+   **non** vengono più dall'artboard: vedi la nota su `FRAME`.
 
-   A 1180×760 questa formula restituisce esattamente i numeri misurati
-   sull'artboard: origini 20/826, colonna 860/300, colonne alte 675. */
-const PAD_X = 20;
-const COL_TOP = 63;
-const BOARD_BOTTOM = 22; // 18 di padding + 4 sotto la board
+   Conseguenza da tenere presente: con il margine a 12 i numeri non coincidono
+   più con quelli misurati su DEF_Inbox max (origini 20/826, colonna 860/300,
+   colonne alte 675 a 1180×760). La formula è la stessa, le costanti no. */
+/* Il quadro: il margine dell'applicazione e la riga di intestazione.
+
+   **Esportato**, perché non lo usa solo questo file: l'intestazione di quadro è
+   un elemento del quadro e non delle colonne, quindi vive nel componente, e
+   finora questi stessi numeri erano scritti due volte — in pixel qui, in classi
+   Tailwind là (`left-5 right-5 top-[18px]`). Bastava cambiarne uno per far
+   scollare la testata dalle colonne. Ora c'è un posto solo.
+
+   **Ridotto il 2026-09-10 su richiesta: 20 → 12**, uguale su tutti i lati
+   (prima era 20 ai fianchi, 18 in alto, 22 in basso). Con l'intestazione fuori
+   dai contenitori il margine del quadro si sommava a quello della colonna e a
+   quello del contenuto, e tre respiri in fila fanno un vuoto. Scostamento
+   dichiarato da DEF_Inbox max, che li misura a 20/18.
+
+   Il distacco fra intestazione e colonne e' lo stesso margine, 12, e la fascia
+   dell'intestazione e' alta quanto il suo testo: le colonne cominciano a 36. */
+const FRAME_PAD = 12;
+
+/* La compensazione ottica, applicata una volta sola a tutta la riga
+   dell'intestazione. Quello che deve distare `pad` dal bordo e' il **contorno
+   visibile**, non il riquadro che lo contiene, e i due elementi della riga
+   rientrano del loro dentro il riquadro all'incirca uguale: l'icona e' 15 dentro
+   un bottone di 24 (4.5), le maiuscole di 11px cominciano circa 4.5 sotto il
+   bordo alto della riga di testo alta 17. Stesso scarto, stesso recupero. */
+const OTTICA = 5;
+
+/* Altezza della riga di intestazione: quella del **testo**, 17.
+
+   Era 31, e non era una misura di questa interfaccia: veniva da DEF_Inbox max,
+   dove il margine di quadro era 18. Con il margine a 12 quella fascia da sola
+   valeva piu' di due margini, e apriva un vuoto fra la scritta "Inbox" e tutto
+   il resto — mentre in basso, a sinistra e a destra il respiro era 12. Ora la
+   riga e' alta quanto il suo testo, e il ritmo verticale e' uno solo:
+
+     12  bordo alto  →  scritta
+     12  scritta     →  colonne
+     12  colonne     →  bordo basso
+
+   L'ingranaggio e' piu' alto del testo e sborda di 3.5 sopra e sotto: e'
+   voluto, e' un'icona centrata sulla riga, non un secondo blocco. */
+const HEADER_LINE = 17;
+
+export const FRAME = {
+  pad: FRAME_PAD,
+  headerTop: FRAME_PAD - OTTICA,
+  headerH: HEADER_LINE,
+  colTop: FRAME_PAD - OTTICA + HEADER_LINE + FRAME_PAD,
+};
+
+const PAD_X = FRAME.pad;
+const COL_TOP = FRAME.colTop;
+const BOARD_BOTTOM = FRAME.pad;
+/* Distanza fra le due colonne nella Full Inbox. Resta 14: è lo spazio fra due
+   contenitori, non un margine del quadro, e i due valori non devono per forza
+   coincidere. */
 const COL_GAP = 14;
 const NONE_W = 300;
 /* Sotto questa larghezza le origini diventerebbero più strette delle proprie
@@ -74,12 +127,52 @@ function fullGeometry({ w, h }) {
   };
 }
 
-/* Geometria della vista divisa, misurata su DEF_Inbox min. */
+/* Geometria della vista divisa.
+
+   **Scostamento deliberato da DEF_Inbox min (2026-09-10).** L'artboard ha la
+   colonna Inbox a filo di finestra, senza fondo né bordo, con dentro la scritta
+   "Inbox" e il bottone "Aggiungi task", e il contenuto dentro una card di
+   superficie. Qui è il contrario, in tre mosse decise nello stesso giro:
+
+     1. **i contenitori sono invertiti** — la colonna è la card, il contenuto è
+        appoggiato sul fondo;
+     2. **la scritta "Inbox" è uscita dalla colonna** ed è diventata
+        l'intestazione di quadro, insieme al badge delle origini nuove e
+        all'ingranaggio delle impostazioni;
+     3. **"Aggiungi task" non c'è più** nella vista divisa: va ripensato dove
+        mettere il gesto di creazione (resta il bottone in fondo alla colonna
+        della Full Inbox, che viene da DEF_Inbox max).
+
+   La ragione della prima è di senso: nella Full Inbox la colonna "Da smistare"
+   **è** una card di superficie, quindi l'artboard chiedeva che il contenitore
+   nascesse dal nulla a metà trascinamento. Invertendo, la colonna è la stessa
+   cosa dall'inizio alla fine — che è la premessa di tutto questo componente.
+
+   Le conseguenze sul movimento sono la parte interessante, perché tolgono roba:
+
+     · fondo, bordo e raggio della colonna diventano **costanti** (spariscono
+       due `color-mix` per fotogramma);
+     · l'intestazione di quadro non si dissolve più: vale per entrambe le
+       geometrie, quindi è un elemento solo, sempre acceso;
+     · siccome quell'intestazione c'è sempre, le colonne cominciano sotto di lei
+       **anche a p=0**: `top` e `height` diventano costanti pure loro.
+
+   Di interpolato restano `left`, `width` e le imbottiture interne. Il resto sta
+   fermo, che è il modo migliore per non tremare. */
 const SPLIT = {
-  colTop: 0,
-  headerSlot: 91, // intestazione "Inbox" + "Aggiungi task"
-  listPadX: 16,
-  listPadBottom: 16,
+  /* Nessuna intestazione dentro la colonna a riposo: la scritta è uscita e il
+     bottone non c'è più. La testata cresce da 0 a 40.9 mentre compare
+     "Da smistare". */
+  headerSlot: 0,
+  /* 12 e non 16 (ridotto il 2026-09-10): la colonna è una card dentro un quadro
+     che ha già il suo margine, e 16 dentro 20 erano due respiri sovrapposti.
+     Con il quadro a 12 anche questo scende, così il rapporto fra i due resta
+     quello di prima invece di stringersi solo di fuori.
+     `listPadTop` esiste perché a riposo la colonna non ha intestazione: prima lo
+     spazio sopra la prima card lo faceva lei. */
+  listPadX: 12,
+  listPadTop: 12,
+  listPadBottom: 12,
   listGap: 8,
 };
 const FULL_COL = {
@@ -213,11 +306,17 @@ export function useInboxMorph(initialPct = 20, startCommitted = false) {
     noneLeft = FULL.noneLeft;
     noneW = FULL.noneW;
   } else if (pct < SLIDE_START) {
-    noneW = (pct / 100) * size.w;
-    noneLeft = 0;
+    /* Fase A: il bordo **destro** della colonna sta sotto il puntatore, e il
+       sinistro è rientrato del margine di quadro perché la colonna adesso è una
+       card e non può stare a filo di finestra. Quindi la larghezza è quella di
+       prima meno il margine, non quella di prima. */
+    noneW = (pct / 100) * size.w - PAD_X;
+    noneLeft = PAD_X;
   } else {
     const pointerX = (pct / 100) * size.w;
-    noneW = lerp((SLIDE_START / 100) * size.w, FULL.noneW, p);
+    /* Stesso sottrarre alla larghezza di partenza della fase B: senza, al
+       passaggio fra le due fasi la colonna salterebbe di 16px. */
+    noneW = lerp((SLIDE_START / 100) * size.w - PAD_X, FULL.noneW, p);
     noneLeft = pointerX - noneW;
   }
 
@@ -235,38 +334,37 @@ export function useInboxMorph(initialPct = 20, startCommitted = false) {
     none: {
       left: noneLeft,
       width: noneW,
-      top: lerp(SPLIT.colTop, FULL.colTop, p),
-      height: lerp(size.h, FULL.colH, p),
-      radius: lerp(0, 14, p),
+      top: FULL.colTop,
+      height: FULL.colH,
+      radius: 14,
       headerSlot: lerp(SPLIT.headerSlot, FULL_COL.headerSlot, p),
       listPadX: lerp(SPLIT.listPadX, FULL_COL.listPadX, p),
-      listPadTop: lerp(0, FULL_COL.listPadTop, p),
+      listPadTop: lerp(SPLIT.listPadTop, FULL_COL.listPadTop, p),
       listPadBottom: lerp(SPLIT.listPadBottom, FULL_COL.listPadBottom, p),
       listGap: lerp(SPLIT.listGap, FULL_COL.listGap, p),
-      /* Fondo e bordo della colonna finale, portati da trasparente al loro
-         valore. Stanno sulla colonna e non su uno strato sovrapposto, che
-         `overflow-hidden` ritaglierebbe sul bordo. */
-      background: `color-mix(in srgb, var(--color-surface) ${(p * 100).toFixed(1)}%, transparent)`,
-      borderColor: `color-mix(in srgb, var(--color-divider) ${(p * 100).toFixed(1)}%, transparent)`,
-      transition: transition([
-        "left",
-        "width",
-        "top",
-        "height",
-        "background-color",
-        "border-color",
-        "border-radius",
-      ]),
+      /* Costanti, non più interpolate: la colonna è una card di superficie in
+         entrambe le geometrie. Restano qui, e non nelle classi del componente,
+         perché è questo il posto che descrive la colonna. */
+      background: "var(--color-surface)",
+      borderColor: "var(--color-divider)",
+      transition: transition(["left", "width"]),
     },
     /* Colonna origini: geometria finale, traslata fuori quadro e tirata dentro
        dal bordo sinistro della colonna. */
     origins: {
       left: FULL.originsLeft,
       width: FULL.originsW,
-      top: lerp(SPLIT.colTop, FULL.colTop, p),
-      height: lerp(size.h, FULL.colH, p),
-      x: noneLeft - FULL.noneLeft,
-      transition: transition(["transform", "top", "height"]),
+      top: FULL.colTop,
+      height: FULL.colH,
+      /* Il termine in `PAD_X` esiste da quando la colonna è rientrata di
+         20px dal bordo: la traslazione tiene il bordo **destro** delle origini
+         a `COL_GAP` dal bordo sinistro della colonna, quindi rientrando la
+         colonna le origini si portavano dietro, e a riposo ne restavano 2px
+         visibili sul bordo sinistro del quadro — una scheggia azzurra. Escono
+         di altrettanto, e il recupero si chiude a p=1 dove il termine si
+         annulla e la distanza torna esattamente quella dell'artboard. */
+      x: noneLeft - FULL.noneLeft - PAD_X * (1 - p),
+      transition: transition(["transform"]),
     },
     /* Pannello destro della vista divisa: parte dal bordo della colonna e si
        spegne mentre le origini entrano. */
@@ -280,7 +378,6 @@ export function useInboxMorph(initialPct = 20, startCommitted = false) {
       opacity: 1 - p,
       transition: transition(["left", "opacity"]),
     },
-    splitHeaderOpacity: 1 - p,
     fullHeaderOpacity: p,
     fadeTransition: transition(["opacity"]),
   };

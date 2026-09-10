@@ -8,7 +8,7 @@ import { RINASCITA_VERSION, migrateRinascita } from "./rinascita-schema.js";
    qui sotto. `RINASCITA_VERSION` (7) resta il gradino in cui e arrivato lo
    schema nuovo: i passi successivi lo estendono e non lo rifanno, quindi da 7
    in avanti la versione buona da confrontare e questa. */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 export function openDatabase(databasePath) {
   if (typeof databasePath !== "string" || databasePath.trim() === "") {
@@ -276,7 +276,7 @@ function migrate(database) {
     migrateRinascita(database);
   }
 
-  if (version < SCHEMA_VERSION) {
+  if (version < 8) {
     /* `isInbox`: il flag che dice "questo task è ancora da smistare".
        Deciso il 2026-09-10 (vedi Rinascita.md, § Stati speciali del task).
 
@@ -308,6 +308,50 @@ function migrate(database) {
              END;
 
       CREATE INDEX t_task_inbox ON t_task(isInbox) WHERE isInbox = 1;
+
+      PRAGMA user_version = 8;
+      COMMIT;
+    `);
+  }
+
+  if (version < 9) {
+    /* `isNew`: il flag della notifica, non dello stato di lavoro.
+
+       Dice una cosa sola — "questa origine e arrivata e nessuno l'ha ancora
+       guardata" — e serve al pallino azzurro sulla linea "Inbox", che nella
+       vista divisa e l'unico posto da cui si puo sapere che nella Full Inbox e
+       arrivato qualcosa.
+
+       Perche non derivarlo. Le due cose che sembrano gia dirlo non lo dicono:
+       `isInbox` e la posizione nel flusso (un'origine resta da smistare per
+       giorni dopo che l'hai vista), e `createdAt` misura l'eta, non lo sguardo
+       — con una soglia a tempo il pallino tornerebbe a spegnersi da solo.
+       "Visto" e un fatto dell'utente, e i fatti dell'utente si scrivono.
+
+       Nasce a 0. Lo accende `createTask` per le sole origini esterne di primo
+       livello: un task scritto a mano non ha bisogno di annunciarsi a chi lo
+       ha appena scritto (vedi la nota li).
+
+       Il travaso: le origini esterne ancora in triage diventano nuove. Non e
+       una ricostruzione dello storico — quel dato non c'era — ma la lettura
+       piu vicina al vero, perche fino a oggi nessuno ha potuto guardarle nel
+       senso che questo campo intende. Stessa scelta fatta per `isInbox`.
+
+       Nessun indice: il flag si legge sempre insieme al resto della lista, mai
+       da solo, e le origini in triage sono decine, non milioni. */
+    database.exec(`
+      BEGIN IMMEDIATE;
+
+      ALTER TABLE t_task
+        ADD COLUMN isNew INTEGER NOT NULL DEFAULT 0 CHECK (isNew IN (0, 1));
+
+      UPDATE t_task
+         SET isNew = 1
+       WHERE idParentTask IS NULL
+         AND isInbox = 1
+         AND deletedAt IS NULL
+         AND sourceType IS NOT NULL
+         AND sourceType <> 'manual';
 
       PRAGMA user_version = ${SCHEMA_VERSION};
       COMMIT;

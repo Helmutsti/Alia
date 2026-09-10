@@ -18,7 +18,7 @@ const BTN =
   "grid place-items-center w-5 h-5 p-0 shrink-0 rounded-sm border border-divider " +
   "bg-transparent cursor-pointer text-content/65 hover:border-accent hover:text-content";
 
-export function OriginCard({ task, editing, dragging, onPointerDown, onCommit, onEdit, onConfirm, onDelete }) {
+export function OriginCard({ task, nuova, editing, dragging, onPointerDown, onCommit, onEdit, onConfirm, onDelete }) {
   const stop = (e) => e.stopPropagation();
 
   return (
@@ -61,6 +61,16 @@ export function OriginCard({ task, editing, dragging, onPointerDown, onCommit, o
         <span className="text-[10.5px] text-accent">
           {SOURCE_LABELS[task.sourceType] ?? task.sourceType}
         </span>
+        {/* Nuova: un punto pieno d'accento accanto al nome della sorgente.
+            Un punto e non una parola perché dice l'unica cosa che c'è da dire,
+            e perché il badge sulla linea "Inbox" ha già dato il numero: qui
+            serve solo sapere *quali* sono, arrivati qui dentro. */}
+        {nuova ? (
+          <span
+            className="w-[5px] h-[5px] shrink-0 rounded-full bg-accent"
+            title="Arrivata da poco"
+          />
+        ) : null}
         <span className="ml-auto flex gap-[5px]">
           <button
             type="button"

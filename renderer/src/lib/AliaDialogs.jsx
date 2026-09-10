@@ -127,7 +127,97 @@ function StatoRiapertura({ richiesta, rispondi, annulla }) {
   );
 }
 
-/* Caso 3 — non è una domanda: la migrazione con sotto-task aperti è vietata, e
+/* Caso 3 — cancellare uno stato che dei task stanno usando.
+
+   Non è un rifiuto ma una domanda, perché una risposta esiste: dove spostarli.
+   Il core si ferma prima di scrivere e torna con l'elenco delle destinazioni;
+   qui si sceglie, e la stessa chiamata riparte con la decisione dentro. */
+function StatoInUso({ richiesta, rispondi, annulla }) {
+  const [destinazione, setDestinazione] = useState(richiesta.destinazioni[0]?.idState);
+  const quanti = richiesta.tasks;
+
+  return (
+    <div className={RIQUADRO}>
+      <Titolo>Lo stato «{richiesta.label}» è in uso</Titolo>
+      <p className="m-0 text-meta text-content/70">
+        {quanti === 1 ? "Una task si trova" : `${quanti} task si trovano`} su questo stato. Cancellandolo
+        {quanti === 1 ? " va" : " vanno"} spostat{quanti === 1 ? "a" : "e"} altrove: scegli dove.
+      </p>
+      <select
+        value={destinazione ?? ""}
+        onChange={(e) => setDestinazione(Number(e.target.value))}
+        className="h-8 px-2 rounded-lg border border-divider bg-elevated text-content text-[12.5px]"
+      >
+        {richiesta.destinazioni.map((d) => (
+          <option key={d.idState} value={d.idState}>
+            {d.label}
+          </option>
+        ))}
+      </select>
+      <div className="flex gap-2 justify-end mt-1">
+        <button type="button" className={BTN} onClick={annulla}>
+          Annulla
+        </button>
+        <button
+          type="button"
+          className={BTN_PRIM}
+          disabled={destinazione == null}
+          onClick={() => rispondi({ idStateDestinazione: destinazione })}
+        >
+          Sposta e cancella
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* Caso 4 — cancellare un progetto che ha delle task dentro.
+
+   Come lo stato in uso, ma con una destinazione in più che non è un
+   annullamento: **nessun progetto**. Le task senza progetto sono uno stato
+   legittimo del modello (ci vive tutta la colonna "Da smistare"), quindi la
+   voce sta nell'elenco insieme agli altri progetti, non come un ripiego. */
+function ProgettoInUso({ richiesta, rispondi, annulla }) {
+  const [destinazione, setDestinazione] = useState("nessuno");
+  const quante = richiesta.tasks;
+
+  return (
+    <div className={RIQUADRO}>
+      <Titolo>Il progetto «{richiesta.name}» non è vuoto</Titolo>
+      <p className="m-0 text-meta text-content/70">
+        {quante === 1 ? "Una task vive" : `${quante} task vivono`} in questo progetto. Cancellandolo
+        {quante === 1 ? " va" : " vanno"} spostat{quante === 1 ? "a" : "e"} altrove: scegli dove. Le
+        fasi del progetto spariscono comunque.
+      </p>
+      <select
+        value={destinazione}
+        onChange={(e) => setDestinazione(e.target.value)}
+        className="h-8 px-2 rounded-lg border border-divider bg-elevated text-content text-[12.5px]"
+      >
+        <option value="nessuno">Senza progetto</option>
+        {richiesta.destinazioni.map((d) => (
+          <option key={d.idProject} value={d.idProject}>
+            {d.name}
+          </option>
+        ))}
+      </select>
+      <div className="flex gap-2 justify-end mt-1">
+        <button type="button" className={BTN} onClick={annulla}>
+          Annulla
+        </button>
+        <button
+          type="button"
+          className={BTN_PRIM}
+          onClick={() => rispondi({ destinazione })}
+        >
+          Sposta e cancella
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* Caso 5 — non è una domanda: la migrazione con sotto-task aperti è vietata, e
    la scelta deliberata della specifica è non trascinarli fuori dal sistema. */
 function Bloccato({ bloccato, annulla }) {
   return (
@@ -158,10 +248,18 @@ function Avvisi({ avvisi, scarta }) {
           key={i}
           className="rounded-lg border border-divider bg-elevated shadow-elev-md px-3 py-2.5 flex gap-2 items-start"
         >
+          {/* Due forme, perché sono due cose diverse. Gli avvisi della macchina
+              a stati sono oggetti con un `tipo`, e la frase la scrive qui chi
+              conosce il contesto. Quelli della configurazione degli stati sono
+              già frasi compiute — "«Da fare» non è più lo stato di partenza" —
+              perché solo il core sa quale stato era, e riportare qui quella
+              conoscenza per riscriverne il testo sarebbe duplicarla. */}
           <p className="m-0 flex-1 text-meta text-content/80">
-            {a.tipo === "chiusura-per-cascata-con-scarto"
-              ? "Una task si è chiusa perché tutti i suoi sotto-task sono chiusi, ma non erano tutti completati: è stata portata sullo stato finale, che potrebbe non riflettere com'è andata davvero."
-              : "Operazione applicata con un avviso."}
+            {typeof a === "string"
+              ? a
+              : a.tipo === "chiusura-per-cascata-con-scarto"
+                ? "Una task si è chiusa perché tutti i suoi sotto-task sono chiusi, ma non erano tutti completati: è stata portata sullo stato finale, che potrebbe non riflettere com'è andata davvero."
+                : "Operazione applicata con un avviso."}
           </p>
           <button
             type="button"
@@ -194,6 +292,22 @@ export function AliaDialogs() {
                    scelte fatte per la conferma precedente non devono
                    sopravvivere a quella dopo. */
                 key={richiesta.tasks.map((t) => t.idTask).join("|")}
+                richiesta={richiesta}
+                rispondi={rispondi}
+                annulla={annulla}
+              />
+            ) : null}
+            {richiesta?.tipo === "stato-in-uso" ? (
+              <StatoInUso
+                key={richiesta.idState}
+                richiesta={richiesta}
+                rispondi={rispondi}
+                annulla={annulla}
+              />
+            ) : null}
+            {richiesta?.tipo === "progetto-in-uso" ? (
+              <ProgettoInUso
+                key={richiesta.idProject}
                 richiesta={richiesta}
                 rispondi={rispondi}
                 annulla={annulla}

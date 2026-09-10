@@ -228,3 +228,53 @@ test("gli stati configurati dall'utente sopravvivono alla migrazione", () => {
     pulisci(cartella);
   }
 });
+
+/* Il gradino 8 → 9 preso da solo.
+
+   Vale la pena provarlo separatamente dalla catena 6 → 9: i database gia in
+   uso stanno alla 8, e quel passo e il primo che si aggiunge *dopo* uno gia
+   rilasciato. La trappola e nel guardiano: finche c'era un solo passo oltre la
+   Rinascita, la sua condizione era `version < SCHEMA_VERSION`, e alzando la
+   costante quel passo sarebbe tornato a girare su un database che lo aveva gia
+   fatto — "duplicate column name: isInbox". Ora e ancorato all'8; questo test
+   e cio che tiene ferma l'ancora.
+
+   Lo stato di partenza si ottiene togliendo la colonna a un database nuovo,
+   invece di ricostruire a mano lo schema 8: cosi la partenza resta quella vera
+   anche quando lo schema cambiera ancora. */
+test("un database alla versione 8 prende isNew senza rifare il passo di isInbox", () => {
+  const cartella = mkdtempSync(join(tmpdir(), "alia-v8-"));
+  const percorso = join(cartella, "alia.sqlite");
+
+  try {
+    const nuovo = openDatabase(percorso);
+    nuovo.prepare(
+      `INSERT INTO t_task (idTask, idState, title, priority, sourceType, originalContent,
+                           contentGeneratedByAi, position, isInbox, isNew, createdAt, updatedAt)
+       VALUES (?, (SELECT idState FROM t_state ORDER BY stepOrder LIMIT 1), ?, 'none', ?, ?, 0, ?, ?, 0,
+               '2026-09-01T10:00:00.000Z', '2026-09-01T10:00:00.000Z')`,
+    ).run("t-origine", "Arrivata per mail", "mail", "Arrivata per mail", 0, 1);
+    nuovo.prepare(
+      `INSERT INTO t_task (idTask, idState, title, priority, sourceType, originalContent,
+                           contentGeneratedByAi, position, isInbox, isNew, createdAt, updatedAt)
+       VALUES (?, (SELECT idState FROM t_state ORDER BY stepOrder LIMIT 1), ?, 'none', 'manual', ?, 0, ?, ?, 0,
+               '2026-09-01T10:00:00.000Z', '2026-09-01T10:00:00.000Z')`,
+    ).run("t-manuale", "Scritta a mano", "Scritta a mano", 1, 1);
+
+    /* Indietro allo schema 8: via la colonna, indietro la versione. */
+    nuovo.exec("ALTER TABLE t_task DROP COLUMN isNew");
+    nuovo.exec("PRAGMA user_version = 8");
+    nuovo.close();
+
+    const database = openDatabase(percorso);
+    assert.equal(database.prepare("PRAGMA user_version").get().user_version, SCHEMA_VERSION);
+
+    const leggi = (id) => database.prepare("SELECT isNew FROM t_task WHERE idTask = ?").get(id);
+    assert.equal(leggi("t-origine").isNew, 1, "l'origine ancora in triage non e mai stata guardata");
+    assert.equal(leggi("t-manuale").isNew, 0, "quella scritta a mano non ha niente da annunciare");
+
+    database.close();
+  } finally {
+    pulisci(cartella);
+  }
+});

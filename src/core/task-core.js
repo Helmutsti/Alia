@@ -63,13 +63,515 @@ function eFinale(database, idState) {
   return statoDi(database, idState).isEndState === 1;
 }
 
+/* ── configurazione degli stati ───────────────────────────────────────────────
+
+   Il CRUD che serve al pannello Impostazioni (DEF_Impostazioni, sezione Stati).
+   Fino a ieri gli stati si leggevano soltanto: erano configurabili in teoria e
+   immutabili in pratica, perché nessuna operazione li toccava.
+
+   **La forma della fila è fissa ai due capi** (decisione del 2026-09-10):
+
+     primo    apertura   uno solo, sempre in testa, non si cancella, non cambia
+                         ruolo, non si sposta. Si può solo rinominare.
+     in mezzo passaggi   quanti se ne vuole, riordinabili, cancellabili, e
+                         ciascuno può contare o no come **conclusione**
+                         ("chiusure secondarie": migrato, archiviato, annullato…)
+     ultimo   chiusura   sempre in coda, sempre conclusiva, non si cancella e non
+                         si sposta. Si può solo rinominare.
+
+   Perché irrigidirla. Prima il ruolo era un campo libero su ogni riga, e da lì
+   nascevano tre domande a cui nessuna risposta era buona: che succede se tolgo
+   il ruolo all'unica apertura (il flusso resta senza ingresso), se cancello
+   l'ultima chiusura (i padri chiusi per cascata non hanno dove atterrare), se
+   riordino mettendo una chiusura in mezzo (l'atterraggio si sposta sotto i
+   piedi senza che nessuno abbia toccato un task). Fissando i due capi le tre
+   domande **non si pongono più**: non sono vietate, sono irrappresentabili.
+
+   Il guadagno più grande è sull'atterraggio. La regola resta quella della
+   specifica — "l'ultimo `isEndState` per `stepOrder`" — ma ora ha una sola
+   risposta possibile in ogni configurazione: la chiusura finale, che è l'ultima
+   per costruzione. "L'ordine è legge" continua a valere e smette di essere una
+   trappola.
+
+   Restano tre invarianti, che ogni scrittura difende:
+
+     1. esiste esattamente uno stato con `isStartState = 1`, ed è il primo per
+        `stepOrder`;
+     2. l'ultimo per `stepOrder` ha `isEndState = 1`;
+     3. gli stati in mezzo non sono mai di apertura, e la loro conclusività è
+        libera. */
+
+function ruoloDi(stato) {
+  if (stato.isStartState === 1) return "start";
+  if (stato.isEndState === 1) return "end";
+  return "mid";
+}
+
+function etichettaValida(label) {
+  const pulita = String(label ?? "").trim();
+  if (!pulita) throw new Error("L'etichetta di uno stato non puo essere vuota");
+  return pulita;
+}
+
+/* I due capi della fila. Sono definiti dalla posizione, non da una bandiera:
+   `apertura` è il primo, `chiusura` è l'ultimo. Le bandiere li seguono, non il
+   contrario — ed è per questo che i due capi non si spostano. */
+function apertura(database) {
+  const stati = listStates(database);
+  if (stati.length === 0) throw new Error("Nessuno stato configurato");
+  return stati[0];
+}
+
+function chiusuraFinale(database) {
+  const stati = listStates(database);
+  if (stati.length === 0) throw new Error("Nessuno stato configurato");
+  return stati[stati.length - 1];
+}
+
+function eCapo(database, idState) {
+  return apertura(database).idState === idState || chiusuraFinale(database).idState === idState;
+}
+
+function etichettaLibera(database, label, escluso = null) {
+  const altro = database
+    .prepare("SELECT idState FROM t_state WHERE label = ? AND idState IS NOT ?")
+    .get(label, escluso);
+  if (altro) throw new Error(`Esiste gia uno stato con questa etichetta: ${label}`);
+}
+
+/* Un passaggio nuovo nasce **prima della chiusura finale**, non in fondo: in
+   fondo diventerebbe lui l'ultimo, e l'ultimo è la chiusura. Nasce non
+   conclusivo, che è la cosa più probabile per un passaggio aggiunto a flusso
+   avviato — e se serve una chiusura secondaria, si accende l'interruttore. */
+export function createState(database, input = {}) {
+  return runInTransaction(database, () => {
+    const label = etichettaValida(input.label);
+    etichettaLibera(database, label);
+
+    const coda = chiusuraFinale(database);
+    const ordine = coda.stepOrder;
+    database
+      .prepare("UPDATE t_state SET stepOrder = stepOrder + 1 WHERE stepOrder >= ?")
+      .run(ordine);
+
+    const esito = database
+      .prepare(
+        "INSERT INTO t_state (label, isStartState, isEndState, stepOrder) VALUES (?, 0, ?, ?)",
+      )
+      .run(label, input.isEnd ? 1 : 0, ordine);
+
+    return { esito: "applicato", idState: Number(esito.lastInsertRowid), cambi: ["stati"], avvisi: [] };
+  });
+}
+
+/* Due sole cose modificabili: l'etichetta, sempre, e la conclusività, solo per
+   gli stati in mezzo. Il ruolo dei due capi non è un campo: è la loro
+   posizione, e quella non si tocca. */
+export function updateState(database, idState, patch = {}) {
+  return runInTransaction(database, () => {
+    const stato = statoDi(database, idState);
+    const cambi = [];
+    const avvisi = [];
+
+    if (patch.label !== undefined) {
+      const label = etichettaValida(patch.label);
+      if (label !== stato.label) {
+        etichettaLibera(database, label, idState);
+        database.prepare("UPDATE t_state SET label = ? WHERE idState = ?").run(label, idState);
+        cambi.push("label");
+      }
+    }
+
+    if (patch.isEnd !== undefined) {
+      const vuole = patch.isEnd ? 1 : 0;
+      if (apertura(database).idState === idState) {
+        throw new Error("Lo stato di apertura non puo contare come concluso: e il punto d'ingresso");
+      }
+      if (chiusuraFinale(database).idState === idState && vuole === 0) {
+        throw new Error("Lo stato di chiusura resta conclusivo: e il capolinea del flusso");
+      }
+
+      if (vuole !== stato.isEndState) {
+        database.prepare("UPDATE t_state SET isEndState = ? WHERE idState = ?").run(vuole, idState);
+        cambi.push("isEnd");
+
+        /* `isCompleted` dei task segue la conclusività dello stato. I due
+           trigger dello schema scattano sull'inserimento del task e sul cambio
+           del suo `idState`: qui il task non si muove, si muove il terreno sotto
+           di lui, quindi il riallineamento tocca al core. */
+        const riallineati = database
+          .prepare("UPDATE t_task SET isCompleted = ? WHERE idState = ? AND isCompleted <> ?")
+          .run(vuole, idState, vuole);
+        if (riallineati.changes > 0) {
+          const n = riallineati.changes;
+          avvisi.push(
+            `${n} task ${n === 1 ? "e passato" : "sono passati"} a ${vuole ? "completati" : "non completati"} seguendo il nuovo tipo di stato.`,
+          );
+        }
+      }
+    }
+
+    return { esito: "applicato", cambi, avvisi };
+  });
+}
+
+/* Riordino dei soli passaggi di mezzo. `orderedIds` resta l'elenco **completo**
+   — `stepOrder` è una posizione assoluta, riscriverne solo alcune lascerebbe
+   buchi o pareggi il cui esito dipenderebbe dall'ordine di lettura — ma i due
+   capi devono ritrovarsi dove stavano: primo l'apertura, ultima la chiusura.
+   Un elenco che li sposta viene rifiutato invece di essere corretto in
+   silenzio, perché correggerlo significherebbe eseguire una richiesta diversa
+   da quella arrivata. */
+export function reorderStates(database, orderedIds) {
+  return runInTransaction(database, () => {
+    const attuali = listStates(database);
+    const richiesti = (orderedIds ?? []).map(Number);
+    const senzaDoppioni = new Set(richiesti);
+    if (
+      senzaDoppioni.size !== richiesti.length ||
+      richiesti.length !== attuali.length ||
+      !attuali.every((s) => senzaDoppioni.has(s.idState))
+    ) {
+      throw new Error("Il riordino degli stati richiede l'elenco completo, senza ripetizioni");
+    }
+    if (richiesti[0] !== attuali[0].idState) {
+      throw new Error("Lo stato di apertura resta il primo");
+    }
+    if (richiesti[richiesti.length - 1] !== attuali[attuali.length - 1].idState) {
+      throw new Error("Lo stato di chiusura resta l'ultimo");
+    }
+
+    const stmt = database.prepare("UPDATE t_state SET stepOrder = ? WHERE idState = ?");
+    richiesti.forEach((idState, i) => stmt.run(i + 1, idState));
+
+    return { esito: "applicato", cambi: ["stepOrder"], avvisi: [] };
+  });
+}
+
+/* Cancellazione dei soli passaggi di mezzo. Si ferma in due modi diversi:
+
+     · sui due capi è un **rifiuto**: non esiste una risposta che renda
+       l'operazione accettabile, perché senza apertura il flusso non ha ingresso
+       e senza chiusura finale non ha capolinea;
+     · sui task che usano lo stato è una **domanda**, perché una risposta esiste:
+       dove spostarli. Torna `conferma` con le destinazioni possibili, e si
+       richiama con `decisioni.idStateDestinazione`.
+
+   Il vincolo di chiave esterna su `t_task.idState` farebbe fallire la DELETE
+   comunque; questa funzione esiste perché fallisca **dicendo cosa fare**. */
+export function deleteState(database, idState, decisioni = {}) {
+  return runInTransaction(database, () => {
+    const stato = statoDi(database, idState);
+    if (apertura(database).idState === idState) {
+      throw new Error("Lo stato di apertura non si cancella: e il punto d'ingresso del flusso");
+    }
+    if (chiusuraFinale(database).idState === idState) {
+      throw new Error("Lo stato di chiusura non si cancella: e il capolinea del flusso");
+    }
+
+    const inUso = database.prepare("SELECT COUNT(*) AS c FROM t_task WHERE idState = ?").get(idState).c;
+
+    if (inUso > 0) {
+      const destinazione = decisioni.idStateDestinazione;
+      if (destinazione === undefined || destinazione === null) {
+        return {
+          esito: "conferma",
+          richiesta: {
+            tipo: "stato-in-uso",
+            idState,
+            label: stato.label,
+            tasks: inUso,
+            destinazioni: listStates(database)
+              .filter((s) => s.idState !== idState)
+              .map((s) => ({ idState: s.idState, label: s.label, role: ruoloDi(s) })),
+          },
+        };
+      }
+      const arrivo = statoDi(database, Number(destinazione));
+      if (arrivo.idState === idState) throw new Error("La destinazione deve essere un altro stato");
+
+      const istante = adesso();
+      const tasks = database.prepare("SELECT idTask FROM t_task WHERE idState = ?").all(idState);
+      const sposta = database.prepare("UPDATE t_task SET idState = ?, updatedAt = ? WHERE idTask = ?");
+      for (const { idTask } of tasks) {
+        sposta.run(arrivo.idState, istante, idTask);
+        /* Passa dallo storico come qualunque altro cambio di stato: da fuori e
+           successo davvero, il task non e piu dove era. */
+        registraStorico(database, idTask, "idState", String(idState), String(arrivo.idState));
+      }
+      /* `isCompleted` segue lo stato di arrivo, come su ogni altro spostamento:
+         il trigger `t_task_completed_on_state_change` ci pensa da se. */
+    }
+
+    database.prepare("DELETE FROM t_state WHERE idState = ?").run(idState);
+    /* Le posizioni si richiudono sul buco: senza, `stepOrder` resterebbe con un
+       salto, e le posizioni tornerebbero a essere numeri qualsiasi invece di una
+       fila. */
+    listStates(database).forEach((s, i) => {
+      if (s.stepOrder !== i + 1) {
+        database.prepare("UPDATE t_state SET stepOrder = ? WHERE idState = ?").run(i + 1, s.idState);
+      }
+    });
+
+    return {
+      esito: "applicato",
+      cambi: ["stati"],
+      avvisi:
+        inUso > 0
+          ? [`${inUso} task ${inUso === 1 ? "spostato" : "spostati"} su "${statoDi(database, Number(decisioni.idStateDestinazione)).label}".`]
+          : [],
+    };
+  });
+}
+
+/* ── configurazione dei progetti e delle milestone ────────────────────────────
+
+   L'altra meta della configurazione, insieme agli stati. Anche qui i progetti si
+   leggevano soltanto: erano nel modello dal primo giorno e non c'era modo di
+   crearne uno dall'applicazione.
+
+   Le due entita' non hanno lo stesso peso, e le operazioni lo rispecchiano:
+
+     · un **progetto** e' una casa. Cancellarlo lascia dei task senza casa,
+       quindi la cancellazione si ferma e chiede dove mandarli;
+     · una **milestone** e' una suddivisione dentro quella casa. Cancellarla non
+       lascia nessuno senza casa: i task restano nel progetto e perdono solo la
+       fase. Si fa e si dice, senza domande.
+
+   Le milestone spariscono da se' con il progetto (`ON DELETE CASCADE` sullo
+   schema), ma i task che le usavano no: `t_task.idMilestone` e' una chiave
+   esterna senza cascata, quindi vanno ripuliti **prima**, o la cancellazione del
+   progetto fallisce sul vincolo. Lo fa lo spostamento dei task, che azzera la
+   milestone insieme al progetto — una fase del progetto vecchio non ha senso in
+   quello nuovo. */
+
+function progettoEsistente(database, idProject) {
+  const progetto = database
+    .prepare("SELECT idProject, name, color, position FROM t_project WHERE idProject = ?")
+    .get(idProject);
+  if (!progetto) throw new Error(`Progetto inesistente: ${idProject}`);
+  return progetto;
+}
+
+function nomeProgettoValido(database, name, escluso = null) {
+  const pulito = String(name ?? "").trim();
+  if (!pulito) throw new Error("Il nome di un progetto non puo essere vuoto");
+  const altro = database
+    .prepare("SELECT idProject FROM t_project WHERE name = ? AND idProject IS NOT ?")
+    .get(pulito, escluso);
+  if (altro) throw new Error(`Esiste gia un progetto con questo nome: ${pulito}`);
+  return pulito;
+}
+
+function coloreValido(color) {
+  const pulito = String(color ?? "").trim();
+  if (!pulito) throw new Error("Un progetto deve avere un colore");
+  return pulito;
+}
+
+export function createProject(database, input = {}) {
+  return runInTransaction(database, () => {
+    const name = nomeProgettoValido(database, input.name);
+    const color = coloreValido(input.color);
+    const idProject = input.idProject ?? randomUUID();
+    const position =
+      input.position ??
+      database.prepare("SELECT COALESCE(MAX(position), -1) + 1 AS p FROM t_project").get().p;
+
+    database
+      .prepare(
+        "INSERT INTO t_project (idProject, name, color, position, createdAt) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(idProject, name, color, position, adesso());
+
+    return { esito: "applicato", idProject, cambi: ["progetti"], avvisi: [] };
+  });
+}
+
+export function updateProject(database, idProject, patch = {}) {
+  return runInTransaction(database, () => {
+    const progetto = progettoEsistente(database, idProject);
+    const cambi = [];
+
+    if (patch.name !== undefined) {
+      const name = nomeProgettoValido(database, patch.name, idProject);
+      if (name !== progetto.name) {
+        database.prepare("UPDATE t_project SET name = ? WHERE idProject = ?").run(name, idProject);
+        cambi.push("name");
+      }
+    }
+    if (patch.color !== undefined) {
+      const color = coloreValido(patch.color);
+      if (color !== progetto.color) {
+        database.prepare("UPDATE t_project SET color = ? WHERE idProject = ?").run(color, idProject);
+        cambi.push("color");
+      }
+    }
+
+    return { esito: "applicato", cambi, avvisi: [] };
+  });
+}
+
+/* Cancellare un progetto che ha dei task dentro non e' una cosa che si fa di
+   nascosto: la funzione si ferma e restituisce `conferma` con le destinazioni
+   possibili — un altro progetto, oppure nessuno, che e' una risposta legittima e
+   non un annullamento. Si richiama con `decisioni.destinazione`: l'id di un
+   progetto, o la stringa `"nessuno"`. */
+export function deleteProject(database, idProject, decisioni = {}) {
+  return runInTransaction(database, () => {
+    const progetto = progettoEsistente(database, idProject);
+    const inUso = database
+      .prepare("SELECT COUNT(*) AS c FROM t_task WHERE idProject = ?")
+      .get(idProject).c;
+
+    let destinazione = null;
+    if (inUso > 0) {
+      const scelta = decisioni.destinazione;
+      if (scelta === undefined || scelta === null) {
+        return {
+          esito: "conferma",
+          richiesta: {
+            tipo: "progetto-in-uso",
+            idProject,
+            name: progetto.name,
+            tasks: inUso,
+            destinazioni: listProjects(database)
+              .filter((x) => x.idProject !== idProject)
+              .map((x) => ({ idProject: x.idProject, name: x.name, color: x.color })),
+          },
+        };
+      }
+      destinazione = scelta === "nessuno" ? null : progettoEsistente(database, scelta).idProject;
+
+      /* Si passa dai task **radice**, perche' progetto e milestone si propagano
+         a tutto il sotto-albero: spostare un figlio per conto suo lo staccherebbe
+         dal padre, che il modello non ammette. */
+      const radici = database
+        .prepare("SELECT idTask FROM t_task WHERE idProject = ? AND idParentTask IS NULL")
+        .all(idProject);
+      for (const { idTask } of radici) applicaProgetto(database, idTask, destinazione, null);
+
+      /* Rete: `applicaProgetto` segue i discendenti **vivi**, quindi un
+         sotto-task cancellato in precedenza resterebbe agganciato al progetto e
+         farebbe fallire la DELETE sul vincolo. Qui si prende quello che e'
+         rimasto indietro, cancellati compresi. */
+      database
+        .prepare(
+          "UPDATE t_task SET idProject = ?, idMilestone = NULL, updatedAt = ? WHERE idProject = ?",
+        )
+        .run(destinazione, adesso(), idProject);
+    }
+
+    /* Le milestone se ne vanno da sole: `ON DELETE CASCADE`. A questo punto
+       nessun task le referenzia piu', perche' lo spostamento ha azzerato anche
+       `idMilestone`. */
+    database.prepare("DELETE FROM t_project WHERE idProject = ?").run(idProject);
+
+    const avvisi = [];
+    if (inUso > 0) {
+      const dove = destinazione ? `su "${progettoEsistente(database, destinazione).name}"` : "senza progetto";
+      avvisi.push(`${inUso} task ${inUso === 1 ? "spostato" : "spostati"} ${dove}.`);
+    }
+    return { esito: "applicato", cambi: ["progetti"], avvisi };
+  });
+}
+
+/* ── milestone ─────────────────────────────────────────────────────────────── */
+
+function milestoneEsistente(database, idMilestone) {
+  const milestone = database
+    .prepare("SELECT idMilestone, idProject, label, position FROM t_milestone WHERE idMilestone = ?")
+    .get(idMilestone);
+  if (!milestone) throw new Error(`Milestone inesistente: ${idMilestone}`);
+  return milestone;
+}
+
+/* Le etichette sono uniche **dentro il progetto**, non nel database: due
+   progetti diversi possono avere entrambi una fase "Analisi", ed e' normale.
+   Lo schema non lo dice (nessun UNIQUE su questa coppia), quindi lo dice qui. */
+function etichettaMilestoneLibera(database, idProject, label, escluso = null) {
+  const pulita = String(label ?? "").trim();
+  if (!pulita) throw new Error("L'etichetta di una milestone non puo essere vuota");
+  const altra = database
+    .prepare("SELECT idMilestone FROM t_milestone WHERE idProject = ? AND label = ? AND idMilestone IS NOT ?")
+    .get(idProject, pulita, escluso);
+  if (altra) throw new Error(`Questo progetto ha gia una fase "${pulita}"`);
+  return pulita;
+}
+
+export function createMilestone(database, input = {}) {
+  return runInTransaction(database, () => {
+    const progetto = progettoEsistente(database, input.idProject);
+    const label = etichettaMilestoneLibera(database, progetto.idProject, input.label);
+    const idMilestone = input.idMilestone ?? randomUUID();
+    const position =
+      input.position ??
+      database
+        .prepare("SELECT COALESCE(MAX(position), -1) + 1 AS p FROM t_milestone WHERE idProject = ?")
+        .get(progetto.idProject).p;
+
+    database
+      .prepare(
+        "INSERT INTO t_milestone (idMilestone, idProject, label, position, createdAt) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(idMilestone, progetto.idProject, label, position, adesso());
+
+    return { esito: "applicato", idMilestone, cambi: ["milestone"], avvisi: [] };
+  });
+}
+
+export function updateMilestone(database, idMilestone, patch = {}) {
+  return runInTransaction(database, () => {
+    const milestone = milestoneEsistente(database, idMilestone);
+    const cambi = [];
+
+    if (patch.label !== undefined) {
+      const label = etichettaMilestoneLibera(database, milestone.idProject, patch.label, idMilestone);
+      if (label !== milestone.label) {
+        database.prepare("UPDATE t_milestone SET label = ? WHERE idMilestone = ?").run(label, idMilestone);
+        cambi.push("label");
+      }
+    }
+
+    return { esito: "applicato", cambi, avvisi: [] };
+  });
+}
+
+/* Cancellare una fase non chiede niente, a differenza del progetto: i task
+   restano dove sono e perdono solo la suddivisione. Si dice quanti erano, perche'
+   e' comunque un dato che sparisce. */
+export function deleteMilestone(database, idMilestone) {
+  return runInTransaction(database, () => {
+    milestoneEsistente(database, idMilestone);
+    const inUso = database
+      .prepare("SELECT COUNT(*) AS c FROM t_task WHERE idMilestone = ?")
+      .get(idMilestone).c;
+
+    if (inUso > 0) {
+      database
+        .prepare("UPDATE t_task SET idMilestone = NULL, updatedAt = ? WHERE idMilestone = ?")
+        .run(adesso(), idMilestone);
+    }
+    database.prepare("DELETE FROM t_milestone WHERE idMilestone = ?").run(idMilestone);
+
+    return {
+      esito: "applicato",
+      cambi: ["milestone"],
+      avvisi:
+        inUso > 0
+          ? [`${inUso} task ${inUso === 1 ? "e rimasto" : "sono rimasti"} nel progetto, senza fase.`]
+          : [],
+    };
+  });
+}
+
 /* ── lettura dei task ─────────────────────────────────────────────────────── */
 
 const COLONNE_TASK = `
   idTask, idParentTask, idProject, idMilestone, idState, isCompleted,
   title, description, priority, startAt, dueAt, reminderAt,
   sourceType, sourceId, sourceUrl, originalContent, contentGeneratedByAi,
-  notes, position, isInbox, createdAt, updatedAt, completedAt, archivedAt, deletedAt
+  notes, position, isInbox, isNew, createdAt, updatedAt, completedAt, archivedAt, deletedAt
 `;
 
 export function getTask(database, idTask) {
@@ -88,13 +590,31 @@ export function listTasks(database, { includeDeleted = false } = {}) {
       SELECT
         t.idTask, t.idParentTask, t.idProject, t.idMilestone, t.idState, t.isCompleted,
         t.title, t.description, t.priority, t.startAt, t.dueAt, t.reminderAt,
-        t.notes, t.position, t.isInbox, t.createdAt, t.updatedAt, t.completedAt, t.deletedAt,
+        t.notes, t.position, t.isInbox, t.isNew, t.createdAt, t.updatedAt, t.completedAt, t.deletedAt,
         t.sourceType, t.sourceUrl,
         s.label AS stateLabel, s.isStartState, s.isEndState, s.stepOrder,
         p.name AS projectName, p.color AS projectColor,
         m.label AS milestoneLabel,
         (SELECT COUNT(*) FROM t_task f WHERE f.idParentTask = t.idTask AND f.deletedAt IS NULL) AS childCount,
-        (SELECT COUNT(*) FROM t_task f WHERE f.idParentTask = t.idTask AND f.deletedAt IS NULL AND f.isCompleted = 1) AS childDoneCount
+        (SELECT COUNT(*) FROM t_task f WHERE f.idParentTask = t.idTask AND f.deletedAt IS NULL AND f.isCompleted = 1) AS childDoneCount,
+        /* Le etichette dei tag, in una stringa sola separata da char(31).
+
+           Niente apici inversi in questo commento: sta dentro un template
+           literal, e uno solo lo chiuderebbe a meta' — successo, e il file non
+           compilava piu'.
+
+           I tag vengono con la lista perche' il filtro della vista Lista deve
+           poter decidere task per task senza una chiamata a testa: listTaskTags
+           esiste ed e' giusta per il dettaglio, che ne apre una per volta, ma qui
+           sarebbero decine di andate e ritorni sull'IPC per disegnare un elenco.
+
+           Il separatore e' l'unita' di controllo 31 e non una virgola: le
+           etichette sono testo scritto da una persona, e una persona la virgola
+           la usa. Il 31 no — e' il carattere che esiste apposta per separare
+           campi, e non si scrive con la tastiera. */
+        (SELECT GROUP_CONCAT(g.label, char(31))
+           FROM t_task_tag tt JOIN t_tag g ON g.idTag = tt.idTag
+          WHERE tt.idTask = t.idTask) AS tagLabels
       FROM t_task t
       JOIN t_state s ON s.idState = t.idState
       LEFT JOIN t_project p ON p.idProject = t.idProject
@@ -448,6 +968,27 @@ export function createTask(database, input, decisioni = {}) {
          sapendo già dove vanno (la migrazione esterna, un seed). */
       const inInbox = input.isInbox !== undefined ? (input.isInbox ? 1 : 0) : idParentTask ? 0 : 1;
 
+      /* `isNew` alla nascita: acceso solo per le origini esterne di primo
+         livello che entrano in triage.
+
+         È la campanella, non lo stato: annuncia a chi non stava guardando che
+         è arrivato qualcosa. Per un task scritto a mano non ha senso — chi lo
+         scrive lo ha davanti — e per un sotto-task nemmeno, perché non compare
+         nella colonna delle origini. La distinzione fra le due nascite la dice
+         già `sourceType`, come per `isInbox`.
+
+         `input.isNew` scavalca la regola, per il seed e per la migrazione
+         esterna, che sanno se stanno importando roba vecchia o nuova. */
+      const sorgente = input.sourceType ?? "manual";
+      const nuovo =
+        input.isNew !== undefined
+          ? input.isNew
+            ? 1
+            : 0
+          : !idParentTask && inInbox && sorgente !== "manual"
+            ? 1
+            : 0;
+
       const posizione =
         input.position ??
         (database
@@ -462,16 +1003,16 @@ export function createTask(database, input, decisioni = {}) {
             idTask, idParentTask, idProject, idMilestone, idState, isCompleted,
             title, description, priority, startAt, dueAt, reminderAt,
             sourceType, sourceId, sourceUrl, originalContent, contentGeneratedByAi,
-            notes, position, isInbox, createdAt, updatedAt
-          ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            notes, position, isInbox, isNew, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         .run(
           idTask, idParentTask, ereditato.idProject, idMilestone, idState,
           input.title, input.description ?? null, input.priority ?? "none",
           input.startAt ?? null, input.dueAt ?? null, input.reminderAt ?? null,
-          input.sourceType ?? "manual", input.sourceId ?? null, input.sourceUrl ?? null,
+          sorgente, input.sourceId ?? null, input.sourceUrl ?? null,
           input.originalContent ?? input.title, input.contentGeneratedByAi ? 1 : 0,
-          input.notes ?? null, posizione, inInbox, istante, istante,
+          input.notes ?? null, posizione, inInbox, nuovo, istante, istante,
         );
 
       const cambi = [];
@@ -699,6 +1240,29 @@ export function setTaskInbox(database, idTask, inInbox) {
       .run(valore, adesso(), idTask);
     registraStorico(database, idTask, "isInbox", String(task.isInbox), String(valore));
     return { esito: "applicato", cambi: ["isInbox"] };
+  });
+}
+
+/* Le origini smettono di essere nuove: si spegne `isNew` su tutte insieme.
+
+   Un gesto solo e collettivo perché quello che lo scatena è collettivo: entrare
+   nella Full Inbox vuol dire avere davanti l'intera colonna delle origini, non
+   una card per volta. Spegnerle una a una vorrebbe dire far decidere alla
+   vista, a ogni caricamento, quali erano visibili — e non lo sa.
+
+   Non scrive nello storico, a differenza di `setTaskInbox`. Lo storico racconta
+   cosa è successo al task; qui non è successo niente al task, è successo a chi
+   guarda. Registrarlo riempirebbe la cronologia di righe che non spiegano
+   nessuna decisione.
+
+   Restituisce quante ne ha spente, così chi chiama può evitare di ricaricare
+   quando non è cambiato niente. */
+export function markOriginsSeen(database) {
+  return runInTransaction(database, () => {
+    const esito = database
+      .prepare("UPDATE t_task SET isNew = 0 WHERE isNew = 1")
+      .run();
+    return { esito: "applicato", viste: Number(esito.changes ?? 0), cambi: [] };
   });
 }
 
