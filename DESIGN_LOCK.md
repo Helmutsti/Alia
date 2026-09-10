@@ -683,3 +683,42 @@ Perché sono bloccate: il Kanban ha il padding delle card da correggere e le
 colonne larghe 220px fisse, che con molti progetti producono un tabellone da
 migliaia di pixel (vedi `TODO.md`); Calendario e Gantt sono impianti presi dagli
 artboard e non ancora verificati sui dati reali.
+
+---
+
+## Il campo di rinomina delle card è una textarea — in prova (2026-09-10)
+
+Negli artboard la rinomina in linea è un `<input>`. Nel codice è diventata una
+`<textarea>`: `TitleInput` in `InboxCard.jsx`, condiviso dalle card dell'Inbox
+e dalle card origine.
+
+**Perché.** La card mostra il titolo su più righe. Con un `input` il testo
+cambiava forma nell'istante in cui si entrava in modifica — da blocco su tre
+righe a una riga sola che scorre in orizzontale — e di un titolo lungo si
+vedeva solo la coda, cioè proprio la parte che non serve per riconoscerlo.
+Con la textarea il testo resta dov'era: misurato, il campo è alto **132px
+esattamente quanto lo span che sostituisce**, e la card non cambia altezza
+entrando in modifica (154px prima e durante).
+
+**Cosa si porta dietro**, e va tenuto presente se si tocca:
+
+1. **L'altezza non si adatta da sé.** Si rimisura a ogni battuta su
+   `scrollHeight`, con `overflow-hidden` perché il blocco cresca invece di
+   scorrere internamente. Ai bordi va aggiunto lo spessore a mano
+   (`offsetHeight - clientHeight`): il campo è in `box-border`, quindi
+   l'altezza scritta comprende i bordi mentre `scrollHeight` misura il solo
+   contenuto — assegnare `scrollHeight` liscio lascia il campo 2px corto e
+   l'ultima riga tagliata. Difetto trovato in prova e corretto.
+2. **Invio non deve scrivere un capo riga.** `t_task.title` è una riga sola:
+   Invio conferma, come nell'`input` di prima. Un titolo su più righe non è
+   rappresentabile nel modello, quindi non si può nemmeno inserire per sbaglio.
+3. **`overflow-wrap: anywhere`**, per lo stesso motivo del titolo a schermo: un
+   titolo scritto tutto attaccato altrimenti sborda in orizzontale.
+
+Misurato in prova: una riga 22px (card 44, identica al riposo), tre righe 95px
+(card 117), rientro a 22px accorciando il testo, nessuno scorrimento interno in
+nessuno dei casi, Esc torna allo span e la card torna a 44.
+
+**Resta un'incoerenza dichiarata:** il titolo nel dettaglio del task
+(`TaskDetailModal`) è ancora un `<input>`. Se la prova si conferma va allineato
+anche quello; se si torna indietro, non c'è niente da fare.

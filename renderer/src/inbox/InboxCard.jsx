@@ -87,22 +87,61 @@ export function InboxCard({
   );
 }
 
-/* Rinomina in linea. Nell'artboard il campo prende fuoco e seleziona tutto al
-   montaggio; Invio conferma, Esc annulla, la perdita di fuoco conferma. */
+/* Rinomina in linea. Il campo prende fuoco e seleziona tutto al montaggio;
+   Invio conferma, Esc annulla, la perdita di fuoco conferma.
+
+   È una `textarea`, non un `input` — scostamento voluto dall'artboard, in prova
+   (vedi DESIGN_LOCK). Il motivo: la card mostra il titolo su più righe, quindi
+   con un `input` il testo cambiava forma nel momento in cui si entrava in
+   modifica — una riga sola che scorre in orizzontale invece del blocco che si
+   stava leggendo — e con i titoli lunghi si vedeva solo la parte finale.
+
+   Tre cose che la textarea si porta dietro e vanno sistemate a mano:
+
+     · l'altezza, che non si adatta da sé: si rimisura a ogni battuta su
+       `scrollHeight`, con `overflow-hidden` perché il blocco cresca invece di
+       scorrere internamente;
+     · Invio, che di suo inserirebbe un capo riga: il titolo è una riga sola nel
+       modello (`t_task.title`), quindi Invio conferma e non scrive mai un "
+";
+     · `overflow-wrap: anywhere`, per lo stesso motivo del titolo a schermo —
+       un titolo scritto tutto attaccato altrimenti sborda in orizzontale. */
 export function TitleInput({ value, size, onCommit }) {
   const ref = useRef(null);
 
+  /* Una funzione sola, usata al montaggio e a ogni battuta. Due accortezze:
+
+       · `auto` prima di misurare, perché `scrollHeight` non scende mai da solo
+         quando il testo si accorcia;
+       · i bordi vanno aggiunti a mano. Il campo è in `box-border`, quindi
+         l'altezza che si scrive comprende i bordi, mentre `scrollHeight` misura
+         il solo contenuto: assegnare `scrollHeight` liscio lascia il campo 2px
+         corto e la textarea scorre internamente di due pixel — invisibile come
+         barra (c'è `overflow-hidden`) ma l'ultima riga resta tagliata.
+         `offsetHeight - clientHeight` è esattamente lo spessore dei bordi. */
+  const adatta = (el) => {
+    if (!el) return;
+    const bordi = el.offsetHeight - el.clientHeight;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + bordi}px`;
+  };
+
   useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+    adatta(el);
   }, []);
 
   return (
-    <input
+    <textarea
       ref={ref}
       data-title="1"
+      rows={1}
       defaultValue={value}
       onClick={(e) => e.stopPropagation()}
+      onInput={(e) => adatta(e.target)}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -120,6 +159,7 @@ export function TitleInput({ value, size, onCommit }) {
       className={
         `${TITLE} ${size} box-border px-[5px] py-px -my-0.5 text-content ` +
         "border border-card-line-hover rounded-sm outline-none " +
+        "resize-none overflow-hidden block [overflow-wrap:anywhere] " +
         "bg-[color-mix(in_srgb,var(--color-content)_8%,var(--color-elevated))]"
       }
     />
