@@ -505,6 +505,21 @@ export function TaskDetailModal({ task, onClose }) {
                   <span className="text-[10px] text-content/40">non attivo</span>
                 </DropdownItem>
                 <DropdownSeparator />
+                {/* Entrata e uscita dal triage. E l'unico posto, oltre alla
+                    conferma sulle card origine, da cui si governa `isInbox`:
+                    serve anche il ritorno, altrimenti un task smistato per
+                    sbaglio non potrebbe piu rientrare nella colonna. */}
+                <DropdownItem
+                  onClick={() => {
+                    chiudiMenu();
+                    alia.smista(task.id, !task.inbox);
+                  }}
+                >
+                  <span className="flex-1">
+                    {task.inbox ? "Togli dal triage" : "Rimetti da smistare"}
+                  </span>
+                </DropdownItem>
+                <DropdownSeparator />
                 <DropdownItem
                   onClick={() => {
                     chiudiMenu();

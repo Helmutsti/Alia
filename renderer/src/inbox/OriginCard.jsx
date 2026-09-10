@@ -86,10 +86,13 @@ export function OriginCard({ task, editing, dragging, onPointerDown, onCommit, o
             type="button"
             onPointerDown={stop}
             onClick={onConfirm}
-            disabled={!onConfirm}
-            title={onConfirm ? "Conferma" : "Nessuno stato intermedio configurato: non c'è dove confermarla"}
+            /* Non e piu disabilitabile: confermare significa uscire dal triage
+               (`isInbox`), e quello si puo fare sempre. Prima significava
+               "portala sul primo stato intermedio", e sui database che non ne
+               avevano uno il gesto restava spento con una spiegazione. */
+            title="Conferma: toglila dal triage"
             aria-label="Conferma"
-            className={`${BTN} hover:!border-confirm hover:!text-confirm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:!border-divider disabled:hover:!text-content/65`}
+            className={`${BTN} hover:!border-confirm hover:!text-confirm`}
           >
             <Check size={12} />
           </button>

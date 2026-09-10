@@ -82,6 +82,9 @@ export function normalizeTask(row) {
     sourceType: row.sourceType,
     sourceUrl: row.sourceUrl,
     done: row.isCompleted === 1,
+    /* `inbox`: ancora da smistare. Campo proprio, non derivato da progetto o
+       date — vedi Rinascita.md, § Stati speciali del task. */
+    inbox: row.isInbox === 1,
     state: {
       id: row.idState,
       label: row.stateLabel,

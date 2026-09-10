@@ -15,6 +15,7 @@ const ALIA_OPERATIONS = [
   "updateTask",
   "setTaskState",
   "setTaskProject",
+  "setTaskInbox",
   "reorderTasks",
   "reparentTask",
   "deleteTask",

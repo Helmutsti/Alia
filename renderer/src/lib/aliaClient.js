@@ -40,6 +40,7 @@ export const core = {
   updateTask: (id, patch) => chiama("updateTask", id, patch),
   setTaskState: (id, idState, decisioni) => chiama("setTaskState", id, idState, decisioni),
   setTaskProject: (id, idProject, idMilestone) => chiama("setTaskProject", id, idProject, idMilestone),
+  setTaskInbox: (id, inInbox) => chiama("setTaskInbox", id, inInbox),
   reorderTasks: (idParent, orderedIds) => chiama("reorderTasks", idParent, orderedIds),
   reparentTask: (id, idParent) => chiama("reparentTask", id, idParent),
   deleteTask: (id) => chiama("deleteTask", id),

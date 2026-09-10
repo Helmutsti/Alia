@@ -69,7 +69,7 @@ const COLONNE_TASK = `
   idTask, idParentTask, idProject, idMilestone, idState, isCompleted,
   title, description, priority, startAt, dueAt, reminderAt,
   sourceType, sourceId, sourceUrl, originalContent, contentGeneratedByAi,
-  notes, position, createdAt, updatedAt, completedAt, archivedAt, deletedAt
+  notes, position, isInbox, createdAt, updatedAt, completedAt, archivedAt, deletedAt
 `;
 
 export function getTask(database, idTask) {
@@ -88,7 +88,7 @@ export function listTasks(database, { includeDeleted = false } = {}) {
       SELECT
         t.idTask, t.idParentTask, t.idProject, t.idMilestone, t.idState, t.isCompleted,
         t.title, t.description, t.priority, t.startAt, t.dueAt, t.reminderAt,
-        t.notes, t.position, t.createdAt, t.updatedAt, t.completedAt, t.deletedAt,
+        t.notes, t.position, t.isInbox, t.createdAt, t.updatedAt, t.completedAt, t.deletedAt,
         t.sourceType, t.sourceUrl,
         s.label AS stateLabel, s.isStartState, s.isEndState, s.stepOrder,
         p.name AS projectName, p.color AS projectColor,
@@ -432,6 +432,22 @@ export function createTask(database, input, decisioni = {}) {
       const idMilestone = verificaMilestone(database, ereditato.idProject, ereditato.idMilestone);
       const idState = input.idState ?? statoIniziale(database).idState;
 
+      /* `isInbox` alla nascita:
+
+           · un task di primo livello nasce **da smistare**, sempre — e non
+             perché manchi qualcosa (progetto, data), ma perché l'inbox è il
+             posto dove le cose arrivano prima di essere decise. Vale per la
+             creazione manuale come per le sorgenti esterne: la differenza fra
+             le due la dice già `sourceType`, non serve dirla due volte;
+           · un **sotto-task nasce fuori dall'inbox**: lo si scrive dentro un
+             task che esiste già, quindi è lavoro organizzato per costruzione,
+             e mandarlo in triage riempirebbe la colonna dei figli di qualcosa
+             che nessuno ha bisogno di smistare.
+
+         `input.isInbox` scavalca entrambe le regole, per chi crea task
+         sapendo già dove vanno (la migrazione esterna, un seed). */
+      const inInbox = input.isInbox !== undefined ? (input.isInbox ? 1 : 0) : idParentTask ? 0 : 1;
+
       const posizione =
         input.position ??
         (database
@@ -446,8 +462,8 @@ export function createTask(database, input, decisioni = {}) {
             idTask, idParentTask, idProject, idMilestone, idState, isCompleted,
             title, description, priority, startAt, dueAt, reminderAt,
             sourceType, sourceId, sourceUrl, originalContent, contentGeneratedByAi,
-            notes, position, createdAt, updatedAt
-          ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            notes, position, isInbox, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         .run(
           idTask, idParentTask, ereditato.idProject, idMilestone, idState,
@@ -455,7 +471,7 @@ export function createTask(database, input, decisioni = {}) {
           input.startAt ?? null, input.dueAt ?? null, input.reminderAt ?? null,
           input.sourceType ?? "manual", input.sourceId ?? null, input.sourceUrl ?? null,
           input.originalContent ?? input.title, input.contentGeneratedByAi ? 1 : 0,
-          input.notes ?? null, posizione, istante, istante,
+          input.notes ?? null, posizione, inInbox, istante, istante,
         );
 
       const cambi = [];
@@ -654,6 +670,35 @@ export function setTaskProject(database, idTask, idProject, idMilestone = null) 
     const milestone = verificaMilestone(database, idProject, idMilestone);
     applicaProgetto(database, idTask, idProject, milestone);
     return { esito: "applicato" };
+  });
+}
+
+/* Entrata e uscita dal triage.
+
+   Una funzione a parte e non un campo di `updateTask`, per due motivi. Il
+   primo e che `isInbox` non e un attributo del task come il titolo o la
+   priorita: e una posizione nel flusso di lavoro, allo stesso titolo di
+   `idState`, e le posizioni nel flusso hanno funzioni proprie (`setTaskState`,
+   `setTaskProject`) perche possono avere regole. Il secondo e piu concreto:
+   passando da `updateTask` finirebbe fra i "campi ordinari" e potrebbe essere
+   scritto insieme ad altri in una patch, mentre qui l'uscita dal triage resta
+   un gesto singolo e riconoscibile nello storico.
+
+   Non tocca ne progetto, ne date, ne stato: e esattamente il punto della
+   decisione del 2026-09-10 — smistare e una cosa, catalogare un'altra. Un task
+   puo uscire dal triage senza progetto (si e deciso che non ne ha bisogno) e
+   puo restare in triage pur avendone uno (assegnato, ma non ancora deciso). */
+export function setTaskInbox(database, idTask, inInbox) {
+  return runInTransaction(database, () => {
+    const task = taskEsistente(database, idTask);
+    const valore = inInbox ? 1 : 0;
+    if (task.isInbox === valore) return { esito: "applicato", cambi: [] };
+
+    database
+      .prepare("UPDATE t_task SET isInbox = ?, updatedAt = ? WHERE idTask = ?")
+      .run(valore, adesso(), idTask);
+    registraStorico(database, idTask, "isInbox", String(task.isInbox), String(valore));
+    return { esito: "applicato", cambi: ["isInbox"] };
   });
 }
 

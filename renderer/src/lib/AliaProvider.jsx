@@ -169,6 +169,9 @@ export function AliaProvider({ children, dataset = null }) {
       cambiaStato: (id, idState) => esegui((decisioni) => core.setTaskState(id, idState, decisioni)),
       assegnaProgetto: (id, idProject, idMilestone) =>
         esegui(() => core.setTaskProject(id, idProject, idMilestone)),
+      /* Smistare: mette o toglie un task dal triage, senza toccare progetto,
+         date o stato. */
+      smista: (id, inInbox = false) => esegui(() => core.setTaskInbox(id, inInbox)),
       riordina: (idParent, orderedIds) => esegui(() => core.reorderTasks(idParent, orderedIds)),
       cancellaTask: (id) => esegui(() => core.deleteTask(id)),
       migraTask: (id, idState) => esegui(() => core.migrateTask(id, idState)),

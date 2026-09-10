@@ -4,6 +4,12 @@ import { DatabaseSync } from "node:sqlite";
 
 import { RINASCITA_VERSION, migrateRinascita } from "./rinascita-schema.js";
 
+/* Versione corrente dello schema, cioe il capolinea della catena di migrazioni
+   qui sotto. `RINASCITA_VERSION` (7) resta il gradino in cui e arrivato lo
+   schema nuovo: i passi successivi lo estendono e non lo rifanno, quindi da 7
+   in avanti la versione buona da confrontare e questa. */
+export const SCHEMA_VERSION = 8;
+
 export function openDatabase(databasePath) {
   if (typeof databasePath !== "string" || databasePath.trim() === "") {
     throw new TypeError("databasePath must be a non-empty string");
@@ -268,6 +274,44 @@ function migrate(database) {
     // tabelle restano in piedi finché il resto dell'applicazione non è passato
     // al nuovo core — la migrazione le legge, non le tocca.
     migrateRinascita(database);
+  }
+
+  if (version < SCHEMA_VERSION) {
+    /* `isInbox`: il flag che dice "questo task è ancora da smistare".
+       Deciso il 2026-09-10 (vedi Rinascita.md, § Stati speciali del task).
+
+       È un campo dedicato e non una condizione derivata — non "senza progetto",
+       non "senza date" — perché un task in triage deve poter essere messo in
+       agenda o assegnato a un progetto **restando** da smistare. Derivarlo
+       legherebbe fra loro due cose che devono restare indipendenti.
+
+       Il travaso dei task esistenti traduce quello che il modello sapeva dire
+       finora: la colonna Inbox mostrava i task di primo livello senza progetto,
+       e quelli diventano gli unici `isInbox = 1`. Non è una ricostruzione dello
+       storico — quel dato non c'era — è la fotografia di ciò che l'interfaccia
+       stava già chiamando "da smistare".
+
+       Aggiunto qui e non nel DDL della Rinascita di proposito: un database
+       nuovo passa da `migrateRinascita` (che si ferma a `user_version` 7) e poi
+       da questo passo, quindi la colonna nasce in un solo punto invece di
+       essere descritta due volte e poter divergere. */
+    database.exec(`
+      BEGIN IMMEDIATE;
+
+      ALTER TABLE t_task
+        ADD COLUMN isInbox INTEGER NOT NULL DEFAULT 1 CHECK (isInbox IN (0, 1));
+
+      UPDATE t_task
+         SET isInbox = CASE
+               WHEN idParentTask IS NULL AND idProject IS NULL THEN 1
+               ELSE 0
+             END;
+
+      CREATE INDEX t_task_inbox ON t_task(isInbox) WHERE isInbox = 1;
+
+      PRAGMA user_version = ${SCHEMA_VERSION};
+      COMMIT;
+    `);
   }
 }
 

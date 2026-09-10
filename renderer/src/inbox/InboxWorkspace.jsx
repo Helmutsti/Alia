@@ -74,30 +74,29 @@ export function InboxWorkspace({ startFull = false }) {
     [alia, tasks],
   );
 
-  /* Le task di primo livello senza progetto: il contenuto della Small Inbox e,
-     a movimento finito, della colonna "Da smistare". */
-  const unassigned = useMemo(
-    () => tasks.filter((t) => t.parentId === null && t.project === null && !t.done),
+  /* Il contenuto della Small Inbox e, a movimento finito, della colonna "Da
+     smistare": i task di primo livello ancora in triage.
+
+     Legge `isInbox`, non piu l'assenza di progetto. Cambio di sostanza, non di
+     forma: prima un task usciva dalla colonna nel momento in cui gli si dava
+     un progetto, adesso ci resta finche non lo si smista davvero — che e
+     esattamente cosa doveva significare questa colonna. */
+  const daSmistare = useMemo(
+    () => tasks.filter((t) => t.parentId === null && t.inbox && !t.done),
     [tasks],
   );
 
-  /* Le origini da confermare.
+  /* Le origini da confermare: nate da una sorgente esterna e ancora in triage.
 
-     Attenzione: nel core non esiste un flag "non ancora confermata". La
-     specifica lascia aperta proprio questa domanda ("cosa distingua un task
-     appena arrivato da uno già in lavorazione", § Stati speciali del task), e
-     inventare qui una colonna sul database sarebbe deciderla di nascosto.
-     Nel frattempo la colonna legge ciò che il modello sa già dire: una task
-     nata da una sorgente esterna e ancora nello stato di partenza. */
+     Prima questa colonna si arrangiava con "sorgente esterna **e** ancora
+     nello stato di partenza", perche il dato non c'era. Ora c'e: e `isInbox`.
+     Due conseguenze buone: un'origine confermata resta fuori dalla colonna
+     anche se il suo stato non e cambiato, e confermare non ha piu bisogno di
+     un posto dove mandare il task. */
   const pending = useMemo(
-    () => tasks.filter((t) => t.sourceType && t.sourceType !== "manual" && t.state.role === "start"),
+    () => tasks.filter((t) => t.sourceType && t.sourceType !== "manual" && t.inbox),
     [tasks],
   );
-
-  /* "Confermare" un'origine significa toglierla dallo stato di partenza: è la
-     lettura più vicina alla regola non ancora decisa. Se non c'è uno stato
-     intermedio configurato, il gesto non ha una destinazione e resta spento. */
-  const statoDopoLaConferma = alia.statiAperti.find((s) => s.role === "mid") ?? null;
 
   const onDrop = useCallback(
     ({ id, colId, tasks: locali }) => {
@@ -108,14 +107,14 @@ export function InboxWorkspace({ startFull = false }) {
       /* Trascinare fuori dalle origini vale come conferma; l'ordine della
          colonna si scrive comunque, perché il rilascio può essere solo un
          riordino. */
-      if (task.project === null && pending.some((p) => p.id === id) && statoDopoLaConferma) {
-        alia.cambiaStato(id, statoDopoLaConferma.id);
+      if (pending.some((p) => p.id === id)) {
+        alia.smista(id, false);
         return;
       }
       const ordine = locali.filter((t) => t.parentId === null).map((t) => t.id);
       alia.riordina(null, ordine);
     },
-    [alia, pending, statoDopoLaConferma],
+    [alia, pending],
   );
 
   /* Creazione: la task nasce senza progetto (è un'inbox) e con il titolo già
@@ -219,9 +218,10 @@ export function InboxWorkspace({ startFull = false }) {
               onPointerDown={(e) => start(task.id, e)}
               onCommit={(v) => commitTitle(task.id, v)}
               onEdit={() => setEditingTask(task.id)}
-              onConfirm={
-                statoDopoLaConferma ? () => alia.cambiaStato(task.id, statoDopoLaConferma.id) : undefined
-              }
+              /* Confermare = uscire dal triage. Non serve piu uno stato
+                 intermedio configurato, quindi il gesto non e piu spento sui
+                 database che non ce l'hanno. */
+              onConfirm={() => alia.smista(task.id, false)}
               onDelete={() => alia.cancellaTask(task.id)}
             />
           ))}
@@ -297,7 +297,7 @@ export function InboxWorkspace({ startFull = false }) {
           >
             <span className="w-2 h-2 rounded-full border-[1.4px] border-dashed border-content/55" />
             <span className="font-medium text-card text-content">Da smistare</span>
-            <span className="ml-auto text-mini text-content/55">{unassigned.length}</span>
+            <span className="ml-auto text-mini text-content/55">{daSmistare.length}</span>
           </div>
         </div>
 
@@ -320,7 +320,7 @@ export function InboxWorkspace({ startFull = false }) {
             gap: m.none.listGap,
           }}
         >
-          {unassigned.map((task) => (
+          {daSmistare.map((task) => (
             <InboxCard
               key={task.id}
               id={task.id}

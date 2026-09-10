@@ -13,6 +13,7 @@ import {
   reorderTasks,
   reparentTask,
   restoreTaskTechnical,
+  setTaskInbox,
   setTaskProject,
   setTaskState,
   updateTask,
@@ -570,4 +571,86 @@ test("tag e commenti su un task inesistente sono rifiutati", () => {
   const database = nuovoDatabase();
   assert.throws(() => addTaskTag(database, "non-esiste", "x"), /inesistente/);
   assert.throws(() => addTaskComment(database, "non-esiste", "x"), /inesistente/);
+});
+
+test("un task di primo livello nasce da smistare, un sotto-task no", () => {
+  const database = nuovoDatabase();
+  const padre = crea(database, "Padre");
+  const figlio = crea(database, "Figlio", padre);
+
+  assert.equal(getTask(database, padre).isInbox, 1);
+  assert.equal(
+    getTask(database, figlio).isInbox,
+    0,
+    "un sotto-task si scrive dentro lavoro gia organizzato: non va in triage",
+  );
+});
+
+test("isInbox si puo imporre alla creazione, scavalcando le regole di default", () => {
+  const database = nuovoDatabase();
+  const esito = createTask(database, { title: "Gia smistata", isInbox: false });
+  assert.equal(getTask(database, esito.idTask).isInbox, 0);
+});
+
+test("smistare non tocca progetto, date ne stato: e il punto della decisione", () => {
+  const database = nuovoDatabase();
+  const s = stati(database);
+  const id = crea(database, "Task");
+  const progetto = database.prepare("SELECT idProject FROM t_project LIMIT 1").get().idProject;
+
+  setTaskProject(database, id, progetto);
+  updateTask(database, id, { dueAt: "2026-10-01T09:00:00.000Z" });
+  setTaskState(database, id, s.inCorso);
+
+  /* Con un progetto, una data e uno stato avanzato, il task e ancora in
+     triage: e cio che la condizione derivata "senza progetto" non permetteva. */
+  assert.equal(getTask(database, id).isInbox, 1);
+
+  setTaskInbox(database, id, false);
+  const dopo = getTask(database, id);
+  assert.equal(dopo.isInbox, 0);
+  assert.equal(dopo.idProject, progetto, "il progetto resta");
+  assert.equal(dopo.dueAt, "2026-10-01T09:00:00.000Z", "la data resta");
+  assert.equal(dopo.idState, s.inCorso, "lo stato resta");
+});
+
+test("smistare due volte nello stesso senso non scrive niente", () => {
+  const database = nuovoDatabase();
+  const id = crea(database, "Task");
+  setTaskInbox(database, id, false);
+  const esito = setTaskInbox(database, id, false);
+  assert.deepEqual(esito, { esito: "applicato", cambi: [] });
+
+  const righe = database
+    .prepare("SELECT field FROM t_task_history WHERE idTask = ? AND field = 'isInbox'")
+    .all(id);
+  assert.equal(righe.length, 1, "una sola traccia, non due");
+});
+
+test("l'uscita dal triage lascia una traccia nello storico", () => {
+  const database = nuovoDatabase();
+  const id = crea(database, "Task");
+  setTaskInbox(database, id, false);
+
+  const riga = database
+    .prepare("SELECT oldValue, newValue FROM t_task_history WHERE idTask = ? AND field = 'isInbox'")
+    .get(id);
+  assert.equal(riga.oldValue, "1");
+  assert.equal(riga.newValue, "0");
+});
+
+test("isInbox accetta solo 0 e 1, imposto dallo schema", () => {
+  const database = nuovoDatabase();
+  const id = crea(database, "Task");
+  assert.throws(
+    () => database.prepare("UPDATE t_task SET isInbox = 7 WHERE idTask = ?").run(id),
+    /CHECK/,
+  );
+});
+
+test("listTasks porta con se il flag di triage", () => {
+  const database = nuovoDatabase();
+  const id = crea(database, "Task");
+  setTaskInbox(database, id, false);
+  assert.equal(listTasks(database).find((t) => t.idTask === id).isInbox, 0);
 });

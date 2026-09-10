@@ -32,6 +32,7 @@ import {
   reorderTasks,
   reparentTask,
   restoreTaskTechnical,
+  setTaskInbox,
   setTaskProject,
   setTaskState,
   updateTask,
@@ -48,6 +49,7 @@ export const ALIA_OPERATIONS = [
   "updateTask",
   "setTaskState",
   "setTaskProject",
+  "setTaskInbox",
   "reorderTasks",
   "reparentTask",
   "deleteTask",
@@ -86,6 +88,7 @@ export function createAliaCore({ databasePath }) {
     setTaskState: (idTask, idState, decisioni) => setTaskState(database, idTask, idState, decisioni),
     setTaskProject: (idTask, idProject, idMilestone) =>
       setTaskProject(database, idTask, idProject, idMilestone),
+    setTaskInbox: (idTask, inInbox) => setTaskInbox(database, idTask, inInbox),
     addTaskTag: (idTask, label) => addTaskTag(database, idTask, label),
     removeTaskTag: (idTask, idTag) => removeTaskTag(database, idTask, idTag),
     addTaskComment: (idTask, body) => addTaskComment(database, idTask, body),

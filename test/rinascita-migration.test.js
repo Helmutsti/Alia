@@ -13,7 +13,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 
-import { openDatabase } from "../src/core/database.js";
+import { SCHEMA_VERSION, openDatabase } from "../src/core/database.js";
 import { listStates } from "../src/core/task-core.js";
 
 /* Il database di partenza si costruisce scrivendo direttamente sulle tabelle
@@ -109,7 +109,7 @@ test("un database alla versione 6 migra al modello nuovo conservando i dati", ()
   try {
     const database = openDatabase(percorso);
 
-    assert.equal(database.prepare("PRAGMA user_version").get().user_version, 7);
+    assert.equal(database.prepare("PRAGMA user_version").get().user_version, SCHEMA_VERSION);
 
     // Gli stati: il database aveva quelli di fabbrica, quindi vale il seed nuovo.
     const etichette = listStates(database).map((s) => s.label);
@@ -122,6 +122,21 @@ test("un database alla versione 6 migra al modello nuovo conservando i dati", ()
     assert.equal(task.priority, "high");
     assert.equal(task.idParentTask, null);
     assert.equal(task.isCompleted, 0);
+
+    /* Il travaso di `isInbox` (schema 8): il flag non esisteva prima, e la
+       migrazione fotografa cio che l'interfaccia stava gia chiamando "da
+       smistare" — i task di primo livello senza progetto. Questo ha un
+       progetto, quindi nasce fuori dal triage; i suoi figli pure, perche i
+       sotto-task non ci vanno mai. */
+    assert.equal(task.isInbox, 0, "un task migrato con un progetto non e' da smistare");
+    const senzaProgetto = database
+      .prepare("SELECT isInbox FROM t_task WHERE title = ?")
+      .get("Task chiuso");
+    assert.equal(senzaProgetto.isInbox, 1, "un task migrato senza progetto resta da smistare");
+    const figliInInbox = database
+      .prepare("SELECT COUNT(*) AS c FROM t_task WHERE idParentTask IS NOT NULL AND isInbox = 1")
+      .get().c;
+    assert.equal(figliInInbox, 0, "nessun sotto-task migrato finisce in triage");
 
     // Il progetto e' diventato una riga di t_project, la lista una milestone.
     const progetto = database.prepare("SELECT * FROM t_project WHERE idProject = ?").get(task.idProject);
