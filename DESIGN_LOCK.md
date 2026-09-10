@@ -813,25 +813,25 @@ di `DEF_Inbox max`): quella viene dall'artboard, non è stata inventata qui.
 
 ### La causa vera: la fotografia del FLIP era indicizzata per id
 
-Trovata al terzo tentativo, e vale la pena scriverla perche non e intuitiva.
+Trovata al terzo tentativo, e vale la pena scriverla perché non è intuitiva.
 Lo stesso task puo comparire **due volte nel DOM**: come card nella colonna del
-triage e come riga nella vista Lista, se e in triage e nessun filtro lo esclude.
+triage e come riga nella vista Lista, se è in triage e nessun filtro lo esclude.
 Misurato sul database di prova: 3 task su 23 erano in entrambi i posti.
 
- indicizzava la fotografia delle posizioni **per valore di
-**. Per quei task sopravviveva una posizione sola delle due, e poi
+`useFlip` indicizzava la fotografia delle posizioni **per valore di
+`data-task`**. Per quei task sopravviveva una posizione sola delle due, e poi
 entrambi gli elementi venivano animati da quell unica origine sbagliata: la card
 spinta verso il posto della riga e la riga verso quello della card, con elementi
 che attraversavano la schermata. Nei fotogrammi si vedevano righe disegnate
-fuori dall impaginazione, spostate a sinistra e sovrapposte, mentre le card
+fuori dall'impaginazione, spostate a sinistra e sovrapposte, mentre le card
 corrispondenti mancavano dalla colonna.
 
-Ora l indice e **per elemento** (una ): ognuno parte da dove stava lui.
-Un elemento nato fra la fotografia e l animazione non ha voce nella mappa e non
-viene animato, che e il comportamento giusto — non aveva una posizione da cui
+Ora l'indice è **per elemento** (una `WeakMap`): ognuno parte da dove stava lui.
+Un elemento nato fra la fotografia e l'animazione non ha voce nella mappa e non
+viene animato, che è il comportamento giusto — non aveva una posizione da cui
 venire.
 
-Nota di metodo, perche mi ha fatto perdere due giri: il difetto non era
+Nota di metodo, perché mi ha fatto perdere due giri: il difetto non era
 misurabile con le prove che avevo. Le prime guardavano lo stato assestato; le
 seconde contavano i cambi di verso durante il gesto, che con il FLIP cambiano
 per costruzione (l elemento salta indietro e poi scivola). L ho trovato solo
