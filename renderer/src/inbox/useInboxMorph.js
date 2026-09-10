@@ -30,6 +30,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
    verticale, cromatura della colonna, dissolvenza incrociata dell'intestazione,
    spegnimento del pannello destro, comparsa dell'intestazione di quadro. */
 
+/* Larghezza di riposo della colonna nella vista divisa, in pixel e non in
+   percentuale: sotto i ~270px le card cominciano a mandare a capo i titoli
+   normali (non solo quelli patologici senza spazi), e la colonna si legge male.
+   Resta una *base*, non un pavimento: la maniglia puo ancora stringere fino a
+   MIN_PCT, perche restringerla e un gesto voluto dall'utente. Convertita in
+   percentuale alla prima misura reale del quadro, cosi la base e giusta a
+   qualunque larghezza di finestra invece di dipendere dagli artboard. */
+export const SPLIT_BASE_W = 270;
+
 export const MIN_PCT = 12;
 export const SLIDE_START = 50; // inizio fase B
 export const DOCK_PCT = 70; // inizio fase C
@@ -112,6 +121,7 @@ export function useInboxMorph(initialPct = 20, startCommitted = false) {
      finestra e cambia quando la si ridimensiona. I valori iniziali sono quelli
      degli artboard, così il primo fotogramma è già giusto nell'anteprima. */
   const [size, setSize] = useState({ w: 1180, h: 760 });
+  const baseApplicata = useRef(false);
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return undefined;
@@ -120,10 +130,25 @@ export function useInboxMorph(initialPct = 20, startCommitted = false) {
       setSize((s) =>
         Math.abs(s.w - width) < 0.5 && Math.abs(s.h - height) < 0.5 ? s : { w: width, h: height },
       );
+
+      /* Solo alla prima misura: `initialPct` e una percentuale, quindi da sola
+         darebbe una colonna piu stretta o piu larga a seconda della finestra.
+         Qui la si riscrive una volta perche il riposo valga SPLIT_BASE_W. Dopo
+         non si tocca piu: i ridimensionamenti successivi mantengono la
+         percentuale, come prima. */
+      if (!baseApplicata.current && width > 0) {
+        baseApplicata.current = true;
+        const pctBase = clamp((SPLIT_BASE_W / width) * 100, MIN_PCT, SLIDE_START);
+        setState((s) =>
+          s.dragging || s.committed || s.pct !== initialPct
+            ? s
+            : { ...s, pct: pctBase, lastSplitPct: pctBase },
+        );
+      }
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [initialPct]);
 
   const FULL = fullGeometry(size);
 

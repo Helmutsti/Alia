@@ -42,7 +42,9 @@ export function OriginCard({ task, editing, dragging, onPointerDown, onCommit, o
           <span
             data-title="1"
             title="Clicca per rinominare"
-            className="flex-1 min-w-0 font-medium text-meta tracking-[-0.01em] leading-[1.35] cursor-text"
+            /* Vedi la nota su TITLE in InboxCard.jsx: i titoli senza spazi
+               vanno spezzati a forza, altrimenti sbordano dalla card. */
+            className="flex-1 min-w-0 font-medium text-meta tracking-[-0.01em] leading-[1.35] cursor-text [overflow-wrap:anywhere]"
           >
             {task.title}
           </span>

@@ -30,8 +30,8 @@
     "dev:renderer": "vite --config renderer/vite.config.js",
     "dev": "concurrently -k -n renderer,electron -c blue,green \"npm:dev:renderer\" \"node electron/wait-and-launch.js\"",
     "build:renderer": "vite build --config renderer/vite.config.js",
-    "start": "npm run build:renderer && electron .",
-    "electron": "electron .",
+    "start": "npm run build:renderer && electron . --enable-features=OverlayScrollbar",
+    "electron": "electron . --enable-features=OverlayScrollbar",
     "seed": "node scripts/seed.js",
     "postinstall": "node scripts/postinstall.js"
   },

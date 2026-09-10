@@ -297,9 +297,17 @@ export function InboxWorkspace({ startFull = false }) {
           </div>
         </div>
 
-        {/* Le card: sono le stesse dall'inizio alla fine del movimento. */}
+        {/* Le card: sono le stesse dall'inizio alla fine del movimento.
+
+            `overflow-x-hidden` è esplicito e non ridondante: per specifica CSS
+            un asse lasciato `visible` accanto a un asse `auto` diventa esso
+            stesso `auto`, quindi `overflow-y-auto` da solo dava una colonna che
+            scrollava anche in orizzontale — misurato, `overflow-x` calcolato
+            era `auto`. Bastava un pixel di sforamento per far comparire una
+            scrollbar orizzontale che si mangiava ~10px di altezza. Qui lo
+            sforamento non deve scrollare: deve essere tagliato. */}
         <div
-          className="relative flex-1 min-h-0 overflow-y-auto flex flex-col"
+          className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col"
           style={{
             paddingLeft: m.none.listPadX,
             paddingRight: m.none.listPadX,
@@ -322,15 +330,28 @@ export function InboxWorkspace({ startFull = false }) {
               onPointerDown={(e) => start(task.id, e)}
             />
           ))}
-          <button
-            type="button"
-            onClick={aggiungi}
-            className={ADD_BTN}
-            style={{ opacity: m.fullHeaderOpacity, transition: m.fadeTransition }}
-          >
-            <Plus size={12} />
-            Aggiungi
-          </button>
+          {/* Il pulsante appartiene alla Full Inbox: nella vista divisa non c'e.
+              Sfumarlo con la sola opacita non bastava — restava in flusso, alto
+              32px, e sotto l'ultima card si vedevano 32+8 di gap+16 di padding
+              = 56px di vuoto inspiegabile in fondo alla colonna. Ora la sua
+              altezza segue il movimento (0 -> 32) e a riposo, a p=0, non viene
+              montato affatto: cosi non lascia nemmeno il gap del flex. */}
+          {m.fullHeaderOpacity > 0 ? (
+            <div
+              className="shrink-0 overflow-hidden flex"
+              style={{ height: 32 * m.fullHeaderOpacity }}
+            >
+              <button
+                type="button"
+                onClick={aggiungi}
+                className={ADD_BTN}
+                style={{ opacity: m.fullHeaderOpacity, transition: m.fadeTransition }}
+              >
+                <Plus size={12} />
+                Aggiungi
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 

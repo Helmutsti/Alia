@@ -8,6 +8,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const DEV_SERVER_URL = process.env.ELECTRON_RENDERER_URL;
 
+/* Nota sulle scrollbar in overlay (`--enable-features=OverlayScrollbar`): le fa
+   galleggiare sopra il contenuto invece di occupare spazio nel layout. Senza,
+   la scrollbar verticale della colonna Inbox si prende 10px di larghezza, che
+   stringono le card e le spostano appena la lista supera l'altezza della
+   colonna — e siccome il tema le disegna trasparenti fino all'hover (vedi
+   theme.css) quei 10px sembrano vuoto inspiegabile. Misurato: con l'overlay lo
+   spazio rubato passa da 10px a 0.
+
+   Il flag NON funziona da qui: provati sia `appendSwitch("enable-features",
+   ...)` sia `appendArgument`, in entrambi i casi la misura resta 10px, mentre
+   passato all'avvio del processo funziona. Sta quindi negli argomenti di lancio
+   (`bin/alia.js` e gli script npm), non in questo file. */
+
 const DEBUG_LOG_PATH = join(__dirname, "debug.log");
 
 function debugLog(...parts) {

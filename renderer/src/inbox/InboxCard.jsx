@@ -15,17 +15,33 @@ import { useEffect, useRef } from "react";
    card scompariva dentro la colonna. Ora la card sta un livello sopra
    (`bg-elevated`) e ha una linea propria; l'hover la schiarisce restando
    neutra, invece di passare all'accento come nell'artboard. */
+/* Il padding destro si ritira in hover (13px -> 0) insieme all'apertura del
+   pallino: entrando, il pallino spinge il titolo a destra di 21px (13 di
+   larghezza piu 8 di margine), e senza restituire spazio sul lato opposto il
+   testo rifluirebbe a meta animazione. Stessa durata del pallino (140ms) per
+   leggerlo come un gesto solo, non due. `transition-colors` non basta piu:
+   serve elencare anche padding-right, altrimenti il ritiro sarebbe uno scatto. */
 const CARD =
-  "group flex flex-col gap-1.5 px-[13px] py-3 rounded-lg border-[1.5px] border-card-line " +
-  "bg-elevated cursor-grab touch-none transition-colors duration-[120ms] " +
-  "hover:border-card-line-hover";
+  "group flex flex-col gap-1.5 pl-[13px] pr-[13px] py-3 rounded-lg border-[1.5px] border-card-line " +
+  "bg-elevated cursor-grab touch-none " +
+  "transition-[color,background-color,border-color,padding-right] duration-[140ms] " +
+  "hover:border-card-line-hover hover:pr-0";
 
 const CHECK =
   "w-0 h-[13px] mt-0.5 mr-0 rounded-full shrink-0 opacity-0 overflow-hidden " +
   "transition-[width,opacity,margin-right] duration-[140ms] " +
   "group-hover:w-[13px] group-hover:opacity-100 group-hover:mr-2";
 
-const TITLE = "flex-1 min-w-0 font-medium tracking-[-0.01em] leading-[1.35]";
+/* `overflow-wrap: anywhere` e non `break-word`: servono entrambe le cose che
+   fa in più. Un titolo scritto tutto attaccato (capita dalle sorgenti esterne,
+   e nei dati di prova) è una parola sola non spezzabile, che `min-w-0` da solo
+   non contiene — il box si stringe, il testo no, e sborda. `anywhere` la
+   spezza e, a differenza di `break-word`, abbassa anche la larghezza
+   min-content: senza quello il flex-item resterebbe largo quanto la parola.
+   Il sintomo era una scrollbar orizzontale nella colonna, che su Windows si
+   prende ~10px di altezza e li toglie alle card. */
+const TITLE =
+  "flex-1 min-w-0 font-medium tracking-[-0.01em] leading-[1.35] [overflow-wrap:anywhere]";
 
 export function InboxCard({
   id,
