@@ -21,6 +21,21 @@ export const VIEW_ICONS = {
 export const VIEW_LABELS = { lista: "Lista", kanban: "Kanban", calendario: "Calendario", gantt: "Gantt" };
 export const VIEW_ORDER = ["lista", "kanban", "calendario", "gantt"];
 
+/* Viste bloccate: restano nel selettore, spente, invece di sparire.
+
+   Il motivo per non togliere le voci: il selettore dice quali viste il prodotto
+   avra, e una voce spenta lo dice meglio di un elenco corto — chi apre il menu
+   vede che Kanban esiste e non e ancora pronta, invece di chiedersi se sia mai
+   stata prevista. Il codice di quelle tre viste resta al suo posto in
+   ContentPane: sbloccarne una vuol dire togliere una stringa da questo elenco,
+   non riscriverla.
+
+   Perche sono bloccate, oggi: Kanban ha il padding delle card da correggere e
+   le colonne larghe 220px fisse che con molti progetti fanno un tabellone da
+   migliaia di pixel (vedi TODO.md); Calendario e Gantt sono impianti presi
+   dagli artboard e non ancora verificati sui dati reali. */
+export const VIEW_BLOCKED = new Set(["kanban", "calendario", "gantt"]);
+
 export const SOURCE_ICONS = {
   mail: "M3 5h18v14H3zM3 7l9 6 9-6",
   discord:

@@ -637,21 +637,23 @@ di chiusura della scheda, **Annulla** e **Salva**. Il menu dello stato si apre
 di conseguenza allineato a sinistra e non a destra, altrimenti uscirebbe verso
 il centro della scheda.
 
-**Nodo aperto, da decidere: cosa significa "Annulla".** Questa scheda scrive
-subito, campo per campo — è così nell'artboard, dove titolo, descrizione e nota
-hanno ciascuno la propria conferma e i chip scrivono all'istante. Con scritture
-immediate non esiste una bozza da scartare, quindi oggi **Annulla chiude senza
-tornare indietro**, esattamente come Salva: la coppia è una coppia solo nella
-forma. Le due strade:
+**Deciso (2026-09-10): un solo pulsante, "Chiudi".** La coppia
+Annulla/Salva è durata un giro. Questa scheda scrive subito, campo per campo —
+è così nell'artboard, dove titolo, descrizione e nota hanno ciascuno la propria
+conferma e i chip scrivono all'istante. Senza una bozza da scartare, "Annulla"
+prometteva un ritorno indietro che non esisteva e "Salva" un salvataggio già
+avvenuto: due pulsanti che facevano la stessa cosa con due nomi sbagliati.
 
-- **Tenere la scrittura immediata**: allora "Annulla" è fuorviante e conviene
-  ridurre a un solo pulsante ("Chiudi", o "Fatto").
-- **Convertire a modifica tamponata**: le modifiche restano locali finché non
-  si preme Salva, e Annulla le scarta davvero. È un cambio di architettura del
-  componente (ogni chip oggi chiama la mutazione; dovrebbero scrivere in una
-  bozza) e va deciso anche cosa fare dei sotto-task, dei tag e delle note, che
-  sono righe di altre tabelle e non campi del task: quelli non si possono
-  tamponare senza inventare una transazione lunga lato interfaccia.
+Scartata quindi l'alternativa — convertire la scheda a modifica tamponata — e
+vale la pena dire perché, se dovesse tornare la tentazione: sotto-task, tag e
+note non sono campi del task, sono righe di altre tabelle. Tamponarli
+richiederebbe una transazione lunga lato interfaccia, quindi resterebbero a
+scrittura immediata comunque, e Salva/Annulla governerebbero solo una parte
+della scheda — la peggiore delle due coerenze.
+
+Resta invece la coppia **Salva/Annulla dell'editor della descrizione**, che
+viene dall'artboard: lì una bozza c'è per davvero (`bozzaDescrizione`), e i due
+pulsanti fanno due cose diverse.
 
 ### Aggiunte al core rese necessarie
 
@@ -661,3 +663,23 @@ test: `listTags`, `listTaskTags`, `addTaskTag`, `removeTaskTag`,
 vocabolario condiviso (`t_tag` UNIQUE + `t_task_tag`), non una stringa per task:
 due task che scrivono "urgente" puntano alla stessa riga, ed è ciò che rende
 possibile filtrare per tag più avanti.
+
+---
+
+## Viste bloccate (2026-09-10)
+
+`Kanban`, `Calendario` e `Gantt` sono **spente** nel selettore della vista:
+l'elenco `VIEW_BLOCKED` in `renderer/src/inbox/data.js` le disattiva, con la
+ragione accanto alla voce ("non attiva"). Resta solo `Lista`.
+
+Le voci non sono state rimosse dal menu, e non è un dettaglio: il selettore
+dichiara quali viste il prodotto avrà, e una voce spenta lo dice meglio di un
+elenco corto — chi apre il menu vede che Kanban esiste e non è pronta, invece di
+chiedersi se sia mai stata prevista. Il codice delle tre viste resta al suo posto
+in `ContentPane`: sbloccarne una vuol dire togliere una stringa da
+`VIEW_BLOCKED`, non riscrivere la vista.
+
+Perché sono bloccate: il Kanban ha il padding delle card da correggere e le
+colonne larghe 220px fisse, che con molti progetti producono un tabellone da
+migliaia di pixel (vedi `TODO.md`); Calendario e Gantt sono impianti presi dagli
+artboard e non ancora verificati sui dati reali.

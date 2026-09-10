@@ -13,7 +13,7 @@ import {
   groupTasks,
   sortTasks,
 } from "./contentQuery.js";
-import { VIEW_ICONS, VIEW_LABELS, VIEW_ORDER } from "./data.js";
+import { VIEW_BLOCKED, VIEW_ICONS, VIEW_LABELS, VIEW_ORDER } from "./data.js";
 import { useAlia } from "../lib/AliaProvider.jsx";
 import { dueLabel, giorniDiScarto } from "../lib/tasks.js";
 
@@ -46,6 +46,8 @@ const PICK =
 export function ContentPane({ onOpenTask }) {
   const alia = useAlia();
   const [scope, setScope] = useState("all");
+  /* Parte da "lista", l'unica vista non bloccata, e `setView` rifiuta le altre:
+     `view` non puo quindi assumere il valore di una vista bloccata. */
   const [view, setView] = useState("lista");
   const [sortKey, setSortKey] = useState("scadenza");
   const [sortDir, setSortDir] = useState("asc");
@@ -220,13 +222,21 @@ export function ContentPane({ onOpenTask }) {
               <DropdownItem
                 key={v}
                 selected={view === v}
+                disabled={VIEW_BLOCKED.has(v)}
                 onClick={() => {
+                  /* Il controllo c'e anche qui e non solo nel `disabled`: il
+                     bottone disabilitato basta per il mouse, questo copre
+                     un'attivazione che arrivasse da altro (tastiera, test). */
+                  if (VIEW_BLOCKED.has(v)) return;
                   setView(v);
                   chiudi();
                 }}
               >
                 <PathIcon d={VIEW_ICONS[v]} size={14} />
                 <span className="flex-1">{VIEW_LABELS[v]}</span>
+                {VIEW_BLOCKED.has(v) ? (
+                  <span className="text-[10px] text-content/40">non attiva</span>
+                ) : null}
               </DropdownItem>
             ))}
           </Dropdown>

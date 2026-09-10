@@ -1078,34 +1078,24 @@ export function TaskDetailModal({ task, onClose }) {
             </div>
           </div>
 
-          {/* Le due azioni di chiusura della scheda. Attenzione al significato:
-              le modifiche di questa scheda vengono scritte subito, campo per
-              campo (e cosi nell'artboard), quindi "Annulla" chiude senza
-              tornare indietro — non c'e una bozza da scartare. Se deve
-              davvero annullare, il modale va convertito a modifica
-              tamponata: vedi la nota in DESIGN_LOCK. */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={onClose}
-              className={
-                "h-[30px] px-3 text-meta rounded-md border-0 bg-transparent " +
-                "text-content/60 cursor-pointer hover:text-content"
-              }
-            >
-              Annulla
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className={
-                "h-[30px] px-3.5 text-meta rounded-md border border-card-line " +
-                "bg-elevated text-content cursor-pointer hover:border-card-line-hover"
-              }
-            >
-              Salva
-            </button>
-          </div>
+          {/* Un solo pulsante, e si chiama "Chiudi" (deciso il 2026-09-10).
+              Prima erano "Annulla" e "Salva", ma questa scheda scrive subito,
+              campo per campo — come nell'artboard, dove titolo, descrizione e
+              nota hanno ciascuno la propria conferma e i chip scrivono
+              all'istante. Senza una bozza da scartare, "Annulla" prometteva un
+              ritorno indietro che non c'era e "Salva" un salvataggio gia
+              avvenuto: due pulsanti che facevano la stessa cosa con due nomi
+              sbagliati. "Chiudi" dice quello che fa. */}
+          <button
+            type="button"
+            onClick={onClose}
+            className={
+              "shrink-0 h-[30px] px-3.5 text-meta rounded-md border border-card-line " +
+              "bg-elevated text-content cursor-pointer hover:border-card-line-hover"
+            }
+          >
+            Chiudi
+          </button>
         </div>
       </div>
     </div>
