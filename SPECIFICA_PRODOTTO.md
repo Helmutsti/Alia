@@ -105,8 +105,8 @@ L'intelligenza artificiale puo trasformare l'input in un item operativo piu chia
 - una descrizione pulita;
 - il contesto utile;
 - eventuali prossime azioni;
-- una priorita suggerita;
-- possibili categorie.
+- ~~una priorita suggerita~~ (fuori perimetro: vedi sezione 3, l'IA non cataloga);
+- ~~possibili categorie~~ (fuori perimetro: vedi sezione 3, l'IA non cataloga).
 
 La riscrittura tramite IA non e obbligatoria per tutti gli input. Il suo comportamento viene configurato separatamente per ogni flusso o sorgente.
 
@@ -133,7 +133,16 @@ L'item puo essere organizzato usando informazioni come:
 - impegno stimato;
 - piattaforma di destinazione.
 
-Il metodo preciso di catalogazione, manuale, basato su regole, assistito dall'IA o misto, deve ancora essere deciso.
+**Metodo deciso (2026-09-10): manuale come base, regole deterministiche come secondo strato. L'IA non cataloga.**
+
+Due strati, utili ciascuno da solo e da implementare in questo ordine:
+
+1. **Manuale**, sempre disponibile. E l'unico strato che funziona senza sorgenti esterne configurate, ed e anche la correzione dello strato successivo. In buona parte c'e gia: progetto, milestone e priorita si impostano dal dettaglio del task.
+2. **Regole deterministiche**, insieme alle sorgenti esterne. Lo smistamento reale di mail e canali e in gran parte ripetitivo (un mittente e sempre lo stesso cliente, un canale e sempre lo stesso progetto): le regole sono prevedibili, verificabili e non costano chiamate a un modello. Si agganciano ai campi `sourceType`/`sourceId` gia presenti su `t_task`.
+
+**L'IA e esclusa dalla catalogazione**: nessuna assegnazione e nessuna proposta di progetto, cliente, area, tipo di lavoro, urgenza, impegno o destinazione. Resta invece in gioco per la **riscrittura del testo** (sezione 2 qui sopra), che e un'altra cosa. Conseguenza da riportare sulla sezione 2: tra gli elementi che la riscrittura produce, "una priorita suggerita" e "possibili categorie" **escono dal perimetro** — la riscrittura si ferma al testo.
+
+Nota sui campi: il modello attuale `t_task` copre di questa lista solo **progetto** (`idProject`, con `idMilestone` per la fase) e **urgenza** (`priority`, cinque livelli). Cliente, area, tipo di lavoro, impegno stimato e piattaforma di destinazione non hanno ancora un campo, e quali servano davvero resta da decidere (candidati concreti: cliente e tipo di lavoro).
 
 ### 4. Decisione
 
@@ -283,15 +292,15 @@ Questo perimetro e ancora da confermare.
 
 ## Questioni ancora aperte
 
-Prima dello sviluppo dobbiamo decidere:
+Punti 1, 2 e 4 decisi il 2026-09-10; il 3 resta rimandato.
 
-1. Se il programma sara anche il luogo principale in cui gestire il lavoro oppure soprattutto un ponte verso Todoist, Zoho Projects e altre destinazioni.
-2. Se la catalogazione sara manuale, basata su regole, affidata all'IA o composta da una combinazione delle tre modalita.
-3. Se email e Discord importeranno tutto da caselle, cartelle o canali selezionati, oppure soltanto i messaggi marcati esplicitamente.
-4. Se l'integrazione con Todoist e Zoho Projects dovra mantenere una sincronizzazione successiva oppure limitarsi a creare l'attivita esterna e conservarne il collegamento.
+1. ~~Se il programma sara anche il luogo principale in cui gestire il lavoro oppure soprattutto un ponte verso Todoist, Zoho Projects e altre destinazioni.~~ **Deciso: dentro Alia si lavora.** Alia raccoglie dalle origini, e il lavoro vive qui. Verso Zoho Projects va **solo la creazione di nuovi task**, non la gestione: l'export e un gesto in uscita, non un trasferimento della sede di lavoro.
+2. ~~Se la catalogazione sara manuale, basata su regole, affidata all'IA o composta da una combinazione delle tre modalita.~~ **Deciso: manuale + regole deterministiche, senza IA.** Il manuale e la base e la correzione, le regole arrivano con le sorgenti esterne; l'IA non assegna e non propone attributi di catalogazione (resta solo sulla riscrittura del testo). Dettagli e conseguenze nella sezione Catalogazione.
+3. Se email e Discord importeranno tutto da caselle, cartelle o canali selezionati, oppure soltanto i messaggi marcati esplicitamente. **Rimandato** (2026-09-10): da riprendere insieme all'integrazione delle sorgenti.
+4. ~~Se l'integrazione con Todoist e Zoho Projects dovra mantenere una sincronizzazione successiva oppure limitarsi a creare l'attivita esterna e conservarne il collegamento.~~ **Deciso: solo collegamento.** Si crea l'attivita esterna e si conserva il riferimento; nessuna sincronizzazione successiva, in nessuna delle due direzioni. Conseguenza sul modello: servono i campi del riferimento esterno (piattaforma, id, url) e la data di invio, non un meccanismo di riconciliazione dello stato.
 5. Se l'interfaccia dovra assomigliare maggiormente a una inbox/email oppure a una dashboard gestionale.
 6. Se completare e cancellare saranno due azioni distinte e quale storico dovra essere conservato in entrambi i casi.
 
 Nota sul punto 5: l'interfaccia costruita finora è già un ibrido inbox + dashboard (Inbox per il triage, Oggi/Tutti i task come dashboard di lavoro), coerente con l'impostazione del mockup Alia — non è stata presa come decisione definitiva, ma è il punto di partenza su cui iterare.
 
-I punti 1-4 restano aperti e condizionano direttamente le estensioni del modello Item elencate sopra (in particolare sorgenti esterne, catalogazione e integrazioni esterne).
+Resta aperto il punto 3 (perimetro di importazione delle sorgenti), che condiziona direttamente le estensioni del modello elencate sopra. I punti 1 e 4, decisi, fissano invece il perimetro: Alia e la sede del lavoro e le destinazioni esterne sono di sola andata.

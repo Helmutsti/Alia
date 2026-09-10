@@ -8,3 +8,4 @@ electron/debug.log
 .playwright-mcp/
 dist-app/
 *.tgz
+.scratch-*
