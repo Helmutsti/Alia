@@ -83,21 +83,45 @@ node --test
 
 ## Dati di esempio (seed)
 
+Il seed è un **database già fatto**, `data/seed.sqlite`, non uno script da
+lanciare: si applica copiandolo sopra il database dell'app, con l'app chiusa.
+
 ```powershell
-npm run seed
+# con Alia chiusa
+Copy-Item data\seed.sqlite "$env:APPDATA\alia\scheduler.sqlite" -Force
+Remove-Item "$env:APPDATA\alia\scheduler.sqlite-wal","$env:APPDATA\alia\scheduler.sqlite-shm" -ErrorAction SilentlyContinue
 ```
 
-Popola `./data/scheduler.sqlite` (percorso di default) con qualche task di esempio, sotto-task e origini esterne comprese, utile per provare l'interfaccia senza partire da un database vuoto. Non azzera niente: su un database già pieno i dati si sommano. Per popolare invece il database reale usato dall'app Electron, passa il percorso esplicito:
+I due file `-wal`/`-shm` vanno rimossi insieme alla copia: sono il giornale di
+scrittura del database precedente, e lasciarli accanto a un file principale
+diverso significa mettere insieme due database che non si conoscono.
+
+**Sostituisce, non aggiunge**: quello che c'era prima nel database dell'app non
+c'è più. Se serve tenerlo, copiarlo da parte prima.
+
+Cosa contiene, tenuto al minimo perché si possa leggere tutto in una schermata:
+4 progetti con le loro fasi e i 5 stati (`Nuovo`, `In corso`, `Migrato`,
+`Archiviato`, `Fatto`), 10 task di primo livello e 3 sotto-task di cui uno
+chiuso, 4 tag e una nota. Metà dei task è già smistata e metà è in triage,
+comprese due origini esterne da confermare (una mail e un messaggio Discord).
+Fra quelli in triage ce n'è uno **con progetto e scadenza già assegnati**: è il
+caso che mostra perché `isInbox` è un campo suo e non una deduzione da progetto
+o date (vedi `Rinascita.md`).
+
+Resta anche lo script `npm run seed`, che è un'altra cosa: **aggiunge** task di
+esempio a un database qualsiasi senza azzerarlo, utile per gonfiare i dati
+mentre si lavora.
 
 ```powershell
-node scripts/seed.js "$env:APPDATA\alia\scheduler.sqlite"
+npm run seed                                        # su ./data/scheduler.sqlite
+node scripts/seed.js "$env:APPDATA\alia\scheduler.sqlite"   # sul database dell'app
 ```
 
 ## Interfaccia grafica
 
 L'app Electron vive in `electron/` (main process + preload, che aprono il core reale e lo espongono al renderer solo tramite IPC) e in `renderer/` (React + Vite, Tailwind puro — vedi `DESIGN_LOCK.md`).
 
-È una schermata sola, a tre sezioni di cui due visibili per volta: origini da confermare, "Da smistare", area contenuto. Le viste Lista e Kanban sono costruite; Calendario e Gantt sono abbozzi, in attesa che il loro disegno venga deciso.
+È una schermata sola, a tre sezioni di cui due visibili per volta: origini da confermare, "Da smistare", area contenuto. La vista attiva è **Lista**: Kanban, Calendario e Gantt sono costruite ma bloccate nel selettore, in attesa delle correzioni e delle decisioni di disegno che le riguardano (vedi `DESIGN_LOCK.md`).
 
 `preview.html` (via `npm run dev:renderer`) mostra le stesse schermate su un dataset dichiaratamente finto: serve al confronto con gli artboard, e gira nel browser dove il core non è raggiungibile.
 

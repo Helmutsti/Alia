@@ -59,6 +59,10 @@ export function InboxWorkspace({ startFull = false }) {
   const [tasks, setTasks] = useState(alia.tasks);
   useEffect(() => setTasks(alia.tasks), [alia.tasks]);
 
+  /* Con che ordinamento il pannello contenuto sta mostrando l'elenco. Lo
+     riferisce ContentPane; serve al rilascio del trascinamento (vedi onDrop). */
+  const [ordinamento, setOrdinamento] = useState("scadenza");
+
   const [draggingTask, setDraggingTask] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [detailTask, setDetailTask] = useState(null);
@@ -146,7 +150,16 @@ export function InboxWorkspace({ startFull = false }) {
           await alia.assegnaProgetto(id, idProject, null);
         }
         if (task.inbox) await alia.smista(id, false);
-        await alia.riordina(null, ordineDelleRadici(locali));
+
+        /* La posizione si scrive solo se l'elenco a destra e ordinato a mano.
+           Con Scadenza, Priorita o Titolo l'ordine e calcolato: scrivere la
+           posizione non si vedrebbe — il task salterebbe subito dove lo mette
+           l'ordinamento — e il rilascio sembrerebbe non aver posizionato
+           niente. Meglio non promettere un posizionamento che l'ordinamento in
+           uso non puo mostrare. */
+        if (ordinamento === "manuale") {
+          await alia.riordina(null, ordineDelleRadici(locali));
+        }
         return;
       }
 
@@ -157,6 +170,8 @@ export function InboxWorkspace({ startFull = false }) {
          E' il senso del flag — "da rivedere", non "da azzerare". */
       if (!task.inbox) {
         await alia.smista(id, true);
+        /* Qui la posizione si scrive sempre: la colonna del triage e ordinata a
+           mano per costruzione, non ha un ordinamento calcolato da rispettare. */
         await alia.riordina(null, ordineDelleRadici(locali));
         return;
       }
@@ -170,7 +185,7 @@ export function InboxWorkspace({ startFull = false }) {
       }
       await alia.riordina(null, ordineDelleRadici(locali));
     },
-    [alia, pending],
+    [alia, pending, ordinamento],
   );
 
   /* Creazione: la task nasce senza progetto (è un'inbox) e con il titolo già
@@ -237,7 +252,11 @@ export function InboxWorkspace({ startFull = false }) {
         {/* `onOpenTask` porta l'apertura del dettaglio fin dentro le righe della
             vista Lista: lo stato di quale task e aperto vive qui, perche il
             modale copre tutta la schermata e non solo il pannello. */}
-        <ContentPane onOpenTask={setDetailTask} onRowPointerDown={start} />
+        <ContentPane
+          onOpenTask={setDetailTask}
+          onRowPointerDown={start}
+          onOrdinamento={setOrdinamento}
+        />
       </div>
 
       {/* ═══ colonna origini — geometria finale, tirata dentro da sinistra ═══ */}

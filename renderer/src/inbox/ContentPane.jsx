@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, PathIcon } from "../components/icons.jsx";
 import { InboxCard } from "./InboxCard.jsx";
 import { TaskRow } from "./TaskRow.jsx";
@@ -43,7 +43,7 @@ const PICK =
   "font-medium tracking-[-0.015em] px-1 py-0.5 rounded-md leading-[1.2] text-lg " +
   "hover:bg-[color-mix(in_srgb,var(--color-content)_7%,transparent)]";
 
-export function ContentPane({ onOpenTask, onRowPointerDown }) {
+export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento }) {
   const alia = useAlia();
   const [scope, setScope] = useState("all");
   /* Parte da "lista", l'unica vista non bloccata, e `setView` rifiuta le altre:
@@ -54,6 +54,14 @@ export function ContentPane({ onOpenTask, onRowPointerDown }) {
   const [group, setGroup] = useState("progetto");
   const [filters, setFilters] = useState(() => new Set());
   const [menu, setMenu] = useState(null);
+
+  /* L'ordinamento in uso viene riferito a chi ospita il pannello, perche' il
+     rilascio del trascinamento deve sapere se la posizione ha un senso: con un
+     ordinamento calcolato (scadenza, priorita', titolo) scriverla non si
+     vedrebbe, il task salterebbe subito dove lo mette l'ordinamento. */
+  useEffect(() => {
+    onOrdinamento?.(sortKey);
+  }, [onOrdinamento, sortKey]);
 
   const chiudi = useCallback(() => setMenu(null), []);
   const apri = (id) => setMenu((m) => (m === id ? null : id));

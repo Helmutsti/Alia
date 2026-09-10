@@ -2,6 +2,9 @@ node_modules/
 renderer/dist/
 electron/debug.log
 *.sqlite
+# Eccezione: il seed non e un database di lavoro, e un dato del progetto —
+# il database minimo da copiare sopra quello dell app (vedi README).
+!data/seed.sqlite
 *.sqlite-shm
 *.sqlite-wal
 *.sqlite-journal
