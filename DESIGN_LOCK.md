@@ -593,9 +593,18 @@ L'artboard usa nomi propri, che non sono quelli dello schema:
    con l'accento, chiusura spenta a contorno), come `TaskRow` e per la stessa
    ragione. Conseguenza visibile: sul database attuale, migrato dal vecchio
    schema, esistono solo `Da fare` e `Fatto` — un database nuovo ne ha cinque.
-3. **"Archivia" e "Sposta in Output" sono stati, non azioni proprie.** Le due
-   voci del menu compaiono solo se esiste uno stato con quel nome
-   (`Archiviato`, `Migrato`): senza, la voce non c'è invece di essere finta.
+3. **"Archivia" e "Sposta in Output" sono stati, non azioni proprie** — e le
+   voci ci sono sempre (rivisto il 2026-09-10). Prima erano condizionali
+   all'esistenza di uno stato con quel nome, e su un database migrato dal
+   vecchio schema — che ha solo `Da fare` e `Fatto` — il menu restava con la
+   sola "Elimina": sembravano mancanti. Ora:
+   - **Archivia** è spenta se non esiste uno stato `Archiviato`, con la
+     ragione accanto ("nessuno stato"). Su un database nuovo, che ne ha
+     cinque, è attiva.
+   - **Sposta in Output** è spenta sempre, per decisione: la migrazione verso
+     le destinazioni esterne non è implementata (vedi `SPECIFICA_PRODOTTO.md`,
+     punto 4 — solo collegamento, nessuna sincronizzazione). Il core espone
+     già `migrateTask`, quindi è un'attivazione, non un lavoro da zero.
 4. **Attività unisce due sorgenti.** L'artboard mostra un elenco unico con
    avatar `AI`/`GR`. Qui sono lo storico della macchina a stati
    (`t_task_history`, tradotto in frasi dalla vista) più le note scritte a mano
@@ -617,6 +626,32 @@ L'artboard usa nomi propri, che non sono quelli dello schema:
    prima", "Il giorno prima" non hanno un istante a cui riferirsi se `dueAt` è
    vuoto: in quel caso restano spenti e resta la data personalizzata. L'artboard
    non affronta il caso.
+
+### 8. Il piede è stato ridisposto (2026-09-10)
+
+L'artboard tiene il promemoria a sinistra e il menu dello stato all'estremità
+destra, con niente in mezzo. Su richiesta, ora **promemoria e stato stanno
+insieme a sinistra** — sono le due cose che dicono "quando" e "a che punto" sta
+il task, e da vicino si leggono come un gruppo — e la destra porta le due azioni
+di chiusura della scheda, **Annulla** e **Salva**. Il menu dello stato si apre
+di conseguenza allineato a sinistra e non a destra, altrimenti uscirebbe verso
+il centro della scheda.
+
+**Nodo aperto, da decidere: cosa significa "Annulla".** Questa scheda scrive
+subito, campo per campo — è così nell'artboard, dove titolo, descrizione e nota
+hanno ciascuno la propria conferma e i chip scrivono all'istante. Con scritture
+immediate non esiste una bozza da scartare, quindi oggi **Annulla chiude senza
+tornare indietro**, esattamente come Salva: la coppia è una coppia solo nella
+forma. Le due strade:
+
+- **Tenere la scrittura immediata**: allora "Annulla" è fuorviante e conviene
+  ridurre a un solo pulsante ("Chiudi", o "Fatto").
+- **Convertire a modifica tamponata**: le modifiche restano locali finché non
+  si preme Salva, e Annulla le scarta davvero. È un cambio di architettura del
+  componente (ogni chip oggi chiama la mutazione; dovrebbero scrivere in una
+  bozza) e va deciso anche cosa fare dei sotto-task, dei tag e delle note, che
+  sono righe di altre tabelle e non campi del task: quelli non si possono
+  tamponare senza inventare una transazione lunga lato interfaccia.
 
 ### Aggiunte al core rese necessarie
 

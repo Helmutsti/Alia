@@ -241,6 +241,7 @@ export function TaskDetailModal({ task, onClose }) {
   const prio = priorityOf(task.priority);
   const origine = ORIGINI[task.sourceType];
   const statiChiusura = states.filter((s) => s.role === "end");
+  const statoArchivio = states.find((s) => s.label === "Archiviato") ?? null;
   const statoIniziale = states.find((s) => s.role === "start");
   const inizioParti = partiIso(task.startAt);
   const scadenzaParti = partiIso(task.dueAt);
@@ -474,29 +475,35 @@ export function TaskDetailModal({ task, onClose }) {
               </button>
               <Dropdown open={menu === "header"} onClose={chiudiMenu} align="right" width={190}>
                 {/* "Archivia" e "Sposta in Output" sono due stati di chiusura
-                    configurati, non campi a parte: se il database non ha uno
-                    stato con quel nome la voce non compare, invece di essere
-                    finta. */}
-                {states.some((s) => s.label === "Archiviato") ? (
-                  <DropdownItem
-                    onClick={() => {
-                      chiudiMenu();
-                      alia.cambiaStato(task.id, states.find((s) => s.label === "Archiviato").id);
-                    }}
-                  >
-                    <span className="flex-1">Archivia</span>
-                  </DropdownItem>
-                ) : null}
-                {states.some((s) => s.label === "Migrato") ? (
-                  <DropdownItem
-                    onClick={() => {
-                      chiudiMenu();
-                      alia.migraTask(task.id, states.find((s) => s.label === "Migrato").id);
-                    }}
-                  >
-                    <span className="flex-1">Sposta in Output</span>
-                  </DropdownItem>
-                ) : null}
+                    configurati, non campi a parte. Le voci ci sono sempre, anche
+                    quando il database non ha lo stato corrispondente: prima
+                    erano condizionali e su un database migrato dal vecchio
+                    schema — che ha solo `Da fare` e `Fatto` — il menu restava
+                    con la sola "Elimina", e sembrava che mancassero.
+
+                    "Archivia" resta spento se non c'e uno stato `Archiviato` su
+                    cui portare il task: la voce dice che l'azione esiste, il
+                    disabilitato dice che a questo database manca il posto dove
+                    andare. "Sposta in Output" e spento per decisione: la
+                    migrazione verso le destinazioni esterne non e ancora
+                    implementata (vedi SPECIFICA_PRODOTTO, punto 4: solo
+                    collegamento, nessuna sincronizzazione). */}
+                <DropdownItem
+                  disabled={!statoArchivio}
+                  onClick={() => {
+                    chiudiMenu();
+                    if (statoArchivio) alia.cambiaStato(task.id, statoArchivio.id);
+                  }}
+                >
+                  <span className="flex-1">Archivia</span>
+                  {!statoArchivio ? (
+                    <span className="text-[10px] text-content/40">nessuno stato</span>
+                  ) : null}
+                </DropdownItem>
+                <DropdownItem disabled onClick={() => {}}>
+                  <span className="flex-1">Sposta in Output</span>
+                  <span className="text-[10px] text-content/40">non attivo</span>
+                </DropdownItem>
                 <DropdownSeparator />
                 <DropdownItem
                   onClick={() => {
@@ -978,84 +985,126 @@ export function TaskDetailModal({ task, onClose }) {
           </div>
         </div>
 
-        {/* ═══ piede: promemoria a sinistra, stato a destra ═══ */}
-        <div className="flex items-center justify-between px-[11px] py-2.5 border-t border-divider">
-          <div className="relative inline-flex">
-            <button
-              type="button"
-              onClick={() => apriMenu("reminder")}
-              aria-label={task.reminderAt ? "Modifica promemoria" : "Imposta promemoria"}
-              title={task.reminderAt ? `Promemoria: ${etichettaBreve(task.reminderAt)}` : "Nessun promemoria"}
-              className={`${GHOST_ICO} w-[31px] h-[31px]`}
-              style={{ color: task.reminderAt ? "var(--color-priority-medium)" : undefined }}
-            >
-              <Alarm size={17} />
-            </button>
-            <Dropdown open={menu === "reminder"} onClose={chiudiMenu} width={230} placement="top">
-              <DropdownLabel>Promemoria</DropdownLabel>
-              {PRESET_PROMEMORIA.map((p) => (
-                <DropdownItem
-                  key={p.id}
-                  disabled={p.offsetMin !== null && !task.dueAt}
-                  onClick={() => impostaPromemoria(p)}
-                >
-                  <span className="flex-1">{p.label}</span>
-                </DropdownItem>
-              ))}
-              {!task.dueAt ? (
-                <div className="px-2 pb-1 text-[10.5px] leading-[1.4] text-content/45">
-                  I preset sono relativi alla scadenza: senza scadenza resta la data personalizzata.
+        {/* ═══ piede ═══
+
+            Disposizione rivista rispetto all'artboard, che teneva il
+            promemoria a sinistra e lo stato all'estremita destra: ora
+            promemoria e stato stanno insieme a sinistra — sono le due cose che
+            dicono "quando" e "dove" sta il task, e da vicino si leggono come un
+            gruppo — e la destra e libera per le azioni di chiusura della
+            scheda. Registrato in DESIGN_LOCK come scostamento voluto. */}
+        <div className="flex items-center justify-between gap-3 px-[11px] py-2.5 border-t border-divider">
+          <div className="flex items-center gap-2">
+            <div className="relative inline-flex">
+              <button
+                type="button"
+                onClick={() => apriMenu("reminder")}
+                aria-label={task.reminderAt ? "Modifica promemoria" : "Imposta promemoria"}
+                title={task.reminderAt ? `Promemoria: ${etichettaBreve(task.reminderAt)}` : "Nessun promemoria"}
+                className={`${GHOST_ICO} w-[31px] h-[31px]`}
+                style={{ color: task.reminderAt ? "var(--color-priority-medium)" : undefined }}
+              >
+                <Alarm size={17} />
+              </button>
+              <Dropdown open={menu === "reminder"} onClose={chiudiMenu} width={230} placement="top">
+                <DropdownLabel>Promemoria</DropdownLabel>
+                {PRESET_PROMEMORIA.map((p) => (
+                  <DropdownItem
+                    key={p.id}
+                    disabled={p.offsetMin !== null && !task.dueAt}
+                    onClick={() => impostaPromemoria(p)}
+                  >
+                    <span className="flex-1">{p.label}</span>
+                  </DropdownItem>
+                ))}
+                {!task.dueAt ? (
+                  <div className="px-2 pb-1 text-[10.5px] leading-[1.4] text-content/45">
+                    I preset sono relativi alla scadenza: senza scadenza resta la data personalizzata.
+                  </div>
+                ) : null}
+                <DropdownSeparator />
+                <div className="px-2 pb-2">
+                  <div className="text-[10px] text-content/55 mb-1">Data e ora personalizzata</div>
+                  <input
+                    type="datetime-local"
+                    value={
+                      task.reminderAt
+                        ? `${partiIso(task.reminderAt).data}T${partiIso(task.reminderAt).ora}`
+                        : ""
+                    }
+                    onChange={(e) =>
+                      aggiorna({ reminderAt: e.target.value ? new Date(e.target.value).toISOString() : null })
+                    }
+                    className={`${INPUT_BASE} w-full text-xs`}
+                  />
                 </div>
-              ) : null}
-              <DropdownSeparator />
-              <div className="px-2 pb-2">
-                <div className="text-[10px] text-content/55 mb-1">Data e ora personalizzata</div>
-                <input
-                  type="datetime-local"
-                  value={
-                    task.reminderAt
-                      ? `${partiIso(task.reminderAt).data}T${partiIso(task.reminderAt).ora}`
-                      : ""
-                  }
-                  onChange={(e) =>
-                    aggiorna({ reminderAt: e.target.value ? new Date(e.target.value).toISOString() : null })
-                  }
-                  className={`${INPUT_BASE} w-full text-xs`}
-                />
-              </div>
-            </Dropdown>
+              </Dropdown>
+            </div>
+
+            <div className="relative inline-flex">
+              <button
+                type="button"
+                onClick={() => apriMenu("status")}
+                className={
+                  "inline-flex items-center gap-1.5 h-7 px-3 rounded-md text-meta cursor-pointer " +
+                  CHIP_RUOLO[task.state.role]
+                }
+              >
+                {task.state.label}
+                <ChevronDown size={13} />
+              </button>
+              {/* Il menu si apre in alto e allineato a sinistra: il chip non e
+                  piu all'estremita destra, quindi un allineamento a destra lo
+                  farebbe uscire verso il centro della scheda. */}
+              <Dropdown open={menu === "status"} onClose={chiudiMenu} width={170} placement="top">
+                {states.map((s, i) => (
+                  <div key={s.id}>
+                    {/* Le chiusure stanno dopo una riga, come in TaskRow:
+                        portare un task su uno stato finale trascina i
+                        sotto-task. */}
+                    {s.role === "end" && states[i - 1]?.role !== "end" ? <DropdownSeparator /> : null}
+                    <DropdownItem
+                      selected={s.id === task.state.id}
+                      onClick={() => {
+                        chiudiMenu();
+                        alia.cambiaStato(task.id, s.id);
+                      }}
+                    >
+                      <span className="flex-1">{s.label}</span>
+                    </DropdownItem>
+                  </div>
+                ))}
+              </Dropdown>
+            </div>
           </div>
 
-          <div className="relative inline-flex">
+          {/* Le due azioni di chiusura della scheda. Attenzione al significato:
+              le modifiche di questa scheda vengono scritte subito, campo per
+              campo (e cosi nell'artboard), quindi "Annulla" chiude senza
+              tornare indietro — non c'e una bozza da scartare. Se deve
+              davvero annullare, il modale va convertito a modifica
+              tamponata: vedi la nota in DESIGN_LOCK. */}
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => apriMenu("status")}
+              onClick={onClose}
               className={
-                "inline-flex items-center gap-1.5 h-7 px-3 rounded-md text-meta cursor-pointer " +
-                CHIP_RUOLO[task.state.role]
+                "h-[30px] px-3 text-meta rounded-md border-0 bg-transparent " +
+                "text-content/60 cursor-pointer hover:text-content"
               }
             >
-              {task.state.label}
-              <ChevronDown size={13} />
+              Annulla
             </button>
-            <Dropdown open={menu === "status"} onClose={chiudiMenu} align="right" width={170} placement="top">
-              {states.map((s, i) => (
-                <div key={s.id}>
-                  {/* Le chiusure stanno dopo una riga, come in TaskRow: portare
-                      un task su uno stato finale trascina i sotto-task. */}
-                  {s.role === "end" && states[i - 1]?.role !== "end" ? <DropdownSeparator /> : null}
-                  <DropdownItem
-                    selected={s.id === task.state.id}
-                    onClick={() => {
-                      chiudiMenu();
-                      alia.cambiaStato(task.id, s.id);
-                    }}
-                  >
-                    <span className="flex-1">{s.label}</span>
-                  </DropdownItem>
-                </div>
-              ))}
-            </Dropdown>
+            <button
+              type="button"
+              onClick={onClose}
+              className={
+                "h-[30px] px-3.5 text-meta rounded-md border border-card-line " +
+                "bg-elevated text-content cursor-pointer hover:border-card-line-hover"
+              }
+            >
+              Salva
+            </button>
           </div>
         </div>
       </div>
