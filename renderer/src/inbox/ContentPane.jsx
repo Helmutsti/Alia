@@ -34,6 +34,14 @@ import { dueLabel, giorniDiScarto } from "../lib/tasks.js";
    nella sezione "Da smistare". Compaiono qui come *gruppo*, quando si raggruppa
    per progetto — che è un'altra cosa. */
 
+/* Il segnaposto del varco: un valore identitario, confrontato con `===`, cosi'
+   non puo' essere confuso con un task. */
+const VARCO = Symbol("varco");
+
+/* Altezza del varco, pari a quella di una riga a una riga di testo: 13.5px di
+   testo per 1.35 di interlinea, piu' 12+12 di padding verticale e 3 di bordi. */
+const ALTEZZA_RIGA = 46;
+
 const CTL =
   "inline-flex items-center gap-[7px] h-8 px-3 rounded-lg border border-divider bg-transparent " +
   "cursor-pointer text-[12.5px] hover:border-accent";
@@ -88,23 +96,28 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
      l'insieme di partenza, il resto lavora su quello. */
   /* L'anteprima del trascinamento, applicata **solo a schermo**.
 
-     La riga trascinata viene togliata dal gruppo in cui sta e inserita nel
-     gruppo bersaglio, prima della riga sotto cui cadrebbe: le righe seguenti
-     scorrono di una posizione e si apre il varco che accogliera' l'elemento,
-     come fanno le card nella colonna.
+     Nel gruppo bersaglio si apre un **varco vuoto**, e il task trascinato
+     viene tolto dal gruppo in cui stava. Le righe fra i due punti scorrono di
+     una posizione: e' il "fare spazio" che fanno le card nella colonna.
 
-     Perche' qui e non riordinando l'array dei task, che sarebbe la strada
-     ovvia: l'elenco e ordinato per scadenza (o priorita', o titolo), quindi
-     l'ordine dell'array non decide niente e rimescolarlo produrrebbe uno
-     spostamento arbitrario. E soprattutto, riordinando l'array si
-     ri-impaginavano tutti i gruppi a ogni pixel di movimento, che e' il
-     difetto per cui trascinando una riga si muoveva tutto. Qui si sposta un
-     elemento e nient'altro. */
+     Il varco e' spazio, non una copia della riga. Inserire il task vero e'
+     stata la prima versione ed era sbagliata per due motivi che si vedono
+     subito: il FLIP animava anche quella riga, facendola volare dal gruppo
+     dov'era fino al punto d'inserimento — attraverso tutta la lista, sopra le
+     intestazioni — a ogni cambio del punto d'inserimento; e il task finiva
+     mostrato tre volte insieme, come card sbiadita nella colonna, come riga
+     nel pannello e come clone sotto il puntatore. Il varco non ha
+     `data-task`, quindi non entra ne' nel FLIP ne' nel calcolo del punto
+     d'inserimento: resta spazio e non si muove.
+
+     Perche' non riordinando l'array dei task, che sarebbe la strada ovvia:
+     l'elenco e' ordinato per scadenza (o priorita', o titolo), quindi l'ordine
+     dell'array non decide niente e rimescolarlo produrrebbe uno spostamento
+     arbitrario — e farlo a ogni pixel ri-impaginava tutti i gruppi, che e' il
+     difetto per cui trascinando una riga si muoveva tutto. */
   const conAnteprima = useCallback(
     (gruppi) => {
       if (!anteprima?.groupId) return gruppi;
-      const trascinata = tasks.find((t) => t.id === anteprima.id);
-      if (!trascinata) return gruppi;
 
       return gruppi.map((g) => {
         const senza = g.items.filter((t) => t.id !== anteprima.id);
@@ -115,18 +128,25 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
           ? senza.findIndex((t) => String(t.id) === String(anteprima.beforeId))
           : -1;
         const items = senza.slice();
-        items.splice(dove === -1 ? items.length : dove, 0, trascinata);
+        items.splice(dove === -1 ? items.length : dove, 0, VARCO);
         return { ...g, items };
       });
     },
-    [anteprima, tasks],
+    [anteprima],
   );
 
   const gruppi = useMemo(() => {
     const inAmbito = scope === "all" ? radici : radici.filter((t) => t.project?.id === scope);
     const visibili = sortTasks(filterTasks(inAmbito, filters, gruppiFiltro), sortKey, sortDir);
-    return conAnteprima(groupTasks(visibili, view === "lista" ? group : "nessuno", { projects, states }));
-  }, [radici, scope, filters, gruppiFiltro, sortKey, sortDir, group, view, projects, states, conAnteprima]);
+    return groupTasks(visibili, view === "lista" ? group : "nessuno", { projects, states });
+  }, [radici, scope, filters, gruppiFiltro, sortKey, sortDir, group, view, projects, states]);
+
+  /* L anteprima si applica **solo a quello che disegna la Lista**, non a
+     `gruppi`. I gruppi puri restano la sorgente per il conteggio in testata e
+     per le altre viste, che iterano gli elementi aspettandosi dei task: il
+     segnaposto del varco non e un task, e infilarlo la faceva esplodere
+     colonneKanban, che legge lo stato di ogni elemento. */
+  const gruppiDaDisegnare = useMemo(() => conAnteprima(gruppi), [conAnteprima, gruppi]);
 
   const totale = gruppi.reduce((n, g) => n + g.items.length, 0);
 
@@ -397,7 +417,7 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
               Nessuna task con questi filtri.
             </p>
           ) : (
-            gruppi.map((g) => (
+            gruppiDaDisegnare.map((g) => (
               <div
                 key={g.id}
                 /* Bersaglio del rilascio solo raggruppando per progetto: e' il
@@ -418,25 +438,35 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, antep
                       ) : null}
                       {g.label}
                     </span>
-                    <span className="text-mini text-content/42">{g.items.length}</span>
+                    {/* Il varco non e un task: non va contato. */}
+                    <span className="text-mini text-content/42">
+                      {g.items.filter((t) => t !== VARCO).length}
+                    </span>
                     <span className="flex-1 h-px bg-divider" />
                   </div>
                 ) : null}
-                {g.items.map((t) => (
-                  <TaskRow
-                    key={t.id}
-                    task={t}
-                    showProject={mostraProgetto}
-                    states={states}
-                    onChangeState={(task, stato) => alia.cambiaStato(task.id, stato.id)}
-                    onOpen={onOpenTask ? () => onOpenTask(t.id) : undefined}
-                    onPointerDown={
-                      onRowPointerDown && group === "progetto"
-                        ? (e) => onRowPointerDown(t.id, e)
-                        : undefined
-                    }
-                  />
-                ))}
+                {g.items.map((t) =>
+                  t === VARCO ? (
+                    /* Il varco: spazio e nient'altro. Nessun bordo e nessun
+                       fondo — la destinazione la dice lo spazio che si apre, e
+                       un disegno per sottolinearla e' da studiare. */
+                    <div key="varco" aria-hidden="true" style={{ height: ALTEZZA_RIGA }} />
+                  ) : (
+                    <TaskRow
+                      key={t.id}
+                      task={t}
+                      showProject={mostraProgetto}
+                      states={states}
+                      onChangeState={(task, stato) => alia.cambiaStato(task.id, stato.id)}
+                      onOpen={onOpenTask ? () => onOpenTask(t.id) : undefined}
+                      onPointerDown={
+                        onRowPointerDown && group === "progetto"
+                          ? (e) => onRowPointerDown(t.id, e)
+                          : undefined
+                      }
+                    />
+                  ),
+                )}
               </div>
             ))
           )}

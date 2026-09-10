@@ -776,12 +776,25 @@ ricavare l'ordine.
 
 ### Le righe aprono il varco, e i gruppi non si illuminano (2026-09-10)
 
-Le righe della vista Lista fanno spazio all'elemento in arrivo **come le card
-nella colonna**: la riga trascinata viene tolta da dove sta e inserita nel
-gruppo bersaglio, e le righe seguenti scorrono di una posizione con
-l'animazione del FLIP. Misurato: 18 righe spostate, tutte di **+54px esatti**
-(altezza riga più gap), zero spostamento orizzontale — è un varco che si apre,
-non un rimescolamento.
+Le righe della vista Lista fanno spazio all'elemento in arrivo: nel gruppo
+bersaglio si apre un **varco vuoto** alto quanto una riga, e il task trascinato
+viene tolto dal gruppo in cui stava. Le righe fra i due punti scorrono di una
+posizione con l'animazione del FLIP. Misurato: 20 righe spostate, tutte di
+**+54px esatti** (altezza riga più gap), zero spostamento orizzontale, e il
+gruppo che cresce di 54px — è un varco che si apre, non un rimescolamento.
+
+**Il varco è spazio, non una copia della riga.** Inserire il task vero è stata
+la prima versione, e sbagliava per due motivi che si vedono al primo
+fotogramma: il FLIP animava anche quella riga, facendola volare dal gruppo
+dov'era fino al punto d'inserimento — attraverso tutta la lista, sopra le
+intestazioni — a ogni cambio del punto d'inserimento; e il task risultava
+mostrato tre volte insieme, come card sbiadita nella colonna, come riga nel
+pannello e come clone sotto il puntatore. Il varco non ha `data-task`, quindi
+non entra né nel FLIP né nel calcolo del punto d'inserimento: resta spazio e
+non si muove. Non è contato nell'intestazione del gruppo, e l'anteprima si
+applica **solo a ciò che disegna la Lista** — i gruppi puri restano la sorgente
+del conteggio e delle altre viste, che iterano gli elementi aspettandosi dei
+task.
 
 **L'anteprima è locale al rendering, non un riordino dell'array.** È la
 differenza che rende la cosa possibile senza ricadere nel difetto qui sotto:

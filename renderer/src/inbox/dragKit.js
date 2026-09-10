@@ -15,6 +15,30 @@ export const FLIP_EASING = "cubic-bezier(.2,.8,.2,1)";
    elemento dove stava e lo si lascia tornare al suo posto. Negli artboard il
    retry con requestAnimationFrame arriva fino a 20 tentativi, perché al primo
    frame dopo il commit il layout può non essere ancora assestato. */
+/* Misura un elemento **fermo**.
+
+   `getBoundingClientRect` su un elemento che sta animando restituisce il
+   fotogramma corrente, non la posizione a cui l'elemento appartiene. Misurare
+   cosi' e' il difetto per cui, trascinando fra le righe, tutto si muoveva in
+   ogni direzione: ogni fotografia registrava posizioni a mezz'aria, e il FLIP
+   successivo animava da origini sbagliate, ogni volta diverse. Portare a
+   termine le animazioni in corso prima di misurare rende la fotografia vera.
+
+   Si vede solo quando i cambi sono frequenti e gli elementi molti: nella
+   colonna, dove il riordino scatta attraversando il centro di una card, il
+   difetto restava sotto la soglia della percezione. */
+function misuraFerma(el) {
+  el.getAnimations?.().forEach((a) => {
+    try {
+      a.finish();
+    } catch {
+      /* Un'animazione senza fine non si puo' concludere: non ne abbiamo, ma
+         `finish()` lancia in quel caso e non deve fermare la misura. */
+    }
+  });
+  return el.getBoundingClientRect();
+}
+
 export function useFlip(containerRef, attr = "data-card") {
   const pending = useRef(null);
 
@@ -23,7 +47,7 @@ export function useFlip(containerRef, attr = "data-card") {
     if (!host) return;
     const map = {};
     host.querySelectorAll(`[${attr}]`).forEach((el) => {
-      const r = el.getBoundingClientRect();
+      const r = misuraFerma(el);
       map[el.getAttribute(attr)] = { x: r.left, y: r.top };
     });
     pending.current = map;
@@ -42,7 +66,7 @@ export function useFlip(containerRef, attr = "data-card") {
       host.querySelectorAll(`[${attr}]`).forEach((el) => {
         const was = snapshot[el.getAttribute(attr)];
         if (!was) return;
-        const r = el.getBoundingClientRect();
+        const r = misuraFerma(el);
         const dx = was.x - r.left;
         const dy = was.y - r.top;
         if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
