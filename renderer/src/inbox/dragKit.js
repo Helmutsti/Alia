@@ -107,20 +107,22 @@ export function useBoardDrag({
      rilasciare da qualche parte — sono regole di prodotto — quindi lo chiede a
      chi lo usa. */
   patchPerBersaglio = () => ({}),
-  /* Dove il FLIP ha diritto di animare. Volutamente piu' piccolo della board:
-     vedi la nota sotto. */
-  flipRef,
+  /* Chi ha bisogno di sapere su quale bersaglio sta il puntatore, per farsi
+     l'anteprima da solo: la vista Lista apre il varco fra le righe cosi', senza
+     passare dal riordino dell'array (vedi la nota in ContentPane). `null`
+     quando il puntatore esce da ogni bersaglio. */
+  onAnteprima,
 }) {
-  /* Il FLIP e' ristretto alla colonna del triage, non a tutta la board.
+  /* Il FLIP copre tutta la board: le card della colonna e le righe della lista,
+     che hanno entrambe `data-task`. Cosi' anche le righe scorrono con
+     un'animazione per fare spazio, invece di saltare.
 
-     Non e' un'ottimizzazione, e' una correzione: da quando anche le righe della
-     vista Lista portano `data-task` — serve al trascinamento — un FLIP sulla
-     board intera le includeva tutte. Ogni anteprima rimescolava l'array dei
-     task, il pannello si ri-impaginava, e il FLIP animava quaranta righe verso
-     le loro posizioni precedenti: appena si iniziava a trascinare, tutto si
-     muoveva in ogni direzione. Nella colonna il riordino c'e' per davvero ed e'
-     la' che l'animazione serve; nel pannello no. */
-  const capture = useFlip(flipRef ?? boardRef, "data-task");
+     Questo e' possibile solo perche' l'anteprima nel pannello non passa piu'
+     dal riordino dell'array globale: quando lo faceva, ogni pixel di movimento
+     ri-impaginava tutti i gruppi e il FLIP animava quaranta righe verso le loro
+     posizioni precedenti — appena si iniziava a trascinare, tutto si muoveva in
+     ogni direzione. Ora l'unico spostamento e' quello del varco. */
+  const capture = useFlip(boardRef, "data-task");
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
 
@@ -225,11 +227,17 @@ export function useBoardDrag({
         clone.style.transform = `translate(${ev.clientX - offX}px,${ev.clientY - offY}px) ${TRANSFORM}`;
 
         const info = targetInfo(ev);
+        if (!info && lastGroupId !== null) {
+          lastGroupId = null;
+          capture();
+          onAnteprima?.(null);
+        }
+        /* Solo la colonna si illumina, ed e' la sua illuminazione di sempre
+           (`.fi-col.hit` di DEF_Inbox max). I gruppi della lista non si
+           illuminano: la destinazione la dice il varco che si apre fra le
+           righe, e un disegno migliore per sottolinearla e' da studiare. */
         document.querySelectorAll("[data-drop-col]").forEach((el) => {
           el.classList.toggle("hit", !!info && el.getAttribute("data-drop-col") === info.colId);
-        });
-        document.querySelectorAll("[data-drop-group]").forEach((el) => {
-          el.classList.toggle("hit", !!info && el.getAttribute("data-drop-group") === info.groupId);
         });
 
         /* Card a sinistra, row a destra: il clone prende la larghezza del
@@ -252,23 +260,32 @@ export function useBoardDrag({
           lastGroupId = info.groupId;
           lastBeforeId = info.beforeId;
 
-          /* `null` = nessuna anteprima. Serve per i bersagli dove spostare il
-             task nella lista non aiuta a capire dove finira' — un elenco
-             ordinato per scadenza lo rimetterebbe subito altrove — e dove
-             l'anteprima costerebbe una ri-impaginazione a ogni pixel. Li' il
-             bersaglio lo dicono il contorno acceso e la larghezza del clone. */
+          /* Due modi di fare l'anteprima, secondo il bersaglio.
+
+             Nella colonna: riordino ottimistico dell'array, che e' anche il
+             dato che verra' scritto — la' l'ordine e' manuale per costruzione.
+
+             Nel pannello: `patchPerBersaglio` risponde `null` e l'anteprima la
+             costruisce la vista, spostando la riga solo a schermo. L'array non
+             si tocca, perche' nella lista l'ordine e' calcolato e rimescolarlo
+             non direbbe il vero. `capture()` prima, perche' il FLIP deve avere
+             la fotografia delle posizioni di partenza. */
           const patch = patchPerBersaglio(info);
-          if (patch) reorder(id, patch, info.beforeId);
+          if (patch) {
+            reorder(id, patch, info.beforeId);
+          } else {
+            capture();
+            onAnteprima?.({ id, groupId: info.groupId, beforeId: info.beforeId });
+          }
         }
       };
 
       const up = () => {
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
-        document
-          .querySelectorAll("[data-drop-col], [data-drop-group]")
-          .forEach((el) => el.classList.remove("hit"));
+        document.querySelectorAll("[data-drop-col]").forEach((el) => el.classList.remove("hit"));
         clone?.remove();
+        onAnteprima?.(null);
         if (!moved) {
           if (onTitle) onEditTitle(id);
           else onOpen(id);
@@ -291,7 +308,7 @@ export function useBoardDrag({
       window.addEventListener("pointerup", up);
       e.preventDefault();
     },
-    [reorder, onDragChange, onOpen, onEditTitle, onDrop, patchPerBersaglio],
+    [reorder, onDragChange, onOpen, onEditTitle, onDrop, patchPerBersaglio, onAnteprima, capture],
   );
 
   return { start, reorder };

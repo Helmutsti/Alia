@@ -43,7 +43,7 @@ const PICK =
   "font-medium tracking-[-0.015em] px-1 py-0.5 rounded-md leading-[1.2] text-lg " +
   "hover:bg-[color-mix(in_srgb,var(--color-content)_7%,transparent)]";
 
-export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento }) {
+export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento, anteprima }) {
   const alia = useAlia();
   const [scope, setScope] = useState("all");
   /* Parte da "lista", l'unica vista non bloccata, e `setView` rifiuta le altre:
@@ -86,11 +86,47 @@ export function ContentPane({ onOpenTask, onRowPointerDown, onOrdinamento }) {
 
   /* Ambito → filtri → ordinamento → gruppi, in quest'ordine: l'ambito decide
      l'insieme di partenza, il resto lavora su quello. */
+  /* L'anteprima del trascinamento, applicata **solo a schermo**.
+
+     La riga trascinata viene togliata dal gruppo in cui sta e inserita nel
+     gruppo bersaglio, prima della riga sotto cui cadrebbe: le righe seguenti
+     scorrono di una posizione e si apre il varco che accogliera' l'elemento,
+     come fanno le card nella colonna.
+
+     Perche' qui e non riordinando l'array dei task, che sarebbe la strada
+     ovvia: l'elenco e ordinato per scadenza (o priorita', o titolo), quindi
+     l'ordine dell'array non decide niente e rimescolarlo produrrebbe uno
+     spostamento arbitrario. E soprattutto, riordinando l'array si
+     ri-impaginavano tutti i gruppi a ogni pixel di movimento, che e' il
+     difetto per cui trascinando una riga si muoveva tutto. Qui si sposta un
+     elemento e nient'altro. */
+  const conAnteprima = useCallback(
+    (gruppi) => {
+      if (!anteprima?.groupId) return gruppi;
+      const trascinata = tasks.find((t) => t.id === anteprima.id);
+      if (!trascinata) return gruppi;
+
+      return gruppi.map((g) => {
+        const senza = g.items.filter((t) => t.id !== anteprima.id);
+        if (g.id !== anteprima.groupId) {
+          return senza.length === g.items.length ? g : { ...g, items: senza };
+        }
+        const dove = anteprima.beforeId
+          ? senza.findIndex((t) => String(t.id) === String(anteprima.beforeId))
+          : -1;
+        const items = senza.slice();
+        items.splice(dove === -1 ? items.length : dove, 0, trascinata);
+        return { ...g, items };
+      });
+    },
+    [anteprima, tasks],
+  );
+
   const gruppi = useMemo(() => {
     const inAmbito = scope === "all" ? radici : radici.filter((t) => t.project?.id === scope);
     const visibili = sortTasks(filterTasks(inAmbito, filters, gruppiFiltro), sortKey, sortDir);
-    return groupTasks(visibili, view === "lista" ? group : "nessuno", { projects, states });
-  }, [radici, scope, filters, gruppiFiltro, sortKey, sortDir, group, view, projects, states]);
+    return conAnteprima(groupTasks(visibili, view === "lista" ? group : "nessuno", { projects, states }));
+  }, [radici, scope, filters, gruppiFiltro, sortKey, sortDir, group, view, projects, states, conAnteprima]);
 
   const totale = gruppi.reduce((n, g) => n + g.items.length, 0);
 

@@ -774,6 +774,30 @@ niente**: il gesto sembrava funzionare e non produceva nulla. Le decisioni si
 prendono su `alia.tasks` (lo stato vero); la lista ottimistica serve solo a
 ricavare l'ordine.
 
+### Le righe aprono il varco, e i gruppi non si illuminano (2026-09-10)
+
+Le righe della vista Lista fanno spazio all'elemento in arrivo **come le card
+nella colonna**: la riga trascinata viene tolta da dove sta e inserita nel
+gruppo bersaglio, e le righe seguenti scorrono di una posizione con
+l'animazione del FLIP. Misurato: 18 righe spostate, tutte di **+54px esatti**
+(altezza riga più gap), zero spostamento orizzontale — è un varco che si apre,
+non un rimescolamento.
+
+**L'anteprima è locale al rendering, non un riordino dell'array.** È la
+differenza che rende la cosa possibile senza ricadere nel difetto qui sotto:
+l'elenco a destra è ordinato per scadenza (o priorità, o titolo), quindi
+l'ordine dell'array non decide niente e rimescolarlo produrrebbe uno
+spostamento arbitrario — oltre a ri-impaginare tutti i gruppi a ogni pixel.
+`ContentPane` riceve il bersaglio corrente e sposta **un solo elemento**, solo
+a schermo. Nella colonna, invece, il riordino ottimistico dell'array resta:
+là l'ordine è manuale per costruzione, ed è anche il dato che verrà scritto.
+
+**Nessuna illuminazione sui gruppi.** Un contorno acceso col fondo in accento
+c'è stato per un giro e non convinceva: adesso la destinazione la dice il varco
+che si apre, e un disegno migliore per sottolinearla è da studiare. Resta
+accesa la **colonna**, con l'illuminazione che ha sempre avuto (`.fi-col.hit`
+di `DEF_Inbox max`): quella viene dall'artboard, non è stata inventata qui.
+
 ### Difetto grave, corretto subito dopo: trascinando una riga si muoveva tutto
 
 Appena si iniziava a trascinare una riga del pannello, **tutte** le altre righe
@@ -783,9 +807,11 @@ questo meccanismo:
 1. **Il FLIP prendeva tutta la board.** Le righe hanno ricevuto `data-task`
    perché serve al trascinamento, ed è lo stesso attributo con cui `useFlip`
    fotografa gli elementi da animare: da quel momento le quaranta righe della
-   lista erano tutte candidate all'animazione. Ora il FLIP è ristretto alla
-   colonna del triage (`flipRef`), che è il solo posto dove il riordino esiste
-   per davvero, ed è lì che l'animazione serve.
+   lista erano tutte candidate all'animazione — e insieme al punto 2 il
+   risultato era che si muovevano tutte, in ogni direzione. Per un giro il FLIP
+   è stato ristretto alla colonna; poi, risolto il punto 2, è tornato a coprire
+   la board, che è ciò che permette alle righe di aprire il varco con
+   l'animazione invece di saltare (vedi la sezione sopra).
 2. **L'anteprima ri-impaginava il pannello a ogni pixel.** Il riordino
    ottimistico rimescola l'array dei task, e il pannello lo rende: ogni
    movimento del puntatore rifaceva l'impaginazione di tutti i gruppi. Ora
