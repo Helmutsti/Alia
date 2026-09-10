@@ -16,11 +16,18 @@ import {
   deleteTask,
   getTask,
   getTaskHistory,
+  addTaskComment,
+  addTaskTag,
   listMilestones,
   listProjects,
   listStates,
+  listTaskComments,
+  listTaskTags,
+  listTags,
   listTasks,
   migrateTaskExternally,
+  removeTaskComment,
+  removeTaskTag,
   reorderRootTasks,
   reorderTasks,
   reparentTask,
@@ -46,6 +53,15 @@ export const ALIA_OPERATIONS = [
   "deleteTask",
   "restoreTask",
   "migrateTask",
+  /* Tag e commenti: tabelle che lo schema aveva gia e che nessuna operazione
+     esponeva. Le chiede il dettaglio del task. */
+  "listTags",
+  "listTaskTags",
+  "addTaskTag",
+  "removeTaskTag",
+  "listTaskComments",
+  "addTaskComment",
+  "removeTaskComment",
 ];
 
 export function createAliaCore({ databasePath }) {
@@ -59,6 +75,9 @@ export function createAliaCore({ databasePath }) {
     listStates: () => listStates(database),
     listProjects: () => listProjects(database),
     listMilestones: (idProject) => listMilestones(database, idProject),
+    listTags: () => listTags(database),
+    listTaskTags: (idTask) => listTaskTags(database, idTask),
+    listTaskComments: (idTask) => listTaskComments(database, idTask),
 
     /* scrittura — le tre che possono chiedere conferma restituiscono un esito
        invece di lanciare, e vanno richiamate con `decisioni` (vedi task-core) */
@@ -67,6 +86,10 @@ export function createAliaCore({ databasePath }) {
     setTaskState: (idTask, idState, decisioni) => setTaskState(database, idTask, idState, decisioni),
     setTaskProject: (idTask, idProject, idMilestone) =>
       setTaskProject(database, idTask, idProject, idMilestone),
+    addTaskTag: (idTask, label) => addTaskTag(database, idTask, label),
+    removeTaskTag: (idTask, idTag) => removeTaskTag(database, idTask, idTag),
+    addTaskComment: (idTask, body) => addTaskComment(database, idTask, body),
+    removeTaskComment: (idTaskComment) => removeTaskComment(database, idTaskComment),
     /* `idParentTask` nullo = le task di primo livello, che hanno una funzione
        a parte perché `IS NULL` non si esprime come parametro. */
     reorderTasks: (idParentTask, orderedIds) =>

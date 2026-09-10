@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, MailBox, Plus } from "../components/icons.jsx";
 import { ContentPane } from "./ContentPane.jsx";
+import { TaskDetailModal } from "../components/TaskDetailModal.jsx";
 import { InboxCard } from "./InboxCard.jsx";
 import { OriginCard } from "./OriginCard.jsx";
 import { useBoardDrag } from "./dragKit.js";
@@ -177,7 +178,10 @@ export function InboxWorkspace({ startFull = false }) {
           pointerEvents: m.p === 0 ? "auto" : "none",
         }}
       >
-        <ContentPane />
+        {/* `onOpenTask` porta l'apertura del dettaglio fin dentro le righe della
+            vista Lista: lo stato di quale task e aperto vive qui, perche il
+            modale copre tutta la schermata e non solo il pannello. */}
+        <ContentPane onOpenTask={setDetailTask} />
       </div>
 
       {/* ═══ colonna origini — geometria finale, tirata dentro da sinistra ═══ */}
@@ -380,32 +384,8 @@ export function InboxWorkspace({ startFull = false }) {
         />
       </div>
 
-      {/* ═══ dettaglio task ═══ */}
-      {detail ? (
-        <div
-          onClick={() => setDetailTask(null)}
-          className={
-            "absolute inset-0 z-[90] box-border flex items-center justify-center p-7 " +
-            "bg-[color-mix(in_srgb,#000_52%,transparent)] backdrop-blur-[7px]"
-          }
-        >
-          <div onClick={(e) => e.stopPropagation()} className="w-[640px] max-w-full max-h-full flex">
-            {/* Il corpo del dettaglio è DEF_Task Detail, non ancora ricostruito:
-                qui c'è solo il contenitore, con la geometria dell'artboard. */}
-            <div className="w-full rounded-[14px] bg-surface shadow-elev-lg p-5 max-h-[690px] overflow-auto">
-              <p className="text-mini tracking-[0.14em] uppercase text-accent m-0">Task Detail</p>
-              <h4 className="mt-2 mb-1 text-lg">{detail.title}</h4>
-              <p className="text-meta text-content/55 m-0">
-                Progetto: {detail.project?.name ?? "Nessuno"} · Priorità: {detail.priorityLabel} · Stato:{" "}
-                {detail.state.label}
-              </p>
-              <p className="text-meta text-content/40 mt-4 mb-0">
-                Segnaposto: da ricostruire da DEF_Task Detail.
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {/* ═══ dettaglio task — DEF_Task Detail ═══ */}
+      {detail ? <TaskDetailModal task={detail} onClose={() => setDetailTask(null)} /> : null}
     </div>
   );
 }

@@ -37,16 +37,35 @@ const CHIP_RUOLO = {
   end: `${CHIP} border border-card-line text-content/45`,
 };
 
-export function TaskRow({ task, showProject = false, states = [], onChangeState }) {
+export function TaskRow({ task, showProject = false, states = [], onChangeState, onOpen }) {
   const [menuAperto, setMenuAperto] = useState(false);
   const interattivo = typeof onChangeState === "function" && states.length > 0;
+  const apribile = typeof onOpen === "function";
 
   return (
     <div
       data-row={task.id}
+      /* La riga intera apre il dettaglio, come la card dell'Inbox. Il chip di
+         stato e il suo menu, che stanno dentro la riga, fermano la
+         propagazione: cambiare stato da qui e un gesto suo, e non deve anche
+         aprire la scheda. */
+      onClick={apribile ? () => onOpen(task) : undefined}
+      role={apribile ? "button" : undefined}
+      tabIndex={apribile ? 0 : undefined}
+      onKeyDown={
+        apribile
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpen(task);
+              }
+            }
+          : undefined
+      }
       className={
         "flex items-start gap-2.5 px-[13px] py-3 rounded-lg border-[1.5px] border-card-line " +
-        "bg-elevated transition-colors duration-[120ms] hover:border-card-line-hover"
+        "bg-elevated transition-colors duration-[120ms] hover:border-card-line-hover " +
+        (apribile ? "cursor-pointer" : "")
       }
     >
       <span
@@ -88,7 +107,7 @@ export function TaskRow({ task, showProject = false, states = [], onChangeState 
         ) : null}
 
         {interattivo ? (
-          <div className="relative">
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => setMenuAperto((v) => !v)}

@@ -20,6 +20,13 @@ const ALIA_OPERATIONS = [
   "deleteTask",
   "restoreTask",
   "migrateTask",
+  "listTags",
+  "listTaskTags",
+  "addTaskTag",
+  "removeTaskTag",
+  "listTaskComments",
+  "addTaskComment",
+  "removeTaskComment",
 ];
 
 const alia = Object.fromEntries(

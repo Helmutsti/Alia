@@ -45,4 +45,12 @@ export const core = {
   deleteTask: (id) => chiama("deleteTask", id),
   restoreTask: (id, decisioni) => chiama("restoreTask", id, decisioni),
   migrateTask: (id, idState) => chiama("migrateTask", id, idState),
+
+  listTags: () => chiama("listTags"),
+  listTaskTags: (id) => chiama("listTaskTags", id),
+  addTaskTag: (id, label) => chiama("addTaskTag", id, label),
+  removeTaskTag: (id, idTag) => chiama("removeTaskTag", id, idTag),
+  listTaskComments: (id) => chiama("listTaskComments", id),
+  addTaskComment: (id, body) => chiama("addTaskComment", id, body),
+  removeTaskComment: (idCommento) => chiama("removeTaskComment", idCommento),
 };

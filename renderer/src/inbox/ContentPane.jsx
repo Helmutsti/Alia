@@ -43,7 +43,7 @@ const PICK =
   "font-medium tracking-[-0.015em] px-1 py-0.5 rounded-md leading-[1.2] text-lg " +
   "hover:bg-[color-mix(in_srgb,var(--color-content)_7%,transparent)]";
 
-export function ContentPane() {
+export function ContentPane({ onOpenTask }) {
   const alia = useAlia();
   const [scope, setScope] = useState("all");
   const [view, setView] = useState("lista");
@@ -367,6 +367,7 @@ export function ContentPane() {
                     showProject={mostraProgetto}
                     states={states}
                     onChangeState={(task, stato) => alia.cambiaStato(task.id, stato.id)}
+                    onOpen={onOpenTask ? () => onOpenTask(t.id) : undefined}
                   />
                 ))}
               </div>

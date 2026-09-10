@@ -158,3 +158,31 @@ export const PathIcon = ({ d, size = 14, sw = 1.9, ...p }) => (
     <path d={d} />
   </Glyph>
 );
+
+/* — glifi di DEF_Task Detail — */
+
+/* La croce: nell'artboard compare a tre spessori (1.9 nel chiudi della
+   testata, 2 nel rimuovi sotto-task, 2.6 nella x minuscola dei tag), quindi
+   `sw` va passato dal punto d'uso e non ha un default utile. */
+export const Close = ({ size = 14, sw = 1.9, ...p }) => (
+  <Glyph size={size} sw={sw} {...p}>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </Glyph>
+);
+
+/* Aeroplanino dell'invio nota. */
+export const Send = ({ size = 15, ...p }) => (
+  <Glyph size={size} sw={1.8} join {...p}>
+    <path d="M21.5 2.5L2.8 9.6c-.7.3-.7 1.2 0 1.5l7.1 2.7c.2.1.4.3.5.5l2.7 7.1c.3.7 1.2.7 1.5 0z" />
+    <path d="M10.4 13.6l5.6-5.6" />
+  </Glyph>
+);
+
+/* I tre puntini del menu azioni: tre cerchi pieni, non un glifo di testo. */
+export const MoreDots = ({ size = 15, ...p }) => (
+  <Glyph size={size} {...p}>
+    <circle cx="5" cy="12" r="1" />
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+  </Glyph>
+);

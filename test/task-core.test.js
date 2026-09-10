@@ -16,6 +16,13 @@ import {
   setTaskProject,
   setTaskState,
   updateTask,
+  addTaskComment,
+  addTaskTag,
+  listTaskComments,
+  listTaskTags,
+  listTags,
+  removeTaskComment,
+  removeTaskTag,
 } from "../src/core/task-core.js";
 
 function nuovoDatabase() {
@@ -470,4 +477,97 @@ test("ogni cambio di stato lascia una traccia nello storico", () => {
   assert.equal(righe.length, 2);
   assert.equal(righe[0].field, "idState");
   assert.equal(righe[1].newValue, String(s.fatto));
+});
+
+test("il tag e un vocabolario condiviso: due task che scrivono la stessa etichetta puntano alla stessa riga", () => {
+  const database = nuovoDatabase();
+  const primo = crea(database, "Primo");
+  const secondo = crea(database, "Secondo");
+
+  const a = addTaskTag(database, primo, "urgente");
+  /* Con spazi intorno: l'etichetta va ripulita, altrimenti nascerebbe un
+     secondo tag identico a vedersi e diverso a database. */
+  const b = addTaskTag(database, secondo, "  urgente  ");
+
+  assert.equal(a.idTag, b.idTag);
+  assert.equal(listTags(database).length, 1);
+  assert.equal(listTaskTags(database, primo)[0].label, "urgente");
+  assert.equal(listTaskTags(database, secondo)[0].label, "urgente");
+});
+
+test("aggiungere due volte lo stesso tag allo stesso task non lo duplica", () => {
+  const database = nuovoDatabase();
+  const id = crea(database, "Task");
+  addTaskTag(database, id, "q3");
+  addTaskTag(database, id, "q3");
+  assert.equal(listTaskTags(database, id).length, 1);
+});
+
+test("togliere un tag da un task lascia l'etichetta nel vocabolario", () => {
+  const database = nuovoDatabase();
+  const id = crea(database, "Task");
+  const { idTag } = addTaskTag(database, id, "casa");
+  removeTaskTag(database, id, idTag);
+
+  assert.equal(listTaskTags(database, id).length, 0);
+  assert.equal(listTags(database).length, 1, "il tag resta disponibile per essere riusato");
+});
+
+test("un tag vuoto e rifiutato", () => {
+  const database = nuovoDatabase();
+  const id = crea(database, "Task");
+  assert.throws(() => addTaskTag(database, id, "   "), /vuoto/);
+});
+
+test("i tag e i commenti seguono il task cancellato", () => {
+  const database = nuovoDatabase();
+  const id = crea(database, "Task");
+  addTaskTag(database, id, "temporaneo");
+  addTaskComment(database, id, "una nota");
+
+  /* Cancellazione tecnica vera, non il deletedAt logico: qui si verifica la
+     cascata dichiarata a schema (ON DELETE CASCADE). */
+  database.prepare("DELETE FROM t_task WHERE idTask = ?").run(id);
+
+  assert.equal(listTaskTags(database, id).length, 0);
+  assert.equal(listTaskComments(database, id).length, 0);
+});
+
+test("i commenti si leggono in ordine di scrittura e restano fuori dallo storico", () => {
+  const database = nuovoDatabase();
+  const s = stati(database);
+  const id = crea(database, "Task");
+
+  addTaskComment(database, id, "prima nota");
+  addTaskComment(database, id, "seconda nota");
+  setTaskState(database, id, s.inCorso);
+
+  const commenti = listTaskComments(database, id);
+  assert.equal(commenti.length, 2);
+  assert.equal(commenti[0].body, "prima nota");
+  assert.equal(commenti[1].body, "seconda nota");
+
+  /* Lo storico registra il cambio di stato e nient'altro: i commenti sono una
+     sorgente separata, e il dettaglio li unisce solo a schermo. */
+  const storico = database
+    .prepare("SELECT field FROM t_task_history WHERE idTask = ?")
+    .all(id);
+  assert.equal(storico.length, 1);
+  assert.equal(storico[0].field, "idState");
+});
+
+test("un commento si puo togliere, e uno vuoto e rifiutato", () => {
+  const database = nuovoDatabase();
+  const id = crea(database, "Task");
+  const { idTaskComment } = addTaskComment(database, id, "da rimuovere");
+  removeTaskComment(database, idTaskComment);
+  assert.equal(listTaskComments(database, id).length, 0);
+
+  assert.throws(() => addTaskComment(database, id, ""), /vuoto/);
+});
+
+test("tag e commenti su un task inesistente sono rifiutati", () => {
+  const database = nuovoDatabase();
+  assert.throws(() => addTaskTag(database, "non-esiste", "x"), /inesistente/);
+  assert.throws(() => addTaskComment(database, "non-esiste", "x"), /inesistente/);
 });

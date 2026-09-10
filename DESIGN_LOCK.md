@@ -556,3 +556,73 @@ conteggio in entrambi gli stati.
 **Da decidere prima di toccarlo.** Se nella vista divisa la sezione 2 può perdere il
 titolo "Inbox": è l'unico posto dove quella colonna si dichiara, e togliendolo la
 vista divisa resta senza un nome per la propria colonna principale.
+
+---
+
+## DEF_Task Detail — ricostruito (2026-09-10)
+
+Il segnaposto è stato sostituito dal componente vero,
+`renderer/src/components/TaskDetailModal.jsx`, trascritto dall'artboard
+all'etag congelato (`1788962685594194`, verificato identico al momento della
+trascrizione). Geometria misurata nell'app: scheda 640px, testata 52, corpo
+435 scorrevole, piede 52.
+
+Si apre da tre punti: le card della colonna Inbox (già così), le **righe della
+vista Lista** (nuovo: `TaskRow` riceve `onOpen`, e il chip di stato ferma la
+propagazione perché cambiare stato non deve anche aprire la scheda) e la
+tastiera (Invio/Spazio sulla riga a fuoco).
+
+### Corrispondenze fra artboard e core
+
+L'artboard usa nomi propri, che non sono quelli dello schema:
+
+| artboard | core |
+|---|---|
+| `notes` (descrizione grande) | `t_task.description` |
+| `note` (nota interna) | `t_task.notes` |
+| `list` (chip dopo il "/") | `t_milestone` |
+| `status` | `t_state`, configurabile |
+
+### Scostamenti di questo artboard
+
+1. **Priorità: cinque, non quattro.** L'artboard fissa Alta/Media/Bassa/Nessuna;
+   il core ha anche `urgent`. Il menu le legge da `PRIORITIES`, quindi la voce in
+   più c'è. È lo stesso scostamento già annotato per il colore di `urgent`.
+2. **Stati: configurabili, non tre.** L'artboard mostra Da fare/In corso/Fatto.
+   Il chip legge `t_state` e si colora **per ruolo** (partenza neutra, intermedio
+   con l'accento, chiusura spenta a contorno), come `TaskRow` e per la stessa
+   ragione. Conseguenza visibile: sul database attuale, migrato dal vecchio
+   schema, esistono solo `Da fare` e `Fatto` — un database nuovo ne ha cinque.
+3. **"Archivia" e "Sposta in Output" sono stati, non azioni proprie.** Le due
+   voci del menu compaiono solo se esiste uno stato con quel nome
+   (`Archiviato`, `Migrato`): senza, la voce non c'è invece di essere finta.
+4. **Attività unisce due sorgenti.** L'artboard mostra un elenco unico con
+   avatar `AI`/`GR`. Qui sono lo storico della macchina a stati
+   (`t_task_history`, tradotto in frasi dalla vista) più le note scritte a mano
+   (`t_task_comment`), uniti solo a schermo e ordinati dal più recente. Non
+   esistendo utenti a schema, l'avatar è `IO` per le note e un pallino per le
+   voci di sistema: **gli avatar dell'artboard non sono riproducibili** finché
+   non c'è un'identità nel modello.
+5. **Discord non ha un glifo negli artboard**: la pillola d'origine mostra la
+   sola etichetta. Non è stata inventata un'icona, perché non sarebbe
+   verificabile col diff.
+6. **Allegati: sezione non attiva.** È l'unica parte dell'artboard senza un dato
+   dietro. `t_attachment` esiste a schema (`fileName`, `filePath`, `mimeType`,
+   `sizeBytes`) ma il core non la espone, e **prima di esporla va deciso dove
+   vivono i file**: copiati in `userData` (l'app diventa proprietaria, il
+   database resta coerente da solo) o referenziati dove stanno (nessuna copia,
+   ma un file spostato rompe il riferimento). Fino a quella decisione la scheda
+   lo dichiara, invece di offrire un "Aggiungi" che non aggiunge.
+7. **Promemoria: i preset dipendono dalla scadenza.** "Alla scadenza", "1 ora
+   prima", "Il giorno prima" non hanno un istante a cui riferirsi se `dueAt` è
+   vuoto: in quel caso restano spenti e resta la data personalizzata. L'artboard
+   non affronta il caso.
+
+### Aggiunte al core rese necessarie
+
+Tag e commenti erano tabelle senza operazioni. Aggiunte a `task-core.js` con
+test: `listTags`, `listTaskTags`, `addTaskTag`, `removeTaskTag`,
+`listTaskComments`, `addTaskComment`, `removeTaskComment`. I tag sono un
+vocabolario condiviso (`t_tag` UNIQUE + `t_task_tag`), non una stringa per task:
+due task che scrivono "urgente" puntano alla stessa riga, ed è ciò che rende
+possibile filtrare per tag più avanti.

@@ -656,3 +656,102 @@ export function setTaskProject(database, idTask, idProject, idMilestone = null) 
     return { esito: "applicato" };
   });
 }
+
+/* ─────────────────────────── Tag e commenti ───────────────────────────
+
+   Due tabelle che lo schema aveva già (`t_tag`/`t_task_tag`,
+   `t_task_comment`) e che nessuna funzione esponeva: il dettaglio del task le
+   chiede entrambe, e senza queste sarebbero due sezioni finte.
+
+   I tag sono un vocabolario condiviso, non una stringa per task: `t_tag` tiene
+   l'etichetta una volta sola (UNIQUE) e `t_task_tag` fa l'aggancio. Quindi
+   aggiungere un tag a un task significa "trova o crea l'etichetta, poi lega":
+   due task che scrivono "urgente" puntano alla stessa riga, ed è ciò che rende
+   possibile filtrare per tag. Il confronto è sull'etichetta ripulita dagli
+   spazi, non sul testo grezzo, perché "urgente " e "urgente" sono lo stesso
+   tag per chi lo scrive.
+
+   I commenti non entrano nello storico (`t_task_history`): quello registra
+   cambi di campo fatti dalla macchina a stati, questi sono testo scritto da
+   una persona. Il dettaglio li mostra insieme nella scheda "Attività", ma
+   restano due sorgenti separate — mescolarle a schema vorrebbe dire perdere la
+   differenza fra "il campo dueAt è passato da X a Y" e "ho scritto una nota". */
+
+export function listTaskTags(database, idTask) {
+  return database
+    .prepare(`
+      SELECT t.idTag, t.label
+      FROM t_task_tag tt
+      JOIN t_tag t ON t.idTag = tt.idTag
+      WHERE tt.idTask = ?
+      ORDER BY t.label
+    `)
+    .all(idTask);
+}
+
+export function listTags(database) {
+  return database.prepare("SELECT idTag, label FROM t_tag ORDER BY label").all();
+}
+
+export function addTaskTag(database, idTask, label) {
+  return runInTransaction(database, () => {
+    taskEsistente(database, idTask);
+    const etichetta = String(label ?? "").trim();
+    if (etichetta === "") throw new Error("Il tag non può essere vuoto");
+
+    let tag = database.prepare("SELECT idTag FROM t_tag WHERE label = ?").get(etichetta);
+    if (!tag) {
+      const idTag = randomUUID();
+      database
+        .prepare("INSERT INTO t_tag (idTag, label, createdAt) VALUES (?, ?, ?)")
+        .run(idTag, etichetta, adesso());
+      tag = { idTag };
+    }
+
+    /* OR IGNORE e non un controllo prima: la chiave primaria della tabella di
+       aggancio è (idTask, idTag), quindi riaggiungere lo stesso tag è già
+       idempotente a schema. */
+    database
+      .prepare("INSERT OR IGNORE INTO t_task_tag (idTask, idTag) VALUES (?, ?)")
+      .run(idTask, tag.idTag);
+    return { esito: "applicato", idTag: tag.idTag, label: etichetta };
+  });
+}
+
+export function removeTaskTag(database, idTask, idTag) {
+  return runInTransaction(database, () => {
+    database.prepare("DELETE FROM t_task_tag WHERE idTask = ? AND idTag = ?").run(idTask, idTag);
+
+    /* L'etichetta resta nel vocabolario anche se nessuno la usa più: cancellarla
+       qui vorrebbe dire perdere un tag scritto un attimo prima per errore, e
+       ripulire `t_tag` è una manutenzione, non l'effetto di un click. */
+    return { esito: "applicato" };
+  });
+}
+
+export function listTaskComments(database, idTask) {
+  return database
+    .prepare("SELECT idTaskComment, body, createdAt FROM t_task_comment WHERE idTask = ? ORDER BY createdAt")
+    .all(idTask);
+}
+
+export function addTaskComment(database, idTask, body) {
+  return runInTransaction(database, () => {
+    taskEsistente(database, idTask);
+    const testo = String(body ?? "").trim();
+    if (testo === "") throw new Error("Il commento non può essere vuoto");
+
+    const idTaskComment = randomUUID();
+    database
+      .prepare("INSERT INTO t_task_comment (idTaskComment, idTask, body, createdAt) VALUES (?, ?, ?, ?)")
+      .run(idTaskComment, idTask, testo, adesso());
+    return { esito: "applicato", idTaskComment };
+  });
+}
+
+export function removeTaskComment(database, idTaskComment) {
+  return runInTransaction(database, () => {
+    database.prepare("DELETE FROM t_task_comment WHERE idTaskComment = ?").run(idTaskComment);
+    return { esito: "applicato" };
+  });
+}

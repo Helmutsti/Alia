@@ -172,6 +172,17 @@ export function AliaProvider({ children, dataset = null }) {
       riordina: (idParent, orderedIds) => esegui(() => core.reorderTasks(idParent, orderedIds)),
       cancellaTask: (id) => esegui(() => core.deleteTask(id)),
       migraTask: (id, idState) => esegui(() => core.migrateTask(id, idState)),
+      /* Tag e commenti: letture diritte (non passano da `esegui`, che serve a
+         negoziare le conferme delle mutazioni con cascata) e scritture avvolte
+         come le altre. Il dettaglio del task le chiama a finestra aperta, per
+         non tenere in memoria dati che servono a un task per volta. */
+      leggiTag: (id) => core.listTaskTags(id),
+      leggiCommenti: (id) => core.listTaskComments(id),
+      leggiStorico: (id) => core.getTaskHistory(id),
+      aggiungiTag: (id, label) => esegui(() => core.addTaskTag(id, label)),
+      togliTag: (id, idTag) => esegui(() => core.removeTaskTag(id, idTag)),
+      aggiungiCommento: (id, body) => esegui(() => core.addTaskComment(id, body)),
+      togliCommento: (idCommento) => esegui(() => core.removeTaskComment(idCommento)),
     }),
     [stato, errore, dati, derivati, carica, esegui, rispondi, annulla, richiesta, bloccato, avvisi, scartaAvviso],
   );

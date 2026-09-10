@@ -11,13 +11,15 @@ import { Check } from "../components/icons.jsx";
    Il filtro è l'unico a scelta multipla: resta aperto dopo il click, perché
    accendere due filtri di fila non deve costare due aperture. */
 
-const PANEL =
-  "absolute top-[38px] z-20 p-1.5 rounded-lg border border-divider bg-surface shadow-elev-lg";
+const PANEL = "absolute z-20 p-1.5 rounded-lg border border-divider bg-surface shadow-elev-lg";
 const ITEM =
   "flex items-center gap-[9px] px-[9px] py-2 w-full text-left rounded-sm border-none bg-transparent " +
   "cursor-pointer text-[12.5px] hover:bg-[color-mix(in_srgb,var(--color-accent)_14%,transparent)]";
 
-export function Dropdown({ open, onClose, align = "left", width, children }) {
+/* `placement`: i menu della testata contenuto si aprono in basso, quelli del
+   piede del dettaglio task in alto — lì sotto non c'è spazio, e l'artboard li
+   disegna sopra il pulsante (`bottom: calc(100% + 6px)`). */
+export function Dropdown({ open, onClose, align = "left", placement = "bottom", width, children }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -43,7 +45,10 @@ export function Dropdown({ open, onClose, align = "left", width, children }) {
     <div
       ref={ref}
       role="menu"
-      className={`${PANEL} ${align === "right" ? "right-0" : "left-0"}`}
+      className={
+        `${PANEL} ${align === "right" ? "right-0" : "left-0"} ` +
+        (placement === "top" ? "bottom-[38px]" : "top-[38px]")
+      }
       style={{ width }}
     >
       {children}
@@ -51,14 +56,15 @@ export function Dropdown({ open, onClose, align = "left", width, children }) {
   );
 }
 
-export function DropdownItem({ selected = false, onClick, children }) {
+export function DropdownItem({ selected = false, disabled = false, onClick, children }) {
   return (
     <button
       type="button"
       role="menuitemradio"
       aria-checked={selected}
+      disabled={disabled}
       onClick={onClick}
-      className={ITEM}
+      className={ITEM + (disabled ? " opacity-40 cursor-not-allowed hover:bg-transparent" : "")}
       style={{ color: selected ? "var(--color-accent)" : "var(--color-content)" }}
     >
       {children}
