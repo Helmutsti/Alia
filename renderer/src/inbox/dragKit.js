@@ -14,7 +14,21 @@ export const FLIP_EASING = "cubic-bezier(.2,.8,.2,1)";
 /* FLIP: si fotografano le posizioni prima del riordino, si rimette ogni
    elemento dove stava e lo si lascia tornare al suo posto. Negli artboard il
    retry con requestAnimationFrame arriva fino a 20 tentativi, perché al primo
-   frame dopo il commit il layout può non essere ancora assestato. */
+   frame dopo il commit il layout può non essere ancora assestato.
+
+   La fotografia e' indicizzata **per elemento** (una WeakMap), non per valore
+   dell'attributo. Non e' un dettaglio di stile: lo stesso task puo' comparire
+   due volte nel DOM — come card nella colonna del triage e come riga nella
+   vista Lista, se e' in triage — e con un indice per id sopravviveva una sola
+   posizione delle due. Entrambi gli elementi venivano poi animati da
+   quell'unica origine: la card spinta verso il posto della riga e viceversa,
+   con elementi che volavano da una parte all'altra della schermata. Era il
+   difetto per cui, trascinando, "si muoveva tutto in tutte le direzioni".
+
+   Con l'indice per elemento ognuno parte da dove stava lui. Un elemento nato
+   fra la fotografia e l'animazione non ha voce nella mappa e non viene
+   animato, che e' il comportamento giusto: non aveva una posizione da cui
+   venire. */
 /* Misura un elemento **fermo**.
 
    `getBoundingClientRect` su un elemento che sta animando restituisce il
@@ -45,10 +59,10 @@ export function useFlip(containerRef, attr = "data-card") {
   const capture = useCallback(() => {
     const host = containerRef.current;
     if (!host) return;
-    const map = {};
+    const map = new WeakMap();
     host.querySelectorAll(`[${attr}]`).forEach((el) => {
       const r = misuraFerma(el);
-      map[el.getAttribute(attr)] = { x: r.left, y: r.top };
+      map.set(el, { x: r.left, y: r.top });
     });
     pending.current = map;
   }, [containerRef, attr]);
@@ -64,7 +78,7 @@ export function useFlip(containerRef, attr = "data-card") {
       if (!host) return;
       const jobs = [];
       host.querySelectorAll(`[${attr}]`).forEach((el) => {
-        const was = snapshot[el.getAttribute(attr)];
+        const was = snapshot.get(el);
         if (!was) return;
         const r = misuraFerma(el);
         const dx = was.x - r.left;
