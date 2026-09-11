@@ -1,7 +1,28 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { confluenza } from "../lib/confluenza.js";
-import { Bell, Cartella, Check, Flusso, Layers, ManigliaRiordino, Plus, Sorgenti, Tastiera, Trash } from "./icons.jsx";
+import { Bell, Calendario, Cartella, Check, Flusso, Layers, ManigliaRiordino, Plus, Sorgenti, Tastiera, Trash } from "./icons.jsx";
+import {
+  DISPONIBILITA_PREDEFINITA,
+  GIORNI,
+  INTERVALLO_PREDEFINITO,
+  MODI_SETTIMANA,
+  applicaModo,
+  daMinuti,
+  eOra,
+  inMinuti,
+  intervalliComuni,
+  modoDellaSettimana,
+  normalizzaGiorno,
+  oreDisponibili,
+  oreScritte,
+  oreSettimanali,
+} from "../lib/disponibilita.js";
+/* La tendina della testata contenuto, riusata qui: e' la stessa cosa — una
+   scelta fra poche voci, con la spunta su quella in vigore — e un secondo
+   menu a discesa sarebbe un secondo comportamento da tenere allineato. */
+import { Dropdown, DropdownItem } from "../inbox/Dropdown.jsx";
+import { ChevronDown } from "./icons.jsx";
 import { CAMPI_CARD, DENSITA_CARD, PRESET_CARD, densitaDeiCampi } from "../lib/tasks.js";
 import { useAlia } from "../lib/AliaProvider.jsx";
 import { useTrappolaFuoco } from "../lib/fuoco.js";
@@ -52,6 +73,8 @@ const GHOST_ICO =
 const LINK_BTN =
   "flex items-center gap-1.5 p-0 border-0 bg-transparent cursor-pointer text-[12.5px] text-accent hover:opacity-80";
 
+const IcoCalendario = (p) => <Calendario size={15} {...p} />;
+
 /* Ordine della navigazione: Stati sta **sopra** Scorciatoie, e non e l'ordine
    dell'artboard. Le prime tre voci descrivono come lavora Alia — cosa avvisa,
    da dove pesca, come si chiama quello che fa; le Scorciatoie sono un
@@ -65,6 +88,12 @@ const SEZIONI = [
      che sono un promemoria: l'aspetto non e' una configurazione del lavoro, ma
      non e' nemmeno un ripasso. */
   { id: "aspetto", label: "Aspetto", Icona: Layers },
+  /* Il Calendario sta fra le quattro del "come lavora" e l'aspetto, perche'
+     e' l'ultima cosa che dice **come si lavora** e non come si vede: le ore
+     di disponibilita' sono un fatto della giornata, non una preferenza
+     grafica. L'icona si chiede a 15 come le altre della navigazione: il suo
+     ripiego e' 13, che e' la misura delle chip del dettaglio task. */
+  { id: "calendario", label: "Calendario", Icona: IcoCalendario },
   { id: "scorciatoie", label: "Scorciatoie", Icona: Tastiera },
 ];
 
@@ -1059,9 +1088,355 @@ function Aspetto({ densita, campi, onDensita, onCampi }) {
   );
 }
 
+/* ── Calendario: le ore in cui si lavora davvero ──────────────────────── */
+
+/* Un capo dell'intervallo. `<input type="time">` e non due caselle di numeri:
+   e' il campo che il sistema gia' sa disegnare, con il suo formato a 24 ore e
+   la sua tastiera, e rifarlo a mano vorrebbe dire rifare anche tutto quello
+   che quel campo sa gia' fare.
+
+   Si scrive **sull'uscita dal campo** e non a ogni battuta: mentre si digita
+   "1" di "14:00" il campo vale un'ora che non e' quella che si sta scrivendo,
+   e salvarla farebbe ballare la banda nel calendario a ogni tasto. */
+function CampoOra({ valore, onCommit, etichetta }) {
+  const [bozza, setBozza] = useState(valore);
+  useEffect(() => setBozza(valore), [valore]);
+
+  return (
+    <input
+      type="time"
+      value={bozza}
+      aria-label={etichetta}
+      onChange={(e) => setBozza(e.target.value)}
+      onBlur={() => (eOra(bozza) ? onCommit(bozza) : setBozza(valore))}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") {
+          setBozza(valore);
+          e.currentTarget.blur();
+        }
+      }}
+      className={`${CAMPO} w-[104px] tabular-nums [color-scheme:dark]`}
+    />
+  );
+}
+
+/* Gli intervalli di **una giornata tipo**: uno o piu' tratti, con le loro ore.
+
+   Lo stesso componente serve il modo a preselezione — dove la giornata tipo e'
+   una sola e vale per tutti i giorni accesi — e quello personalizzato, dove ce
+   n'e' una per riga. E' la stessa cosa scritta una volta: quello che cambia fra
+   i due modi non e' come si scrive un orario, e' a quanti giorni si applica. */
+function EditorIntervalli({ intervalli, onCambia, nome }) {
+  const scrivi = (prossimi) => onCambia(normalizzaGiorno(prossimi));
+
+  /* Dove mettere l'intervallo nuovo: la prima ora libera **che non tocca**
+     quelle che ci sono gia'.
+
+     Attaccarlo alla fine dell'ultimo sembrava la cosa comoda, ed era un
+     inganno: due intervalli che si toccano vengono fusi (vedi
+     `normalizzaGiorno`), quindi il gesto "aggiungi" allungava l'ultimo invece
+     di aggiungere qualcosa, e a schermo non compariva niente di nuovo. Serve
+     uno stacco, ed e' anche il modo in cui una giornata si spezza davvero:
+     non si riprende nel minuto in cui si e' smesso.
+
+     Si parte un'ora dopo la fine dell'ultimo — il posto quasi sempre giusto, e
+     un campo in meno da correggere — e se li' non ci sta si cerca dall'inizio
+     della giornata. Se non c'e' varco da nessuna parte non si aggiunge niente:
+     la giornata e' gia' piena, e un intervallo che non esiste non va inventato
+     sopra gli altri. */
+  const varco = (() => {
+    const tocca = (da) =>
+      intervalli.some((iv) => da <= inMinuti(iv.a) && inMinuti(iv.da) <= da + 60);
+    const ultimo = intervalli.at(-1);
+    const preferito = ultimo ? inMinuti(ultimo.a) + 60 : inMinuti(INTERVALLO_PREDEFINITO.da);
+    for (const partenza of [preferito, 0]) {
+      for (let inizio = partenza; inizio + 60 <= 24 * 60; inizio += 30) {
+        if (!tocca(inizio)) return inizio;
+      }
+    }
+    return null;
+  })();
+
+  /* Muovendo un capo l'altro si sposta con lui se serve: un intervallo con la
+     fine prima dell'inizio non e' un dato che valga la pena conservare, e
+     lasciarlo scritto in rosso in attesa che qualcuno lo aggiusti vorrebbe
+     dire poter chiudere le Impostazioni con dentro qualcosa di rotto. */
+  const cambiaCapo = (i, capo, ora) => {
+    const prossimi = intervalli.map((iv, k) => (k === i ? { ...iv } : iv));
+    const iv = prossimi[i];
+    iv[capo] = ora;
+    if (inMinuti(iv.da) >= inMinuti(iv.a)) {
+      if (capo === "da") iv.a = daMinuti(Math.min(inMinuti(ora) + 60, 23 * 60 + 59));
+      else iv.da = daMinuti(Math.max(inMinuti(ora) - 60, 0));
+    }
+    scrivi(prossimi);
+  };
+
+  return (
+    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+      {intervalli.map((iv, i) => (
+        <div key={`${i}-${iv.da}-${iv.a}`} className="flex items-center gap-2">
+          <CampoOra
+            valore={iv.da}
+            etichetta={`${nome}, inizio dell'intervallo ${i + 1}`}
+            onCommit={(ora) => cambiaCapo(i, "da", ora)}
+          />
+          <span className="text-content/38 text-meta">–</span>
+          <CampoOra
+            valore={iv.a}
+            etichetta={`${nome}, fine dell'intervallo ${i + 1}`}
+            onCommit={(ora) => cambiaCapo(i, "a", ora)}
+          />
+          {/* Togliere l'ultimo intervallo spegne il giorno, e non serve dirlo:
+              un giorno senza ore **e'** un giorno spento (vedi la nota in
+              lib/disponibilita.js), quindi l'interruttore si spegne da se' e le
+              due strade portano allo stesso posto. */}
+          <button
+            type="button"
+            onClick={() => scrivi(intervalli.filter((_, k) => k !== i))}
+            aria-label={`Togli l'intervallo ${iv.da}–${iv.a} (${nome})`}
+            title="Togli l'intervallo"
+            className={GHOST_ICO}
+          >
+            <Trash />
+          </button>
+        </div>
+      ))}
+
+      {varco !== null ? (
+        <button
+          type="button"
+          onClick={() => scrivi([...intervalli, { da: daMinuti(varco), a: daMinuti(varco + 60) }])}
+          className={`${LINK_BTN} mt-0.5`}
+        >
+          <Plus />
+          Aggiungi intervallo
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/* Una riga della tabella personalizzata: l'interruttore del giorno, le sue
+   ore, il totale.
+
+   Il totale per giorno non e' un ornamento. Gli intervalli si leggono uno per
+   uno e le ore vere della giornata non si vedono da nessuna parte — "9–13 e
+   14–18" fa sette ore, e nessuno le somma a mente ogni volta che cambia
+   qualcosa. */
+function GiornoDisponibilita({ giorno, intervalli, onCambia }) {
+  const acceso = intervalli.length > 0;
+
+  return (
+    <div className="flex items-start gap-4 py-3 border-t border-divider first:border-t-0">
+      <div className="flex items-center gap-2.5 w-[150px] shrink-0 pt-1.5">
+        <Interruttore
+          acceso={acceso}
+          onChange={(prossimo) => onCambia(prossimo ? [{ ...INTERVALLO_PREDEFINITO }] : [])}
+          etichetta={`${giorno.label}: giorno lavorativo`}
+        />
+        <span className={`text-card ${acceso ? "text-content" : "text-content/40"}`}>
+          {giorno.label}
+        </span>
+      </div>
+
+      {acceso ? (
+        <EditorIntervalli intervalli={intervalli} onCambia={onCambia} nome={giorno.label} />
+      ) : (
+        <span className="flex-1 text-meta text-content/38 py-1.5">Non lavorativo</span>
+      )}
+
+      <span className="w-[72px] shrink-0 text-right text-mini tabular-nums text-content/50 pt-2">
+        {acceso ? oreScritte(oreDisponibili(intervalli)) : "—"}
+      </span>
+    </div>
+  );
+}
+
+function CalendarioImpostazioni({ disponibilita, onDisponibilita }) {
+  const disp = disponibilita ?? DISPONIBILITA_PREDEFINITA;
+  const comuni = intervalliComuni(disp);
+  const [menuAperto, setMenuAperto] = useState(false);
+  /* Il modo si legge dalle ore, tranne quando lo si e' appena chiesto.
+
+     "Personalizzata" non scrive niente — e' l'assenza degli altri due — quindi
+     dedotta dal solo dato non arriverebbe mai: chi la sceglie su una settimana
+     che *combacia* con lunedi'-venerdi' vedrebbe la tendina tornare indietro da
+     sola e non succedere niente. Questo interruttore dice "aprimi i sette
+     giorni", che e' la richiesta vera, e non e' un secondo dato sulla
+     settimana: vive quanto la finestra, e si spegne appena si sceglie una delle
+     due preselezioni. Le ore restano l'unica verita'.
+
+     Al contrario non serve nulla: toccando i giorni finche' non combaciano piu'
+     con nessun modo, la tendina dice "Personalizzata" da se'. */
+  const [apriPersonalizzata, setApriPersonalizzata] = useState(false);
+  const modo = apriPersonalizzata ? "personalizzata" : modoDellaSettimana(disp);
+
+  /* Le ore di un giorno appena spento, per poterle rimettere se lo si riaccende
+     subito. Vive **solo finche' la finestra e' aperta**, e non nel dato: un
+     giorno spento e' un giorno senza ore, e tenere in cantina delle ore "di
+     scorta" vorrebbe dire due verita' sullo stesso giorno. Serve a rimediare a
+     un clic, non a ricordare una configurazione. */
+  const ricordo = useRef({});
+
+  const cambiaGiorno = (id, intervalli) => {
+    if (intervalli.length === 0 && (disp[id] ?? []).length > 0) ricordo.current[id] = disp[id];
+    const ripresi =
+      intervalli.length === 1 &&
+      intervalli[0].da === INTERVALLO_PREDEFINITO.da &&
+      intervalli[0].a === INTERVALLO_PREDEFINITO.a &&
+      (disp[id] ?? []).length === 0 &&
+      ricordo.current[id]?.length > 0
+        ? ricordo.current[id]
+        : intervalli;
+    onDisponibilita?.({ ...disp, [id]: ripresi });
+  };
+
+  const scegliModo = (id) => {
+    setMenuAperto(false);
+    /* Scegliere "Personalizzata" non tocca le ore: e' il momento in cui si sta
+       per mettere le mani sui giorni, e azzerarli sarebbe il contrario di
+       quello che serve. Apre la tabella con dentro quello che c'era. */
+    setApriPersonalizzata(id === "personalizzata");
+    if (id === "personalizzata" || id === modo) return;
+    onDisponibilita?.(applicaModo(id, comuni, disp));
+  };
+
+  const giorniAccesi = GIORNI.filter((g) => (disp[g.id] ?? []).length > 0);
+  const settimana = oreSettimanali(disp);
+  const etichettaModo = MODI_SETTIMANA.find((m) => m.id === modo)?.label ?? "Personalizzata";
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="m-0 text-[15px] font-medium tracking-[-0.01em]">Calendario</h2>
+        <p className="m-0 text-meta text-content/55 max-w-[520px]">
+          Le ore in cui lavori davvero. Il calendario le accende nella vista Giorno, e sono le ore
+          in cui ha senso mettere una task: tutto il resto della giornata resta disegnato, ma
+          spento.
+        </p>
+      </div>
+
+      {/* Prima **quali giorni**, poi l'orario. Quasi nessuno ha sette giornate
+          diverse, e scrivere cinque volte lo stesso orario e' cinque volte lo
+          stesso gesto piu' quattro occasioni di sbagliarne uno.
+
+          Il modo non e' una preferenza a parte: si riconosce dalle ore (vedi
+          `modoDellaSettimana`). Toccando un giorno nella tabella finche' non
+          combacia piu' con nessuno dei due, questa voce dice "Personalizzata"
+          da se' — e se si torna esatti su una delle due, torna quella. */}
+      <div className={RIGA}>
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className={ETICHETTA}>Giorni lavorativi</span>
+          <span className={NOTA}>
+            Con i primi due l’orario si scrive una volta sola e vale per tutti. Personalizzata
+            apre i sette giorni, uno per uno.
+          </span>
+        </div>
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setMenuAperto((aperto) => !aperto)}
+            className={
+              "inline-flex items-center gap-2 h-8 px-3 rounded-lg border border-divider " +
+              "bg-elevated cursor-pointer text-[12.5px] text-content hover:border-accent"
+            }
+          >
+            {etichettaModo}
+            <ChevronDown size={11} className="opacity-70" />
+          </button>
+          <Dropdown
+            open={menuAperto}
+            onClose={() => setMenuAperto(false)}
+            align="right"
+            width={190}
+          >
+            {MODI_SETTIMANA.map((m) => (
+              <DropdownItem key={m.id} selected={modo === m.id} onClick={() => scegliModo(m.id)}>
+                <span className="flex-1">{m.label}</span>
+              </DropdownItem>
+            ))}
+          </Dropdown>
+        </div>
+      </div>
+
+      {modo === "personalizzata" ? (
+        <div className="flex flex-col">
+          <div className="flex items-center gap-4 pb-2 border-b border-divider">
+            <span className="w-[150px] shrink-0 text-micro tracking-[0.08em] uppercase text-content/38">
+              Giorno
+            </span>
+            <span className="flex-1 text-micro tracking-[0.08em] uppercase text-content/38">
+              Intervalli
+            </span>
+            <span className="w-[72px] shrink-0 text-right text-micro tracking-[0.08em] uppercase text-content/38">
+              Totale
+            </span>
+          </div>
+
+          {GIORNI.map((g) => (
+            <GiornoDisponibilita
+              key={g.id}
+              giorno={g}
+              intervalli={disp[g.id] ?? []}
+              onCambia={onDisponibilita ? (intervalli) => cambiaGiorno(g.id, intervalli) : () => {}}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Una giornata tipo sola, e sotto a chi si applica. Le stesse righe
+           della tabella, senza la colonna dei giorni: non e' una seconda
+           interfaccia, e' la stessa con una dimensione in meno. */
+        <div className="flex flex-col">
+          <div className="flex items-start gap-4 pb-3 border-b border-divider">
+            <span className="w-[150px] shrink-0 pt-2 text-card">Orario della giornata</span>
+            <EditorIntervalli
+              intervalli={comuni}
+              onCambia={(intervalli) => onDisponibilita?.(applicaModo(modo, intervalli, disp))}
+              nome="giornata tipo"
+            />
+            <span className="w-[72px] shrink-0 text-right text-mini tabular-nums text-content/50 pt-2">
+              {oreScritte(oreDisponibili(comuni))}
+            </span>
+          </div>
+          <p className="m-0 pt-3 text-meta text-content/45">
+            Vale per {giorniAccesi.map((g) => g.label).join(", ")}.
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-center gap-4 pt-3 border-t border-divider">
+        <span className="flex-1 text-card">Ore disponibili a settimana</span>
+        <span className="w-[72px] shrink-0 text-right text-card tabular-nums text-accent">
+          {oreScritte(settimana)}
+        </span>
+      </div>
+
+      {/* La regola che il pannello applica da se'. Si dice qui perche' succede
+          **senza** che nessuno l'abbia chiesta, e scoprirla per caso vedendo
+          due intervalli diventare uno farebbe pensare a un campo che non ha
+          funzionato. */}
+      <p className="m-0 text-meta text-content/45 max-w-[520px] pt-1 border-t border-divider">
+        Gli intervalli che si toccano diventano uno solo: 9:00–13:00 e 12:00–14:00 sono
+        9:00–14:00, non sette ore. Un giorno senza intervalli è un giorno non lavorativo, ed è la
+        stessa cosa che dice l’interruttore.
+      </p>
+    </div>
+  );
+}
+
 /* ── il pannello ────────────────────────────────────────────────────────────── */
 
-export function SettingsModal({ onClose, densitaCard, onDensitaCard, campiCard, onCampiCard }) {
+export function SettingsModal({
+  onClose,
+  densitaCard,
+  onDensitaCard,
+  campiCard,
+  onCampiCard,
+  disponibilita,
+  onDisponibilita,
+}) {
   const [sezione, setSezione] = useState("stati");
   const rifCard = useRef(null);
 
@@ -1130,6 +1505,12 @@ export function SettingsModal({ onClose, densitaCard, onDensitaCard, campiCard, 
           {sezione === "progetti" ? <Progetti /> : null}
           {sezione === "scorciatoie" ? <Scorciatoie /> : null}
           {sezione === "stati" ? <Stati /> : null}
+          {sezione === "calendario" ? (
+            <CalendarioImpostazioni
+              disponibilita={disponibilita}
+              onDisponibilita={onDisponibilita}
+            />
+          ) : null}
           {sezione === "aspetto" ? (
             <Aspetto
               densita={densitaCard}

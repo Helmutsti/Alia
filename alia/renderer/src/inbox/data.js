@@ -35,9 +35,12 @@ export const VIEW_ORDER = ["lista", "kanban", "calendario", "gantt"];
    migliaia di pixel (vedi Rinascita.md, § ToDo); Calendario e Gantt sono impianti presi
    dagli artboard e non ancora verificati sui dati reali. */
 /* Kanban aperto l'11/09/2026: le colonne sono il raggruppamento scelto e si
-   trascina da una all'altra. Calendario e Gantt restano impianti presi dagli
-   artboard e mai verificati sui dati veri. */
-export const VIEW_BLOCKED = new Set(["calendario", "gantt"]);
+   trascina da una all'altra. Calendario aperto lo stesso giorno, con la sua
+   griglia vera a mese/settimana/giorno (vedi VistaCalendario) — i
+   trascinamenti li' non ci sono ancora, e non sono una condizione per
+   guardarlo. Il Gantt resta l'impianto preso dall'artboard e mai verificato
+   sui dati veri. */
+export const VIEW_BLOCKED = new Set(["gantt"]);
 
 export const SOURCE_ICONS = {
   mail: "M3 5h18v14H3zM3 7l9 6 9-6",

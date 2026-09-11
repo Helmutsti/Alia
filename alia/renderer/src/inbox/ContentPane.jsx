@@ -22,6 +22,7 @@ import {
   sortTasks,
 } from "./contentQuery.js";
 import { VIEW_BLOCKED, VIEW_ICONS, VIEW_LABELS, VIEW_ORDER } from "./data.js";
+import { eModoCalendario, MODI_CALENDARIO, VistaCalendario } from "./VistaCalendario.jsx";
 import { useAlia } from "../lib/AliaProvider.jsx";
 import { dueLabel, eInRitardo, giorniDiScarto, metaCard, PRESET_CARD } from "../lib/tasks.js";
 
@@ -126,7 +127,7 @@ function useLarghezzaBarra(rif, dipendenze) {
   return barra;
 }
 
-export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanban, onOpenTask, onApriComposer, onRowPointerDown, onOrdinamento, anteprima, campiCard = PRESET_CARD.essenziale }) {
+export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanban, refRilascioCalendario, onOpenTask, onApriComposer, onRowPointerDown, onOrdinamento, anteprima, campiCard = PRESET_CARD.essenziale, disponibilita }) {
   const alia = useAlia();
   const rifLista = useRef(null);
   const barra = useLarghezzaBarra(rifLista);
@@ -162,6 +163,14 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
     "stato",
     (v) => v === "stato" || v === "progetto" || v === "milestone",
   );
+  /* L'estensione del Calendario — mese, settimana o giorno — e' la stessa
+     specie di cosa del raggruppamento del Kanban: non e' una vista diversa, e'
+     come quella vista guarda. Quindi una preferenza sua, che si ricorda, e non
+     un valore dentro `vista.corrente`.
+
+     Il *periodo* invece non si ricorda e vive dentro la vista: vedi la nota in
+     VistaCalendario. */
+  const [modoCalendario, setModoCalendario] = usePreferenza("vista.calendario", "mese", eModoCalendario);
   /* La selezione multipla. `null` = non si sta selezionando: e' una **modalita'**,
      non una proprieta' delle righe, e la distinzione conta perche' dentro la
      modalita' il clic su una riga vuol dire un'altra cosa.
@@ -732,15 +741,10 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
     if (refRilascioKanban) refRilascioKanban.current = rilasciaKanban;
   }, [refRilascioKanban, rilasciaKanban]);
 
-  /* Calendario e Gantt restano le viste abbozzate che erano — l'utente ha
-     rimandato il loro disegno — ma smettono di mostrare dati inventati: i
-     punti sono le scadenze vere del mese corrente, le barre le task che hanno
-     davvero un intervallo `startAt`→`dueAt`. */
-  const giorniDelMese = useMemo(() => {
-    const oggi = new Date();
-    return new Date(oggi.getFullYear(), oggi.getMonth() + 1, 0).getDate();
-  }, []);
-
+  /* Il Gantt resta la vista abbozzata che era — l'utente ne ha rimandato il
+     disegno — ma non mostra dati inventati: le barre sono le task che hanno
+     davvero un intervallo `startAt`→`dueAt`. Il Calendario invece e' uscito
+     dall'abbozzo e vive in VistaCalendario. */
   const barreGantt = useMemo(() => {
     const conIntervallo = gruppi
       .flatMap((g) => g.items)
@@ -759,17 +763,6 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
       left: ((new Date(t.startAt).getTime() - da) / ampiezza) * 100,
       width: Math.max(2, ((new Date(t.dueAt).getTime() - new Date(t.startAt).getTime()) / ampiezza) * 100),
     }));
-  }, [gruppi]);
-
-  const puntiCalendario = useMemo(() => {
-    const oggi = new Date();
-    return new Set(
-      gruppi
-        .flatMap((g) => g.items)
-        .map((t) => (t.dueAt ? new Date(t.dueAt) : null))
-        .filter((d) => d && d.getMonth() === oggi.getMonth() && d.getFullYear() === oggi.getFullYear())
-        .map((d) => d.getDate()),
-    );
   }, [gruppi]);
 
   /* Il progetto nella riga solo quando non è già la chiave del gruppo e
@@ -926,6 +919,33 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
         ) : null}
         <span className="flex-1" />
 
+        {/* L'estensione del Calendario sta **accanto alla vista**, e solo
+            quando il Calendario e' in scena: le due scelte si leggono insieme
+            — "calendario, a mese" — e stanno nella riga di cosa si guarda,
+            non fra gli strumenti della riga sotto. */}
+        {view === "calendario" ? (
+          <div className="relative mr-2">
+            <button type="button" onClick={() => apri("calendario")} className={CTL_MUT}>
+              {MODI_CALENDARIO.find((m) => m.id === modoCalendario)?.label ?? "Mese"}
+              <ChevronDown size={11} className="opacity-70" />
+            </button>
+            <Dropdown open={menu === "calendario"} onClose={chiudi} align="right" width={160}>
+              {MODI_CALENDARIO.map((m) => (
+                <DropdownItem
+                  key={m.id}
+                  selected={modoCalendario === m.id}
+                  onClick={() => {
+                    setModoCalendario(m.id);
+                    chiudi();
+                  }}
+                >
+                  <span className="flex-1">{m.label}</span>
+                </DropdownItem>
+              ))}
+            </Dropdown>
+          </div>
+        ) : null}
+
         <div className="relative">
           <button type="button" onClick={() => apri("vista")} className={CTL}>
             <PathIcon d={VIEW_ICONS[view]} size={14} />
@@ -958,7 +978,12 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
         </div>
       </div>
 
-      {/* ═══ riga 2 — strumenti della vista ═══ */}
+      {/* ═══ riga 2 — strumenti della vista ═══
+          Nel Calendario non c'e': ordinamento, filtri e raggruppamento sono
+          scelte che il calendario non puo' accogliere — il posto di una task
+          li' e' il giorno in cui scade, e non c'e' un secondo modo di
+          disporle. Una riga di comandi spenti direbbe il contrario. */}
+      {view !== "calendario" ? (
       <div className="flex items-center gap-2 mb-4 pr-3 shrink-0">
         <div className="relative">
           <button type="button" onClick={() => apri("ordina")} className={CTL_MUT}>
@@ -1105,6 +1130,7 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
           </div>
         ) : null}
       </div>
+      ) : null}
 
       {/* ═══ vista Lista ═══ */}
       {view === "lista" ? (
@@ -1449,16 +1475,30 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
         </div>
       ) : null}
 
-      {/* ═══ vista Calendario ═══ */}
+      {/* ═══ vista Calendario ═══
+          Le task sono quelle dell'ambito, gia' passate per `gruppi`: il
+          raggruppamento non conta niente qui — il calendario le ridispone per
+          data — ma il progetto scelto in testata si', ed e' l'unico filtro che
+          questa vista offre. */}
       {view === "calendario" ? (
-        <div className="flex-1 min-h-0 grid grid-cols-7 auto-rows-fr gap-1.5 pr-3">
-          {Array.from({ length: giorniDelMese }, (_, i) => i + 1).map((day) => (
-            <div key={day} className="border border-divider rounded-sm p-1.5 flex flex-col gap-1">
-              <span className="text-micro text-content/50">{day}</span>
-              {puntiCalendario.has(day) ? <span className="w-[5px] h-[5px] rounded-full bg-accent" /> : null}
-            </div>
-          ))}
-        </div>
+        <VistaCalendario
+          modo={modoCalendario}
+          tasks={gruppi.flatMap((g) => g.items)}
+          onOpenTask={onOpenTask}
+          disponibilita={disponibilita}
+          anteprima={anteprima}
+          refRilascio={refRilascioCalendario}
+          onAggiornaTask={(id, patch) => alia.aggiornaTask(id, patch)}
+          /* Uscire dal calendario e' l'unico gesto che **cancella** una data, e
+             sta qui e non nella vista perche' e' composto di due scritture che
+             devono andare insieme: via la scadenza, e ritorno in triage. Una
+             sola delle due lascerebbe una task senza data fuori dall'inbox, o
+             una task in inbox ancora programmata. */
+          onTogliDalCalendario={async (id) => {
+            await alia.aggiornaTask(id, { dueAt: null, startAt: null });
+            await alia.smista(id, true);
+          }}
+        />
       ) : null}
 
       {/* ═══ vista Gantt ═══ */}

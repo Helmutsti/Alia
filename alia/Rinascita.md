@@ -760,7 +760,7 @@ Tre punti in cui l'innesto ha toccato decisioni non ancora prese. **Da confermar
 2. **Le priorità sono cinque nel core e quattro nel design.** `urgent` non aveva un colore; gli ho dato il rosso più saturo della rampa (`red-500` contro `red-400` di `high`), che li distingue senza rifare la scala. Da verificare sull'artboard.
 3. **Il chip di stato si colora per ruolo, non per etichetta** — partenza neutra, intermedio con l'accento, chiusura spenta e a contorno. È l'unica cosa su cui la grafica può contare, dato che gli stati sono configurabili. Conseguenza: più stati intermedi condividono lo stesso azzurro. Se diventeranno molti servirà distinguerli, ma è una decisione da prendere sull'artboard, non inventando colori nel componente.
 
-Le viste Calendario e Gantt restano gli abbozzi che erano — il loro disegno è rimandato — ma non mostrano più dati inventati: i punti sono le scadenze vere del mese, le barre solo le task che hanno davvero `startAt` e `dueAt`.
+Il Gantt resta l'abbozzo che era — il suo disegno è rimandato — ma non mostra più dati inventati: le barre sono solo le task che hanno davvero `startAt` e `dueAt`. Il Calendario è uscito dall'abbozzo l'11/09/2026: vedi § Interfaccia, "Vista Calendario".
 
 Due perdite di informazione accettate nella migrazione, da sapere: il vecchio `item_history` è un diario di eventi (`event_type` + `details`), non un registro di campi cambiati, quindi entra in `t_task_history` con l'evento in `field`, il dettaglio in `newValue` e `oldValue` nullo — non c'è modo di ricostruire il valore precedente. E `item_comments.author` si perde, perché `t_task_comment` non ha un autore (sistema mono-utente).
 
@@ -1134,10 +1134,155 @@ parte un altro evento, e si torna indietro a puntatore fermo, un giro per fotogr
 
 ### Viste bloccate
 
-Kanban, Calendario e Gantt restano nel selettore, **spente**. Una voce spenta dice che
-la vista esiste e non è pronta, meglio di un elenco corto che lascia chiedersi se sia
-mai stata prevista. Il codice c'è in `ContentPane`; sbloccarne una vuol dire togliere
-una stringa da `VIEW_BLOCKED` e sistemare quello che salta fuori.
+Resta spento il solo **Gantt**. Una voce spenta dice che la vista esiste e non è
+pronta, meglio di un elenco corto che lascia chiedersi se sia mai stata prevista. Il
+codice c'è in `ContentPane`; sbloccarla vuol dire togliere una stringa da
+`VIEW_BLOCKED` e sistemare quello che salta fuori. Kanban e Calendario sono usciti
+di lì l'11/09/2026.
+
+### Vista Calendario — 11/09/2026
+
+Le task su una griglia di date, in `inbox/VistaCalendario.jsx`. Tre estensioni della
+stessa griglia — **mese, settimana, giorno** — scelte in un selettore che sta nella
+riga 1 accanto a quello delle viste, perché è una proprietà *del* calendario e non
+una quarta vista: il selettore delle viste dice in che forma si guarda, questo quanto
+tempo ci sta dentro. Si ricorda (`vista.calendario`), come il raggruppamento del
+Kanban e per la stessa ragione.
+
+La **riga 2 non c'è**. Ordinamento, filtri e raggruppamento sono scelte che il
+calendario non può accogliere: il posto di una task lì è il giorno in cui scade, e
+non c'è un secondo modo di disporle. Una riga di comandi spenti direbbe il contrario.
+Resta il selettore di progetto, che è l'ambito e vale per tutte le viste.
+
+Conseguenze accettate, entrambe dette a schermo invece che nascoste:
+
+- le task **senza scadenza non compaiono**, e la testata del periodo le conta
+  («1 senza scadenza, fuori dal calendario»): sparire in silenzio farebbe sembrare
+  che manchino delle task, e invece manca una data;
+- **niente griglia delle ore** nel mese e nella settimana. È una scelta di scala: in
+  una colonna larga un settimo, ventiquattro fasce fanno righe da venti pixel, cioè
+  una precisione che lì non si può né leggere né usare.
+
+Dentro una cella non ci sta una card: nel mese e nella settimana le task sono
+**pillole** (pallino del progetto e titolo), che restano card viste da lontano —
+stesso bordo, stesso fondo sollevato.
+
+Il periodo mostrato è stato locale e non preferenza: riaprendo l'app si riparte da
+oggi. I trascinamenti non ci sono ancora — questa è la geometria, il gesto viene
+dopo — ma ogni cella porta già `data-giorno`, che è quello che servirà per farne un
+bersaglio.
+
+### Le ore, e le ore di disponibilità — 11/09/2026
+
+Il **Giorno** ha la griglia delle ore, e solo lui: lì lo spazio c'è, e l'ora è un dato
+come un altro — il core la tiene da sempre dentro `dueAt`. Ogni task è un blocco alto
+un'ora: non è una stima, è una convenzione dichiarata, perché una durata nel modello
+non esiste (`dueAt` è un istante). Il giorno in cui esisterà, quella costante diventa
+un campo. Le task alla stessa ora si dividono la larghezza **per grappolo**, non per
+giornata: tre alle 9 e una alle 15 fanno tre colonne alle 9 e una sola alle 15.
+
+Una task a mezzanotte tonda è una task **senza ora** — chi scrive una scadenza
+dall'app le dà le 9, quindi mezzanotte è quasi sempre un import — e va nella fascia
+"tutto il giorno" sopra la griglia, invece di essere appoggiata in cima alla notte.
+
+Sopra le ore ci sono le **ore di disponibilità** (`lib/disponibilita.js`,
+Impostazioni → Calendario): le fasce in cui si lavora davvero, accese, e tutto il
+resto spento. Accese di **grigio** e non d'accento (11/09/2026): una banda colorata
+gareggiava con le task colorate, e la gara la vinceva lo sfondo — la cosa più accesa
+della giornata finiva per essere l'orario di lavoro invece di quello che c'è dentro.
+Un grigio appena più chiaro del fondo si legge come un rilievo e non come un segnale,
+e tutto il colore resta alle task. Non sono un orario di apertura da esporre: sono la fascia in cui ha
+senso *mettere* una task, e serviranno al rilascio per sapere se una task è stata
+lasciata in un'ora che esiste.
+
+La forma è un oggetto con una chiave per giorno di `Date.getDay()` e sotto un elenco
+di intervalli `{ da, a }` in "HH:MM". Tre decisioni che vale la pena ricordare:
+
+- **un giorno spento è un elenco vuoto**, non un flag accanto alle ore. Due dati
+  possono contraddirsi — un giorno "attivo" con zero intervalli — e allora
+  bisognerebbe decidere ogni volta chi vince;
+- **gli intervalli che si toccano si fondono**. 9:00–13:00 più 12:00–14:00 non è un
+  errore da contestare, è un modo goffo di dire 9:00–14:00: contarli separati
+  direbbe due volte l'ora fra le 12 e le 13 in ogni totale;
+- **il modo della settimana si riconosce, non si salva.** La tendina Lunedì–venerdì /
+  Lunedì–sabato / Personalizzata è la stessa idea delle preselezioni delle card
+  (`densitaDeiCampi`): con una preselezione l'orario si scrive **una volta sola** e
+  vale per tutti i giorni accesi, e "Personalizzata" è il nome che la settimana
+  prende quando non combacia più con nessuna delle due. L'unica eccezione è
+  *chiedere* Personalizzata su una settimana che combacia: quella richiesta vive
+  nella finestra (apre i sette giorni) e non nel dato, perché le ore restano l'unica
+  verità.
+
+Le ore sono scritte "HH:MM" e non in minuti dopo mezzanotte: è la forma che
+`<input type="time">` legge senza conversioni ed è leggibile dentro `t_setting`. Il
+giorno finisce alle 23:59, perché quel campo non sa dire 24:00.
+
+Il conto (fusione, totali, riconoscimento del modo) è coperto da
+`test/disponibilita.test.js`, per la stessa ragione dei test del promemoria: sono
+conti che sbagliano in silenzio.
+
+### Il trascinamento sulla linea temporale — 11/09/2026
+
+Nel Giorno la posizione **è** la scadenza: spostare una task lì dentro non è un
+riordino, è una riscrittura di `startAt`/`dueAt`. Da qui tutto il resto.
+
+**`CardCalendarTask`** è la terza forma, accanto alla riga della Lista e alla card
+dell'Inbox, e non un adattamento di una delle due: qui **l'altezza è un dato**. Una
+card alta quanto il suo contenuto direbbe un'ora che non ha. Rettangolare, angoli
+appena smussati (3px: un angolo tondo si mangia metà di un blocco da un quarto d'ora,
+e due blocchi consecutivi sembrerebbero avere del tempo libero in mezzo), e sopra ci
+si legge **il titolo e l'ora, nient'altro** — a quell'altezza non ci sono righe da
+spendere, e la domanda sulla linea non è "che cos'è questa task" ma "cosa c'è alle
+dieci". L'unica cosa non scritta è il filo del progetto sul bordo sinistro.
+
+**Il blocco è lavato della tinta del progetto** (corretto l'11/09/2026). Era neutro
+come la card, e sulla linea non funzionava: un difetto di contesto, non di colore —
+la card dell'Inbox sta in una colonna scura e si stacca da sé, il blocco sta sopra le
+bande della disponibilità, che sono già schiarite, e grigio chiaro su grigio chiaro
+obbliga a cercare il bordo per sapere dove finisce l'uno e comincia l'altro. La
+risposta viene dal filo: se tre pixel di colore bastano a dire di chi è la task, il
+fondo può dire la stessa cosa con più superficie — tinta al 16% mischiata al grigio
+della card, bordo al 45%, più un'ombra corta perché sulla linea il blocco *sta sopra*
+la giornata. Non è una deroga all'accento unico: i colori dei progetti sono già
+nell'interfaccia, e una task senza progetto resta neutra. Il testo, nella stessa
+correzione, sale di un gradino (titolo 12.5px, ora 11): sulla linea si guarda la
+giornata intera, non una card alla volta.
+
+**Tre gesti su un blocco solo**, distinti da dove si preme: il centro lo sposta lungo
+la linea, i due bordi (cursore `ns-resize`, maniglie in hover) ne cambiano un capo.
+Passo di un quarto d'ora, durata minima un quarto d'ora. Non passano dal motore delle
+card (`dragKit`): lì il trascinamento sposta un elemento **dentro un elenco** e la
+domanda è "prima di quale altro"; qui lo sposta **su un asse continuo** e la domanda
+è "a che minuto". Sono due geometrie diverse. Il blocco si muove da solo, senza clone:
+è già un rettangolo in posizione assoluta, quindi cambiargli le ore lo sposta davvero.
+
+**Ridimensionare cambia natura, spostare no.** Una task con il solo `dueAt` è un
+istante (disegnato alto un'ora per convenzione dichiarata); tirarne un bordo è il
+gesto con cui diventa un intervallo `startAt`→`dueAt`, e non c'è bisogno di chiederlo
+— tirare un bordo *è* dire "dura da qui a qui". Un termine spostato resta un termine.
+
+**Dentro e fuori, con il cambio di forma.** Una card lasciata sulla linea esce dal
+triage, prende il giorno e l'ora del punto in cui è stata lasciata, e apre una tendina
+che chiede l'unica cosa che il gesto non ha detto: se è una scadenza netta o un
+intervallo. La tendina non è un modulo da confermare — la data è già scritta, e
+chiuderla lascia la task dov'è — serve a precisare. Nel verso opposto, un blocco
+portato sulla colonna del triage **perde la scadenza** e torna in inbox: è l'unico
+rilascio nel triage che cancella una data, e vale solo qui perché qui la data era la
+posizione (altrove il flag significa "da rivedere", non "da azzerare").
+
+Il cambio di forma è la metà visibile della regola: entrando nel calendario il clone
+del motore si nasconde e al suo posto la vista disegna un blocco fantasma all'ora
+sotto il puntatore; uscendo verso l'Inbox il blocco resta fermo e sbiadito e al
+puntatore compare la card vera. Le due direzioni dicono la stessa cosa — di là le
+task non hanno un'ora, quindi non hanno la forma che l'ora dà.
+
+Il motore ha guadagnato una **terza famiglia di bersagli** accanto alle colonne e ai
+gruppi: la pista (`data-drop-ora`), che al posto di `beforeId` restituisce `minuti`.
+Il motore non sa cosa sia un calendario: legge i due estremi che la pista dichiara
+(`data-fascia-da`/`-a`) e fa una proporzione — geometria, non semantica, come i centri
+delle righe. Chi scrive resta la vista, via ref (`refRilascioCalendario`), con lo
+stesso giro del Kanban e per lo stesso motivo: il motore vede tutte le colonne, ma
+cosa voglia dire "lasciare qui" lo sa solo chi mostra il giorno.
 
 ### Sintassi rapida nel composer — ripresa l'11/09/2026
 
@@ -1541,11 +1686,17 @@ controllo.
 Sette tasti disegnati (J/K, `/`, G, N, E, Spazio, ⌫) che nessuno ascolta. Oggi la
 sezione lo dichiara — onesto, ma non è uno stato in cui restare a lungo.
 
-### 12. Kanban, Calendario e Gantt
+### 12. Gantt
 
-Kanban ha il padding delle card da correggere e le colonne larghe 220px fisse che con
-molti progetti fanno un tabellone da migliaia di pixel; Calendario e Gantt sono
-impianti presi dagli artboard e mai verificati sui dati veri.
+Kanban e Calendario sono usciti da questa voce l'11/09/2026. Il Gantt resta l'impianto
+preso dall'artboard e mai verificato sui dati veri.
+
+Del Calendario resta da decidere il trascinamento **nel Mese e nella Settimana**:
+lì spostare una pillola da una cella all'altra dovrebbe cambiare la data lasciando
+l'ora com'era. E resta la domanda che le ore di disponibilità aprono senza chiudere:
+lasciare un blocco **fuori** dalle fasce accese oggi si accetta in silenzio. Rifiutare,
+avvertire o accettare è una decisione di prodotto, non un dettaglio di
+implementazione.
 
 ### 13. Dump del database dalle Impostazioni (chiesto il 2026-09-11)
 

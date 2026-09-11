@@ -209,6 +209,7 @@ export function useBoardDrag({
       let lastColId = null;
       let lastGroupId = null;
       let lastBeforeId = "none-yet";
+      let lastMinuti = null;
       let lastWidth = rect.width;
 
       /* Dentro un contenitore, prima di quale elemento cadrebbe il task: si
@@ -240,6 +241,37 @@ export function useBoardDrag({
       const targetInfo = (ev) => {
         const dentro = (r) =>
           ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+
+        /* Terza famiglia: la **linea temporale** del Calendario, e sta per
+           prima perche' e' la piu' interna di tutte.
+
+           Qui il rilascio non chiede "prima di quale altro elemento" ma "a che
+           minuto", quindi al posto di `beforeId` torna `minuti`. Il motore non
+           sa cosa sia un calendario e non deve saperlo: legge due numeri che la
+           pista dichiara (`data-fascia-da`/`-a`, i minuti al bordo alto e al
+           bordo basso) e fa una proporzione. E' geometria, non semantica —
+           la stessa cosa che fa gia' con i centri delle righe.
+
+           Il cambio di forma del clone lo decide comunque il calendario: qui il
+           clone si nasconde e basta (vedi `move`), perche' un clone e' una
+           copia del DOM di partenza e una card non puo' diventare un blocco
+           orario allungandosi. Quello che si vede al suo posto e' il fantasma
+           che la vista disegna sulla pista. */
+        const pista = [...document.querySelectorAll("[data-drop-ora]")]
+          .map((el) => ({ id: el.getAttribute("data-drop-ora"), el, r: el.getBoundingClientRect() }))
+          .find(({ r }) => dentro(r));
+        if (pista) {
+          const da = Number(pista.el.getAttribute("data-fascia-da"));
+          const a = Number(pista.el.getAttribute("data-fascia-a"));
+          const minuti = da + ((ev.clientY - pista.r.top) / pista.r.height) * (a - da);
+          return {
+            colId: null,
+            groupId: `ora:${pista.id}`,
+            el: pista.el,
+            beforeId: null,
+            minuti,
+          };
+        }
 
         const gruppo = [...document.querySelectorAll("[data-drop-group]")]
           .map((el) => ({ id: el.getAttribute("data-drop-group"), el, r: el.getBoundingClientRect() }))
@@ -296,19 +328,38 @@ export function useBoardDrag({
            oggetto autonomo, una row un elemento di un elenco (Rinascita.md).
            Cambia la larghezza, non l'impaginazione interna: il clone resta una
            copia del DOM di partenza. */
-        const larghezza = info?.el ? info.el.clientWidth - MARGINE_BERSAGLIO : rect.width;
+        /* Sopra la linea temporale il clone sparisce: li' la card diventa un
+           blocco orario, e il blocco lo disegna la vista al minuto giusto.
+           Due copie della stessa task che si inseguono sarebbero una di
+           troppo. */
+        clone.style.opacity = info?.minuti != null ? "0" : "0.97";
+
+        const larghezza =
+          info?.el && info.minuti == null ? info.el.clientWidth - MARGINE_BERSAGLIO : rect.width;
         if (Math.abs(larghezza - lastWidth) > 1) {
           lastWidth = larghezza;
           clone.style.width = `${larghezza}px`;
         }
 
+        /* Sulla linea il bersaglio non cambia mai — e' sempre la stessa pista
+           — ma il *minuto* si muove di continuo: senza questo, il fantasma
+           resterebbe inchiodato all'ora d'ingresso. Cinque minuti di soglia
+           perche' il rilascio arrotonda comunque al quarto d'ora, e aggiornare
+           a ogni pixel sarebbe lavoro speso per un'anteprima che non cambia. */
+        const tempoMosso =
+          info?.minuti != null && (lastMinuti === null || Math.abs(info.minuti - lastMinuti) >= 5);
+
         if (
           info &&
-          (info.colId !== lastColId || info.groupId !== lastGroupId || info.beforeId !== lastBeforeId)
+          (info.colId !== lastColId ||
+            info.groupId !== lastGroupId ||
+            info.beforeId !== lastBeforeId ||
+            tempoMosso)
         ) {
           lastColId = info.colId;
           lastGroupId = info.groupId;
           lastBeforeId = info.beforeId;
+          lastMinuti = info.minuti ?? null;
 
           /* Due modi di fare l'anteprima, secondo il bersaglio.
 
@@ -335,6 +386,7 @@ export function useBoardDrag({
               id,
               groupId: info.groupId,
               beforeId: info.beforeId,
+              minuti: info.minuti ?? null,
               altezza: rect.height,
             });
           }
@@ -361,6 +413,7 @@ export function useBoardDrag({
           colId: lastColId,
           groupId: lastGroupId,
           beforeId: lastBeforeId === "none-yet" ? null : lastBeforeId,
+          minuti: lastMinuti,
           tasks: tasksRef.current,
         });
       };

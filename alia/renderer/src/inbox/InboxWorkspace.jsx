@@ -15,6 +15,11 @@ import {
   DENSITA_CARD, dueLabel, eCampiCard, eInRitardo, metaCard, risolviCampiCard,
 } from "../lib/tasks.js";
 import { usePreferenza } from "../lib/preferenze.js";
+import {
+  DISPONIBILITA_PREDEFINITA,
+  eDisponibilita,
+  normalizzaDisponibilita,
+} from "../lib/disponibilita.js";
 import { SCORCIATOIA_COMPOSER, SCORCIATOIA_NUOVA_TASK, eComposer, eNuovaTask } from "../lib/piattaforma.js";
 import "./inbox.css";
 
@@ -133,11 +138,30 @@ export function InboxWorkspace({ startFull = false }) {
     [densitaCard, campiScelti],
   );
 
+  /* Le ore di disponibilita'. Letta qui per la stessa ragione dell'aspetto:
+     la leggono in due — le Impostazioni per scriverla, il Calendario per
+     disegnarla — e due `usePreferenza` sulla stessa chiave partono d'accordo
+     e divergono al primo cambio.
+
+     Normalizzata all'uscita da qui, non all'ingresso nei componenti: sette
+     chiavi sempre presenti e intervalli sempre ordinati e fusi, cosi' nessuno
+     dei due deve difendersi da un dato storto. */
+  const [dispSalvata, setDispSalvata] = usePreferenza(
+    "calendario.disponibilita",
+    DISPONIBILITA_PREDEFINITA,
+    eDisponibilita,
+  );
+  const disponibilita = useMemo(() => normalizzaDisponibilita(dispSalvata), [dispSalvata]);
+
   /* Cosa voglia dire rilasciare su una colonna del Kanban lo sa ContentPane,
      che conosce raggruppamento e ambito; ma il rilascio passa da qui, perche'
      questo e' l'unico posto che vede **tutte** le colonne, quella dell'inbox
      compresa. La funzione arriva in un ref (vedi la nota di la'). */
   const rilascioKanban = useRef(null);
+  /* Stesso meccanismo per la linea temporale del Calendario: il motore vede
+     tutte le colonne, ma cosa voglia dire "lasciare qui" — quale giorno, quale
+     minuto — lo sa solo la vista Giorno. */
+  const rilascioCalendario = useRef(null);
 
   /* Il bersaglio sotto il puntatore durante il trascinamento, per l anteprima
      che il pannello si disegna da solo (vedi ContentPane). */
@@ -218,7 +242,7 @@ export function InboxWorkspace({ startFull = false }) {
   const ordineDelleRadici = (locali) => locali.filter((t) => t.parentId === null).map((t) => t.id);
 
   const onDrop = useCallback(
-    async ({ id, colId, groupId, tasks: locali }) => {
+    async ({ id, colId, groupId, minuti, tasks: locali }) => {
       /* Due liste, e vanno tenute distinte con cura.
 
          `locali` e la lista ottimistica: durante il trascinamento l'anteprima
@@ -248,6 +272,21 @@ export function InboxWorkspace({ startFull = false }) {
          porta una card dentro una colonna ha deciso dove va. Quindi una card
          presa dalla colonna Inbox e lasciata sul tabellone esce dal triage —
          ed e' il gesto che mancava. */
+      /* ── rilascio sulla linea temporale del Calendario ──
+         La chiave e' `ora:<giorno>` e porta con se' il minuto sotto il
+         puntatore. Vale come smistamento come ogni altro ingresso nel pannello
+         contenuto — dare un'ora a una task e' la forma piu' decisa di
+         smistarla — e in piu' e' l'unico rilascio che scrive una **data**.
+
+         La data la scrive il calendario (`rilascioCalendario`), che e' l'unico
+         a sapere quale giorno sta mostrando; qui si fa la sola cosa che il
+         calendario non puo' fare, cioe' togliere il flag del triage. */
+      if (groupId && String(groupId).startsWith("ora:")) {
+        await rilascioCalendario.current?.(task, String(groupId).slice(4), minuti ?? 0);
+        if (task.inbox) await alia.smista(id, false);
+        return;
+      }
+
       if (groupId && String(groupId).includes(":")) {
         await rilascioKanban.current?.(task, groupId);
         if (task.inbox) await alia.smista(id, false);
@@ -417,7 +456,15 @@ export function InboxWorkspace({ startFull = false }) {
     onEditTitle: setEditingTask,
     onDrop,
     patchPerBersaglio,
-    onAnteprima: setAnteprima,
+    /* Il titolo viaggia con l'anteprima. Serve al fantasma che il Calendario
+       disegna sulla linea: li' la card e' gia' diventata un blocco, e un blocco
+       senza titolo sarebbe un rettangolo che non dice quale task sta per
+       arrivare. Lo aggiunge qui chi ha le task sotto mano, invece di far
+       cercare il motore. */
+    onAnteprima: useCallback(
+      (a) => setAnteprima(a && { ...a, titolo: tasks.find((t) => t.id === a.id)?.title }),
+      [tasks],
+    ),
   });
 
   const detail = tasks.find((t) => t.id === detailTask);
@@ -559,7 +606,9 @@ export function InboxWorkspace({ startFull = false }) {
             modale copre tutta la schermata e non solo il pannello. */}
         <ContentPane
           refRilascioKanban={rilascioKanban}
+          refRilascioCalendario={rilascioCalendario}
           campiCard={campiCard}
+          disponibilita={disponibilita}
           /* Il rientro sinistro segue la colonna: a colonna chiusa sparisce,
              perche' e' lo stacco *da quella*, non un margine del pannello. */
           padSinistra={m.content.padSinistra}
@@ -823,6 +872,8 @@ export function InboxWorkspace({ startFull = false }) {
             setCampiScelti(campi);
             setDensitaCard(densita);
           }}
+          disponibilita={disponibilita}
+          onDisponibilita={setDispSalvata}
         />
       ) : null}
 
