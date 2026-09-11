@@ -14,6 +14,7 @@
     "build",
     "electron",
     "scripts/postinstall.js",
+    "scripts/preuninstall.js",
     "src",
     "renderer/dist"
   ],
@@ -33,7 +34,8 @@
     "start": "npm run build:renderer && electron . --enable-features=OverlayScrollbar",
     "electron": "electron . --enable-features=OverlayScrollbar",
     "seed": "node scripts/seed.js",
-    "postinstall": "node scripts/postinstall.js"
+    "postinstall": "node scripts/postinstall.js",
+    "preuninstall": "node scripts/preuninstall.js"
   },
   "engines": {
     "node": ">=24.0.0"

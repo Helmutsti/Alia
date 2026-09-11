@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { ALIA_OPERATIONS, createAliaCore } from "../src/core/alia-core.js";
 import { creaConfluenzaAlia } from "./confluenza.js";
 
@@ -9,39 +9,30 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const DEV_SERVER_URL = process.env.ELECTRON_RENDERER_URL;
 
-/* ── Dove vivono i dati: accanto all'app, non in AppData ────────────────────
+/* ── Dove vivono i dati ─────────────────────────────────────────────────────
 
-   Electron propone `app.getPath("userData")`, che su Windows è
-   `%APPDATA%\alia` — un posto che funziona ma che non si trova. Alia tiene
-   invece database, configurazione e profilo di Chromium in **`Alia-dati` sul
-   Desktop**: dove li vedi, dove li copi, dove ci scrivi un token senza dover
-   sapere cos'è `%APPDATA%`.
+   `app.getPath("userData")`, cioe' `%APPDATA%\alia` su Windows. E' il posto che
+   Electron propone, ed e' quello giusto per un programma che si installa.
 
-   `setPath` e non solo un percorso diverso per il database: spostare il solo
-   `.sqlite` lascerebbe in AppData tutto il resto (cache di Chromium, Local
-   Storage, preferenze della finestra). Cambiando `userData` alla radice, ci si
-   sposta tutto insieme.
+   **C'e' stata una deviazione, l'11/09/2026, e vale la pena ricordarla.** Per
+   mezza giornata i dati sono stati sul Desktop, in `Alia-dati`: la ragione era
+   buona su una macchina sola — i dati dove si vedono, la cartella che si copia,
+   nessun `%APPDATA%` da sapere cos'e'. Era sbagliata per un prodotto che si
+   distribuisce: **ogni utente che installa si ritroverebbe una cartella sul
+   proprio Desktop**, che e' un posto che la gente considera suo, e nessun'altra
+   app lo fa.
 
-   **Va chiamata prima di `whenReady`**: dopo, Chromium ha già aperto il profilo
-   nel posto vecchio e non lo sposta più. È il motivo per cui questa riga sta qui
-   in alto e non dentro `app.whenReady()`.
+   La lezione da tenere: "dove li vedo io" e "dove vanno per tutti" sono due
+   domande diverse, e la seconda vince appena il programma esce da qui.
 
-   **Fuori dal repo, non dentro.** La cartella dei dati sta sul Desktop e non
-   dentro quella dell'applicazione, che è un repository git: là dentro il
-   database sarebbe un file non tracciato in mezzo a file tracciati — da
-   ignorare a mano, e da perdere il giorno che il progetto si ricancella o si
-   riclona. I dati sopravvivono al codice, quindi non stanno dentro al codice.
-
-   `app.getPath("desktop")` e non un percorso scritto a mano: il Desktop può
-   essere reindirizzato (OneDrive lo fa di suo), e l'unico che sa dov'è davvero
-   è il sistema. `mkdirSync` prima di `setPath` perché Electron vuole una
-   cartella che esista già.
-
-   `ALIA_DATA` scavalca tutto, per chi vuole i dati altrove senza toccare il
-   codice. */
-const CARTELLA_DATI = process.env.ALIA_DATA ?? join(app.getPath("desktop"), "Alia-dati");
+   `ALIA_DATA` resta per chi vuole spostarli davvero — una chiavetta, un disco
+   condiviso, una prova con dati finti — e in quel caso e' una scelta fatta
+   apposta, non un posto che ci si ritrova addosso. */
+const CARTELLA_DATI = process.env.ALIA_DATA ?? app.getPath("userData");
+/* Sempre, non solo quando si sposta: Electron la creerebbe da se', ma solo
+   quando e' pronto — e il log ci scrive dentro prima. */
 mkdirSync(CARTELLA_DATI, { recursive: true });
-app.setPath("userData", CARTELLA_DATI);
+if (process.env.ALIA_DATA) app.setPath("userData", CARTELLA_DATI);
 
 /* Nota sulle scrollbar in overlay (`--enable-features=OverlayScrollbar`): le fa
    galleggiare sopra il contenuto invece di occupare spazio nel layout. Senza,
@@ -56,11 +47,28 @@ app.setPath("userData", CARTELLA_DATI);
    passato all'avvio del processo funziona. Sta quindi negli argomenti di lancio
    (`bin/alia.js` e gli script npm), non in questo file. */
 
-const DEBUG_LOG_PATH = join(__dirname, "debug.log");
+/* Il log sta con i dati, **non nella cartella dell'app**.
+
+   Stava in `electron/debug.log`, cioe' dentro il programma installato — che su
+   un'installazione globale vuol dire dentro `node_modules`. Tre cose sbagliate
+   insieme: si scrive in una cartella che dovrebbe essere di sola lettura, il
+   file sparisce al primo aggiornamento (proprio quando serve per capire cosa si
+   e' rotto), e dove l'utente non e' amministratore la scrittura fallisce e
+   basta — in silenzio, perche' il log non puo' certo farlo sapere.
+
+   Un tetto alla dimensione, perche' un log che cresce per sempre e' un modo
+   lento di riempire un disco: oltre il mezzo mega si riparte da capo. Gli
+   ultimi avvenimenti sono gli unici che servono a capire un guasto appena
+   successo. */
+const DEBUG_LOG_PATH = join(CARTELLA_DATI, "debug.log");
+const LOG_MASSIMO = 512 * 1024;
 
 function debugLog(...parts) {
   const line = `[${new Date().toISOString()}] ${parts.join(" ")}\n`;
   try {
+    if (statSync(DEBUG_LOG_PATH, { throwIfNoEntry: false })?.size > LOG_MASSIMO) {
+      writeFileSync(DEBUG_LOG_PATH, "--- log ripartito da capo ---\n");
+    }
     appendFileSync(DEBUG_LOG_PATH, line);
   } catch {
     // ignore logging failures
