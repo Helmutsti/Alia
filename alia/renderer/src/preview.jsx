@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { InboxWorkspace } from "./inbox/InboxWorkspace.jsx";
 import { GalleriaCard } from "./GalleriaCard.jsx";
+import { GalleriaGantt } from "./GalleriaGantt.jsx";
 import { demoDataset } from "./inbox/data.js";
 import { AliaProvider } from "./lib/AliaProvider.jsx";
 import "./styles/theme.css";
@@ -34,6 +35,9 @@ const SCREENS = {
      card. Non ha la cornice 1180x760 — non si confronta con nessun artboard,
      si scorre. */
   carte: { label: "Galleria delle card", galleria: true },
+  /* Il banco di prova del Gantt: tre opzioni da guardare prima di scriverne
+     una. Come la galleria delle card, non e' una schermata dell'app. */
+  gantt: { label: "Opzioni del Gantt", galleria: true, gantt: true },
 };
 
 function Preview() {
@@ -63,9 +67,9 @@ function Preview() {
 
   if (SCREENS[screen].galleria) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center gap-4 p-6">
+      <div className="min-h-screen bg-bg flex flex-col items-center gap-6 p-6">
         {scelta}
-        <GalleriaCard />
+        {SCREENS[screen].gantt ? <GalleriaGantt /> : <GalleriaCard />}
       </div>
     );
   }

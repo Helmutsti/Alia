@@ -40,7 +40,12 @@ export const VIEW_ORDER = ["lista", "kanban", "calendario", "gantt"];
    trascinamenti li' non ci sono ancora, e non sono una condizione per
    guardarlo. Il Gantt resta l'impianto preso dall'artboard e mai verificato
    sui dati veri. */
-export const VIEW_BLOCKED = new Set(["gantt"]);
+/* Gantt aperto l'11/09/2026, in sola lettura: raggruppato per progetto, con
+   la barra di riepilogo e quattro scale dall'ora al mese. Le barre non si
+   toccano — quello viene dopo, come nel Calendario. Non resta bloccata
+   nessuna vista, e questo insieme vuoto e' il posto dove rimetterne una se
+   servira'. */
+export const VIEW_BLOCKED = new Set([]);
 
 export const SOURCE_ICONS = {
   mail: "M3 5h18v14H3zM3 7l9 6 9-6",

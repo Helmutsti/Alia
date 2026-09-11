@@ -10,6 +10,7 @@ import {
   eOra,
   inMinuti,
   intervalliDelGiorno,
+  intervalloDisponibile,
   oreDisponibili,
   oreScritte,
 } from "../lib/disponibilita.js";
@@ -826,6 +827,13 @@ function GrigliaOre({
 
             {blocchi.map((b) => {
               const inMano = gesto?.mosso && gesto.id === b.task.id;
+              /* Fuori dalle ore di disponibilita': si accetta, ma si vede
+                 (deciso l'11/09/2026). Non e' un errore da impedire — capita
+                 di lavorare la domenica — ma nemmeno una cosa da lasciar
+                 scoprire: la banda spenta dietro al blocco lo dice gia', e il
+                 bordo tratteggiato lo dice anche quando la banda non si vede,
+                 cioe' quando il blocco la copre tutta. */
+              const fuoriOrario = !intervalloDisponibile(disponibilita, giorno, b.inizio, b.fine);
               return (
                 <CardCalendarTask
                   key={b.task.id}
@@ -835,6 +843,7 @@ function GrigliaOre({
                   scaduta={eInRitardo(b.task)}
                   done={b.task.done}
                   inMovimento={inMano}
+                  fuoriOrario={fuoriOrario}
                   onApri={() => {
                     if (mosso.current) {
                       mosso.current = false;

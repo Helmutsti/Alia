@@ -8,6 +8,7 @@ import {
   eDisponibile,
   eDisponibilita,
   intervalliComuni,
+  intervalloDisponibile,
   modoDellaSettimana,
   normalizzaDisponibilita,
   normalizzaGiorno,
@@ -115,4 +116,19 @@ test("le ore si scrivono come le direbbe una persona", () => {
   assert.equal(oreScritte(8), "8 ore");
   assert.equal(oreScritte(7.5), "7,5 ore");
   assert.equal(oreScritte(0), "0 ore");
+});
+
+/* La domanda che il Calendario fa per decidere se tratteggiare un blocco. */
+test("un intervallo è disponibile solo se ci sta tutto dentro una fascia", () => {
+  const disp = applicaModo("lun-ven", [{ da: "09:00", a: "13:00" }, { da: "14:00", a: "18:00" }], {});
+  const lunedi = new Date(2026, 8, 14);
+  const sabato = new Date(2026, 8, 12);
+
+  assert.equal(intervalloDisponibile(disp, lunedi, 9 * 60, 11 * 60), true);
+  assert.equal(intervalloDisponibile(disp, lunedi, 17 * 60, 18 * 60), true, "fino al minuto di chiusura");
+  assert.equal(intervalloDisponibile(disp, lunedi, 17 * 60, 20 * 60), false, "sfora la sera");
+  /* A cavallo della pausa: le due fasce insieme non fanno una fascia sola, e
+     un blocco che le attraversa e' per un'ora fuori. */
+  assert.equal(intervalloDisponibile(disp, lunedi, 12 * 60, 15 * 60), false, "attraversa la pausa");
+  assert.equal(intervalloDisponibile(disp, sabato, 9 * 60, 11 * 60), false, "giorno non lavorativo");
 });

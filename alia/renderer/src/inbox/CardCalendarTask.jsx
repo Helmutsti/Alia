@@ -68,6 +68,7 @@ export function CardCalendarTask({
   done = false,
   fantasma = false,
   inMovimento = false,
+  fuoriOrario = false,
   stile,
   onApri,
   onPresa,
@@ -80,6 +81,7 @@ export function CardCalendarTask({
 
   return (
     <div
+      title={fuoriOrario ? "Fuori dalle ore di disponibilità" : undefined}
       style={{ ...stile, "--tinta": tinta }}
       className={
         "group absolute overflow-hidden rounded-[3px] border select-none " +
@@ -89,7 +91,14 @@ export function CardCalendarTask({
           : "bg-[color-mix(in_srgb,var(--tinta)_16%,var(--color-elevated))] " +
             "border-[color-mix(in_srgb,var(--tinta)_45%,transparent)] " +
             "hover:border-[color-mix(in_srgb,var(--tinta)_80%,transparent)] " +
-            "shadow-[0_1px_3px_rgb(0_0_0/0.38)] ") +
+            "shadow-[0_1px_3px_rgb(0_0_0/0.38)] " +
+            /* Fuori dalle ore di lavoro: **tratteggiato**, e nient'altro. Un
+               colore d'allarme direbbe che c'e' un errore, e non c'e' — c'e'
+               una task in un'ora che non avevi dichiarato tua. Il tratteggio
+               e' la stessa lingua con cui l'applicazione dice "questo posto
+               non e' pieno": il pallino del progetto assente, il bordo dei
+               gruppi vuoti. */
+            (fuoriOrario ? "border-dashed " : "")) +
         (inMovimento ? "shadow-drag opacity-95 z-[6] " : "")
       }
     >

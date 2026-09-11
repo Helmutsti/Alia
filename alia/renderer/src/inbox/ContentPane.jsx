@@ -23,6 +23,7 @@ import {
 } from "./contentQuery.js";
 import { VIEW_BLOCKED, VIEW_ICONS, VIEW_LABELS, VIEW_ORDER } from "./data.js";
 import { eModoCalendario, MODI_CALENDARIO, VistaCalendario } from "./VistaCalendario.jsx";
+import { eScalaGantt, SCALE_GANTT, VistaGantt } from "./VistaGantt.jsx";
 import { useAlia } from "../lib/AliaProvider.jsx";
 import { dueLabel, eInRitardo, giorniDiScarto, metaCard, PRESET_CARD } from "../lib/tasks.js";
 
@@ -88,6 +89,24 @@ const CTL =
   "inline-flex items-center gap-[7px] h-8 px-3 rounded-lg border border-divider bg-transparent " +
   "cursor-pointer text-[12.5px] hover:border-accent";
 const CTL_MUT = `${CTL} text-content/70`;
+/* Il bottone quadrato dei comandi del tempo: stessa altezza dei comandi in
+   riga, largo quanto alto perche' dentro c'e' un segno e non una parola. */
+const LENTE =
+  "grid place-items-center w-8 h-8 rounded-lg border border-divider bg-transparent " +
+  "cursor-pointer text-content/70 hover:border-accent hover:text-content";
+/* La lente dello zoom: il glifo della ricerca con dentro un + o un −. Non e'
+   quello di Lucide né degli artboard — la lente esisteva gia' (la ricerca),
+   questa e' la stessa con un segno dentro. */
+function Lente({ segno }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+      <path d={segno === "piu" ? "M8 11h6M11 8v6" : "M8 11h6"} />
+    </svg>
+  );
+}
+
 /* Il selettore di progetto. `h-8` come i comandi accanto, e non e' un dettaglio:
    il testo qui e' 18px contro i 12.5 del selettore vista, quindi a riquadri
    liberi il suo e' alto 25.6 contro 32. Centrati nella stessa riga i due
@@ -127,7 +146,7 @@ function useLarghezzaBarra(rif, dipendenze) {
   return barra;
 }
 
-export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanban, refRilascioCalendario, onOpenTask, onApriComposer, onRowPointerDown, onOrdinamento, anteprima, campiCard = PRESET_CARD.essenziale, disponibilita }) {
+export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanban, refRilascioCalendario, onOpenTask, onApriComposer, onRowPointerDown, onOrdinamento, onVista, anteprima, campiCard = PRESET_CARD.essenziale, disponibilita }) {
   const alia = useAlia();
   const rifLista = useRef(null);
   const barra = useLarghezzaBarra(rifLista);
@@ -171,6 +190,85 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
      Il *periodo* invece non si ricorda e vive dentro la vista: vedi la nota in
      VistaCalendario. */
   const [modoCalendario, setModoCalendario] = usePreferenza("vista.calendario", "mese", eModoCalendario);
+
+  /* Il Gantt ha due comandi suoi, e sono due cose diverse.
+
+     La **scala** si ricorda (`vista.gantt`): e' il modo in cui si guarda il
+     tempo, come l'estensione del Calendario, e chi lavora a mesi non vuole
+     ritrovarsi alle ore ogni volta che riapre.
+
+     La **finestra** no: e' dove si sta guardando adesso, e riaprendo l'app deve
+     ripartire da oggi — la stessa regola del periodo nel Calendario.
+
+     `passoGantt` e' quante colonne sposta una freccia: mezza finestra, e mezza
+     finestra la sa solo la vista, che misura quanto spazio c'e'. La riporta
+     qui, dove stanno i bottoni. */
+  const [scalaGantt, setScalaGantt] = usePreferenza("vista.gantt", "giorni", eScalaGantt);
+  const [colonneGantt, setColonneGantt] = useState(14);
+  /* **Oggi non sta al bordo sinistro**, sta a un quarto.
+
+     Con la finestra che comincia adesso, tutto il passato prossimo resta
+     fuori: una task cominciata ieri entra gia' tagliata dal bordo, e la prima
+     cosa che si vede aprendo il Gantt e' un terzo di barra senza principio.
+     Un quarto di finestra dietro basta a far vedere da dove vengono le cose,
+     e lascia tre quarti a quello che deve ancora venire — che e' la
+     proporzione giusta, perche' un Gantt si guarda in avanti. */
+  const daOggi = useCallback(
+    (colonne, scala) => {
+      const sc = SCALE_GANTT.find((x) => x.id === scala) ?? SCALE_GANTT[1];
+      return new Date(Date.now() - Math.floor(colonne / 4) * sc.minuti * 60_000);
+    },
+    [],
+  );
+  const [ancoraGantt, setAncoraGantt] = useState(() => daOggi(14, "giorni"));
+
+  /* `verso` e' un passo dentro `SCALE_GANTT`, che va dalla piu' fitta alla piu'
+     larga: **-1 avvicina** (colonne piu' corte, l'ora), +1 allontana (il mese).
+     Il segno e' quello dell'elenco, non quello della lente — la lente "+"
+     chiama -1, ed e' giusto cosi': avvicinare vuol dire scendere di scala. */
+  const zoomGantt = useCallback(
+    (verso) => {
+      const i = SCALE_GANTT.findIndex((sc) => sc.id === scalaGantt);
+      const prossima = SCALE_GANTT[Math.min(Math.max(i + verso, 0), SCALE_GANTT.length - 1)];
+      if (prossima.id === scalaGantt) return;
+      /* Lo zoom tiene fermo un **perno**, non il bordo sinistro: tenendo fermo
+         il bordo, allontanandosi la vista scivolerebbe tutta in avanti e la
+         cosa che si stava guardando uscirebbe di scena proprio mentre si cerca
+         di vederne di piu'.
+
+         Il perno e' **adesso**, quando adesso e' in scena: resta dov'e' sullo
+         schermo, e passare dai mesi alle ore porta alla giornata di oggi, che
+         e' quello che si voleva. Altrove — quando si sta guardando un altro
+         periodo — il perno e' il centro della finestra, che li' e' il solo
+         punto che si stia davvero guardando. Senza questa distinzione, dal
+         mese alle ore si finiva in un giorno qualunque a tre settimane da
+         qui: il centro di una finestra lunga non e' un posto che qualcuno
+         abbia scelto. */
+      const vecchia = SCALE_GANTT.find((sc) => sc.id === scalaGantt) ?? SCALE_GANTT[1];
+      setAncoraGantt((prec) => {
+        const inizio = prec.getTime();
+        const durataVecchia = colonneGantt * vecchia.minuti * 60_000;
+        const adesso = Date.now();
+        const dentro = adesso >= inizio && adesso <= inizio + durataVecchia;
+        const frazione = dentro ? (adesso - inizio) / durataVecchia : 0.5;
+        const perno = dentro ? adesso : inizio + durataVecchia / 2;
+        return new Date(perno - frazione * colonneGantt * prossima.minuti * 60_000);
+      });
+      setScalaGantt(prossima.id);
+    },
+    [scalaGantt, setScalaGantt, colonneGantt],
+  );
+
+  const passoGantt = useCallback(
+    (verso) => {
+      const scala = SCALE_GANTT.find((sc) => sc.id === scalaGantt) ?? SCALE_GANTT[1];
+      const colonne = Math.max(1, Math.floor(colonneGantt / 2));
+      setAncoraGantt(
+        (prec) => new Date(prec.getTime() + verso * colonne * scala.minuti * 60_000),
+      );
+    },
+    [scalaGantt, colonneGantt],
+  );
   /* La selezione multipla. `null` = non si sta selezionando: e' una **modalita'**,
      non una proprieta' delle righe, e la distinzione conta perche' dentro la
      modalita' il clic su una riga vuol dire un'altra cosa.
@@ -741,6 +839,14 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
     if (refRilascioKanban) refRilascioKanban.current = rilasciaKanban;
   }, [refRilascioKanban, rilasciaKanban]);
 
+  /* La vista si riferisce a chi sta sopra, come gia' fa l'ordinamento. Non e'
+     una curiosita': nel Gantt la colonna Inbox si chiude e non si riapre, e
+     quella decisione la puo' applicare solo il quadro — che e' l'unico a
+     possedere il movimento delle colonne. */
+  useEffect(() => {
+    onVista?.(view);
+  }, [onVista, view]);
+
   /* Il Gantt resta la vista abbozzata che era — l'utente ne ha rimandato il
      disegno — ma non mostra dati inventati: le barre sono le task che hanno
      davvero un intervallo `startAt`→`dueAt`. Il Calendario invece e' uscito
@@ -919,6 +1025,56 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
         ) : null}
         <span className="flex-1" />
 
+        {/* I comandi del Gantt: le due lenti e le due frecce, in quest'ordine e
+            attaccate a coppie. Sono la stessa domanda in due meta' — *quanto*
+            tempo guardo, e *quale* — e separarle le renderebbe due comandi
+            scollegati invece che un solo modo di muoversi.
+
+            "Oggi" fra le frecce: alla scala delle ore bastano tre passi per
+            perdersi, e tornare indietro a colpi di freccia sarebbe un lavoro.
+            E' lo stesso trio della testata del Calendario, e non e' un caso:
+            muoversi nel tempo e' la stessa cosa nelle due viste. */}
+        {view === "gantt" ? (
+          <div className="flex items-center gap-1.5 mr-2">
+            <button
+              type="button"
+              onClick={() => zoomGantt(-1)}
+              disabled={scalaGantt === SCALE_GANTT[0].id}
+              aria-label="Avvicina: colonne più corte"
+              title="Avvicina"
+              className={`${LENTE} ${scalaGantt === SCALE_GANTT[0].id ? "opacity-35 cursor-not-allowed" : ""}`}
+            >
+              <Lente segno="piu" />
+            </button>
+            <button
+              type="button"
+              onClick={() => zoomGantt(1)}
+              disabled={scalaGantt === SCALE_GANTT.at(-1).id}
+              aria-label="Allontana: colonne più lunghe"
+              title="Allontana"
+              className={`${LENTE} ${scalaGantt === SCALE_GANTT.at(-1).id ? "opacity-35 cursor-not-allowed" : ""}`}
+            >
+              <Lente segno="meno" />
+            </button>
+
+            <span className="w-1" />
+
+            <button type="button" onClick={() => passoGantt(-1)} aria-label="Indietro nel tempo" className={LENTE}>
+              <ChevronDown size={13} className="rotate-90" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setAncoraGantt(daOggi(colonneGantt, scalaGantt))}
+              className={CTL_MUT}
+            >
+              Oggi
+            </button>
+            <button type="button" onClick={() => passoGantt(1)} aria-label="Avanti nel tempo" className={LENTE}>
+              <ChevronDown size={13} className="-rotate-90" />
+            </button>
+          </div>
+        ) : null}
+
         {/* L'estensione del Calendario sta **accanto alla vista**, e solo
             quando il Calendario e' in scena: le due scelte si leggono insieme
             — "calendario, a mese" — e stanno nella riga di cosa si guarda,
@@ -979,11 +1135,12 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
       </div>
 
       {/* ═══ riga 2 — strumenti della vista ═══
-          Nel Calendario non c'e': ordinamento, filtri e raggruppamento sono
-          scelte che il calendario non puo' accogliere — il posto di una task
-          li' e' il giorno in cui scade, e non c'e' un secondo modo di
-          disporle. Una riga di comandi spenti direbbe il contrario. */}
-      {view !== "calendario" ? (
+          C'e' solo nella Lista e nel Kanban. Nel Calendario e nel Gantt il
+          posto di una task e' la sua data, e ordinamento, filtri e
+          raggruppamento sono scelte che non possono accogliere: nel Gantt
+          l'ordine e' il tempo e il raggruppamento e' il progetto, per
+          costruzione. Una riga di comandi spenti direbbe il contrario. */}
+      {view === "lista" || view === "kanban" ? (
       <div className="flex items-center gap-2 mb-4 pr-3 shrink-0">
         <div className="relative">
           <button type="button" onClick={() => apri("ordina")} className={CTL_MUT}>
@@ -1501,28 +1658,23 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
         />
       ) : null}
 
-      {/* ═══ vista Gantt ═══ */}
+      {/* ═══ vista Gantt ═══
+          Le task sono quelle dell'ambito, gia' passate per `gruppi`: il
+          raggruppamento scelto non conta — qui il gruppo e' il progetto per
+          costruzione — ma il progetto scelto in testata si'. I progetti sono
+          quelli in scena, cosi' scegliendone uno il Gantt mostra lui e basta. */}
       {view === "gantt" ? (
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-2.5 justify-center pr-3">
-          {barreGantt.length === 0 ? (
-            <p className="text-meta text-content/45 m-0">
-              Nessuna task con un intervallo: il Gantt mostra solo quelle che hanno sia inizio che
-              scadenza.
-            </p>
-          ) : null}
-          {barreGantt.map((bar) => (
-            <div key={bar.id} className="flex items-center gap-2.5">
-              <span className="flex-[0_0_90px] text-[11.5px] text-content/60">{bar.label}</span>
-              <div className="flex-1 h-4 rounded-sm relative overflow-hidden bg-content/6">
-                <div
-                  className="absolute inset-y-0 bg-accent rounded-sm opacity-85"
-                  style={{ left: `${bar.left}%`, width: `${bar.width}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+        <VistaGantt
+          tasks={gruppi.flatMap((g) => g.items)}
+          projects={scope === "all" ? projects : projects.filter((p) => p.id === scope)}
+          scala={scalaGantt}
+          ancora={ancoraGantt}
+          onFinestra={setColonneGantt}
+          onOpenTask={onOpenTask}
+          onAggiornaTask={(id, patch) => alia.aggiornaTask(id, patch)}
+        />
       ) : null}
+
       {inSelezione ? (
         <BarraSelezione
           quante={selezione.size}

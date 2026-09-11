@@ -99,7 +99,11 @@ const BACK_BTN =
   "hover:bg-[color-mix(in_srgb,var(--color-content)_12%,transparent)]";
 
 export function InboxWorkspace({ startFull = false }) {
-  const m = useInboxMorph(20, startFull);
+  /* Quale vista sta mostrando il pannello contenuto. Serve a una cosa sola, e
+     va detta qui: nel Gantt la colonna Inbox si chiude e non si riapre. La
+     decisione e' della vista, l'effetto e' del quadro. */
+  const [vista, setVista] = useState("lista");
+  const m = useInboxMorph(20, startFull, vista === "gantt");
   const boardRef = useRef(null);
   const alia = useAlia();
 
@@ -617,6 +621,7 @@ export function InboxWorkspace({ startFull = false }) {
           onApriComposer={setComposerAperto}
           onRowPointerDown={start}
           onOrdinamento={setOrdinamento}
+          onVista={setVista}
           anteprima={anteprima}
         />
       </div>

@@ -166,6 +166,22 @@ export function eDisponibile(disp, data) {
   );
 }
 
+/* Se un intervallo sta **tutto dentro** le fasce disponibili di quel giorno.
+
+   Serve al Calendario per dire "questa e' fuori dalle tue ore" (deciso
+   l'11/09/2026: si accetta, ma si vede). La domanda e' *tutto dentro*, non
+   *un po' dentro*: una task che comincia alle 17 e finisce alle 20, con la
+   giornata che chiude alle 18, e' per due terzi fuori — dire che va bene
+   perche' comincia in orario sarebbe una risposta comoda e falsa.
+
+   Un giorno senza fasce risponde `false` a tutto, ed e' giusto: li' non c'e'
+   nessuna ora di lavoro, quindi qualunque ora e' fuori. */
+export function intervalloDisponibile(disp, data, daMinuti_, aMinuti_) {
+  const fasce = intervalliDelGiorno(disp, data);
+  if (fasce.length === 0) return false;
+  return fasce.some((iv) => daMinuti_ >= inMinuti(iv.da) && aMinuti_ <= inMinuti(iv.a));
+}
+
 /* ── I modi della settimana ─────────────────────────────────────────────────
 
    Quasi nessuno ha sette orari diversi. Chi lavora dal lunedi' al venerdi' ha

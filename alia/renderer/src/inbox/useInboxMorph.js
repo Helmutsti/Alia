@@ -195,7 +195,17 @@ const EXIT_MS = 280;
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const lerp = (a, b, p) => a + (b - a) * p;
 
-export function useInboxMorph(initialPct = 20, startCommitted = false) {
+/* `bloccata`: la colonna Inbox resta chiusa e non si riapre.
+
+   Serve alla vista Gantt, dove il contenuto prende tutta la finestra: una
+   linea del tempo larga un terzo di schermo non e' una linea del tempo. Non e'
+   un terzo stato del movimento — e' il collasso che gia' esiste, tenuto fermo
+   da fuori.
+
+   Chiudendo la colonna sparisce anche la maniglia (vedi `handle`), quindi la
+   Full Inbox diventa irraggiungibile da se': e' la stessa conseguenza che il
+   collasso ha sempre avuto, e qui e' esattamente quello che si vuole. */
+export function useInboxMorph(initialPct = 20, startCommitted = false, bloccata = false) {
   const rootRef = useRef(null);
   const exitTimer = useRef(null);
   const wasDocked = useRef(false);
@@ -326,7 +336,7 @@ export function useInboxMorph(initialPct = 20, startCommitted = false) {
   /* Chiusa: larghezza zero, e il pannello destro parte dal margine di quadro.
      Le transizioni su `left` e `width` ci sono gia', quindi l'apertura e la
      chiusura si animano senza aggiungere niente. */
-  const chiusa = collassata && !docked;
+  const chiusa = (collassata || bloccata) && !docked;
   if (chiusa) {
     noneLeft = PAD_X;
     noneW = 0;
@@ -360,7 +370,9 @@ export function useInboxMorph(initialPct = 20, startCommitted = false) {
        sparire e ricomparire direbbe che il comando non esiste — e invece
        esiste, solo non qui. */
     chiusa,
-    puoCollassare: !docked,
+    /* Spento anche a colonna bloccata: il tasto "Inbox" resta in scena ma non
+       risponde, perche' sparire direbbe che il comando non esiste. */
+    puoCollassare: !docked && !bloccata,
     alternaCollasso,
     dragging,
     /* `p` a 1 significa "layout della Full Inbox"; a 0, vista divisa. */

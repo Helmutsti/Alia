@@ -1134,11 +1134,11 @@ parte un altro evento, e si torna indietro a puntatore fermo, un giro per fotogr
 
 ### Viste bloccate
 
-Resta spento il solo **Gantt**. Una voce spenta dice che la vista esiste e non è
-pronta, meglio di un elenco corto che lascia chiedersi se sia mai stata prevista. Il
-codice c'è in `ContentPane`; sbloccarla vuol dire togliere una stringa da
-`VIEW_BLOCKED` e sistemare quello che salta fuori. Kanban e Calendario sono usciti
-di lì l'11/09/2026.
+**Nessuna**, dall'11/09/2026: Kanban, Calendario e Gantt sono usciti tutti da
+`VIEW_BLOCKED`, che resta un insieme vuoto — il posto dove rimettere una vista se
+servirà. Il meccanismo era questo: una voce spenta nel selettore dice che la vista
+esiste e non è pronta, meglio di un elenco corto che lascia chiedersi se sia mai
+stata prevista.
 
 ### Vista Calendario — 11/09/2026
 
@@ -1168,9 +1168,13 @@ Dentro una cella non ci sta una card: nel mese e nella settimana le task sono
 stesso bordo, stesso fondo sollevato.
 
 Il periodo mostrato è stato locale e non preferenza: riaprendo l'app si riparte da
-oggi. I trascinamenti non ci sono ancora — questa è la geometria, il gesto viene
-dopo — ma ogni cella porta già `data-giorno`, che è quello che servirà per farne un
-bersaglio.
+oggi.
+
+**Nel mese e nella settimana le pillole non si trascinano** (deciso l'11/09/2026, e
+le celle portano comunque `data-giorno` se un giorno si cambierà idea): quelle due
+estensioni servono a *trovare* una task, non a spostarla — per metterci le mani si
+apre il Giorno. È un gesto in meno da imparare, e soprattutto è l'unico posto dove
+spostare vuol dire una cosa sola.
 
 ### Le ore, e le ore di disponibilità — 11/09/2026
 
@@ -1200,6 +1204,15 @@ cartellino nella colonna delle ore. Sulla linea l'azzurro vuol dire "si può toc
 risponde a niente: non si prende, non si sposta, si muove da sola. Un colore che
 l'interfaccia non usa per nient'altro lo dice senza scriverlo — è un token di
 prodotto, come le priorità, non un secondo accento.
+
+**Una task lasciata fuori dalle ore di disponibilità si accetta, ma si vede**
+(deciso l'11/09/2026): il blocco resta dov'è stato messo e prende il **bordo
+tratteggiato**, con il motivo scritto nel titolo. Non un colore d'allarme — non c'è
+nessun errore, c'è una task in un'ora che non avevi dichiarato tua, e capita di
+lavorare la domenica. Il tratteggio è la stessa lingua con cui l'interfaccia dice
+"questo posto non è pieno". La regola sta in `intervalloDisponibile` e chiede *tutto
+dentro*, non *un po' dentro*: una task dalle 17 alle 20, con la giornata che chiude
+alle 18, è per due terzi fuori.
 
 Sopra le ore ci sono le **ore di disponibilità** (`lib/disponibilita.js`,
 Impostazioni → Calendario): le fasce in cui si lavora davvero, accese, e tutto il
@@ -1299,6 +1312,87 @@ Il motore non sa cosa sia un calendario: legge i due estremi che la pista dichia
 delle righe. Chi scrive resta la vista, via ref (`refRilascioCalendario`), con lo
 stesso giro del Kanban e per lo stesso motivo: il motore vede tutte le colonne, ma
 cosa voglia dire "lasciare qui" lo sa solo chi mostra il giorno.
+
+### Vista Gantt — 11/09/2026
+
+Il tempo come larghezza, e l'unico posto in cui un intervallo si **disegna**.
+**Raggruppata per progetto, con la barra di riepilogo**:
+a sinistra l'elenco — intestazione del progetto e sotto le sue task — a destra le
+stesse righe distese sul tempo, e l'intestazione porta una barra propria che va da
+quando comincia la prima task a quando finisce l'ultima.
+
+È l'opzione 2 di tre, disegnate prima di scriverne una in `GalleriaGantt.jsx`
+(`preview.html?screen=gantt`). Le altre due — elenco piatto, e una corsia per
+progetto con le task impacchettate dentro — restano nella galleria: una scelta si
+legge meglio accanto a quelle che non sono state prese. La differenza fra le tre non
+era di stile, era **cosa è una riga**.
+
+La testata ha quattro comandi e nessun filtro: progetto a sinistra, poi le due lenti
+dello zoom, poi ‹ Oggi › per muoversi, poi il selettore vista. Come nel Calendario la
+riga 2 non c'è — qui l'ordine è il tempo e il raggruppamento è il progetto, per
+costruzione, e una riga di comandi spenti direbbe il contrario.
+
+**Quattro scale, dall'ora al mese**, e le lenti ci si muovono dentro un gradino alla
+volta (`vista.gantt` se le ricorda; la finestra no, riparte da oggi). L'ora c'è
+perché una giornata è un orizzonte come gli altri. Due regole che valgono la pena:
+
+- lo zoom tiene fermo un **perno**, e il perno è *adesso* quando adesso è in scena —
+  così dal mese alle ore si finisce nella giornata di oggi e non in un giorno
+  qualunque a tre settimane da qui. Altrove il perno è il centro della finestra;
+- **oggi non sta al bordo sinistro, sta a un quarto**: un quarto di finestra dietro
+  basta a far vedere da dove vengono le cose, e lascia tre quarti a quello che deve
+  ancora venire — un Gantt si guarda in avanti.
+
+Si vede esattamente quello che ci sta, e il resto si raggiunge con le frecce, che
+spostano di **mezza finestra**: niente scorrimento orizzontale, perché con due modi
+di muoversi nel tempo nessuno dei due è *il* modo.
+
+### I gesti del Gantt — 11/09/2026
+
+Sulla riga di una task, e solo lì, si fa una cosa sola in tre modi, distinti da cosa
+c'è sotto il dito e da quanto ci si muove:
+
+- **trascinare sul vuoto** disegna un intervallo, da dove si preme a dove si lascia:
+  `startAt` → `dueAt`;
+- **un clic sul vuoto** mette una scadenza secca in quella colonna: solo `dueAt`, e
+  `startAt` torna a niente — un clic non ha una larghezza, e inventargliene una
+  vorrebbe dire decidere una durata al posto di chi clicca;
+- **trascinare una barra** la sposta intera, durata compresa;
+- **trascinare un capo** della barra sposta solo quello. Le maniglie sono larghe 9px
+  — più del bordo che segnano, perché un bersaglio di tre pixel non si prende — e su
+  una barra troppo stretta per ospitarle non ci sono affatto: lì il gesto giusto è
+  ridisegnarla.
+
+Il gesto è lo stesso nelle quattro forme — si preme, ci si muove, si lascia — e la
+differenza la fa il posto: il cursore la annuncia prima che si prema (mirino sul
+vuoto, mano sulla barra). Si scrive una volta sola al rilascio, mai durante.
+
+Alla scala del giorno le ore non si inventano: l'inizio prende le 9 (la convenzione
+con cui l'app scrive una scadenza dal dettaglio) e la fine le 9 dell'ultimo giorno
+scelto, che il disegno copre per intero. Un intervallo dentro un giorno solo diventa
+9→18: una giornata di lavoro, non un istante. Alla scala delle ore i capi sono quelli
+veri, e la fine è il bordo destro dell'ultima colonna — dalle 10 alle 12 sono tre ore
+piene. Spostare trasla di un numero di **colonne**, quindi alla scala del giorno
+conserva l'ora: una task che cominciava alle 14 continua a cominciare alle 14.
+
+**L'ordine dentro il gruppo è quello manuale** (`position`), non la data. Ordinando
+per data l'elenco raccontava la sequenza — chi comincia prima sta più in alto — ma si
+riordinava a ogni gesto: disegnavi un intervallo e la riga saltava due posti più giù,
+sotto le mani. Un Gantt si usa lavorando sulle righe, e righe che si muovono da sole
+sono il contrario di un piano. La sequenza temporale la raccontano già le barre, che
+è il loro mestiere.
+
+Una task con `startAt` e `dueAt` è una barra; con il solo `dueAt` è un **rombo** —
+dice "qui", non "da qui a qui" (la stessa distinzione del Calendario, dove però
+l'istante diventa un blocco di un'ora perché lì serviva qualcosa da prendere in
+mano). Dalla scala del giorno in su i capi si arrotondano alla giornata, se no una
+barra che scade alle 9:00 finirebbe a un terzo della colonna.
+
+**Nel Gantt la colonna Inbox è chiusa e non si riapre**, e con lei la Full Inbox: una
+linea del tempo larga un terzo di schermo non è una linea del tempo. Non è un terzo
+stato del movimento — è il collasso che già esiste, tenuto fermo da fuori
+(`useInboxMorph(…, bloccata)`), e siccome a colonna chiusa sparisce anche la maniglia,
+la Full Inbox diventa irraggiungibile da sé. Decisione dichiaratamente rivedibile.
 
 ### Sintassi rapida nel composer — ripresa l'11/09/2026
 
@@ -1702,17 +1796,23 @@ controllo.
 Sette tasti disegnati (J/K, `/`, G, N, E, Spazio, ⌫) che nessuno ascolta. Oggi la
 sezione lo dichiara — onesto, ma non è uno stato in cui restare a lungo.
 
-### 12. Gantt
+### 12. Il Gantt, e cosa gli manca
 
-Kanban e Calendario sono usciti da questa voce l'11/09/2026. Il Gantt resta l'impianto
-preso dall'artboard e mai verificato sui dati veri.
+Kanban, Calendario e Gantt sono usciti da questa voce l'11/09/2026: il Gantt non è
+più l'impianto dell'artboard, è la vista descritta qui sotto. La domanda che i dati veri avevano
+posto — **quasi nessuna task ha un `startAt`**, quindi il Gantt è fatto quasi tutto di
+rombi — ha avuto la sua risposta l'11/09/2026: il Gantt è **il posto dove gli
+intervalli si danno**, trascinandoli sul vuoto.
+
+Resta una sola cosa grossa: le **dipendenze fra task** — questa cosa comincia quando
+finisce quella — che un Gantt di solito ha e che questo modello non conosce affatto.
+È una decisione di modello prima che di vista.
 
 Del Calendario resta da decidere il trascinamento **nel Mese e nella Settimana**:
 lì spostare una pillola da una cella all'altra dovrebbe cambiare la data lasciando
-l'ora com'era. E resta la domanda che le ore di disponibilità aprono senza chiudere:
-lasciare un blocco **fuori** dalle fasce accese oggi si accetta in silenzio. Rifiutare,
-avvertire o accettare è una decisione di prodotto, non un dettaglio di
-implementazione.
+l'ora com'era. Le due domande che restavano — il trascinamento nel Mese e nella Settimana, e cosa
+fare di un blocco lasciato fuori dalle ore — hanno avuto risposta l'11/09/2026: le
+pillole lì non si trascinano, e il fuori orario si accetta col bordo tratteggiato.
 
 ### 13. Dump del database dalle Impostazioni (chiesto il 2026-09-11)
 
