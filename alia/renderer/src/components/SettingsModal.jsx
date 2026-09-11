@@ -26,6 +26,7 @@ import { ChevronDown } from "./icons.jsx";
 import { CAMPI_CARD, DENSITA_CARD, PRESET_CARD, densitaDeiCampi } from "../lib/tasks.js";
 import { useAlia } from "../lib/AliaProvider.jsx";
 import { useTrappolaFuoco } from "../lib/fuoco.js";
+import { usePreferenza } from "../lib/preferenze.js";
 
 /* Impostazioni — trascritto da `DEF_Impostazioni` (vedi Rinascita.md, § Interfaccia).
 
@@ -159,27 +160,107 @@ function NonAttiva({ children }) {
 }
 
 function Notifiche() {
-  const righe = [
-    ["Promemoria attività in scadenza", "Un avviso quando un'attività si avvicina alla scadenza", true],
-    ["Notifiche push su desktop", "Ricevi un avviso anche quando l'app è in background", true],
-    ["Riepilogo email settimanale", "Un'email ogni lunedì con quello che resta aperto", false],
-    ["Orario silenzioso", "Nessuna notifica tra le 22:00 e le 08:00", false],
-  ];
+  /* Due preferenze vere, lette **anche dal processo principale** (vedi
+     electron/promemoria.js): qui si scrivono, la' si leggono a ogni giro. Non
+     passano per props come quelle dell'aspetto perche' nessun altro componente
+     le guarda — chi le usa non e' un componente. */
+  const [accese, setAccese] = usePreferenza("notifiche.promemoria", true, (v) => typeof v === "boolean");
+  const [suono, setSuono] = usePreferenza("notifiche.suono", true, (v) => typeof v === "boolean");
+  const [prova, setProva] = useState(null);
+
+  const puoiProvare = typeof window !== "undefined" && !!window.notifiche;
+
+  const provaAdesso = async () => {
+    if (!puoiProvare) return;
+    setProva("in corso");
+    const esito = await window.notifiche.prova();
+    setProva(esito?.esito ?? "sconosciuto");
+    /* L'esito si spegne da se': e' una conferma, non uno stato. */
+    setTimeout(() => setProva(null), 6000);
+  };
+
   return (
-    <div>
-      <div className={SEZ_TITOLO}>Notifiche</div>
-      <NonAttiva>
-        Alia non ha ancora né un posto dove ricordare queste preferenze né le notifiche da mandare.
-      </NonAttiva>
-      {righe.map(([label, nota, acceso]) => (
-        <div key={label} className={RIGA}>
-          <div>
-            <div className={ETICHETTA}>{label}</div>
-            <div className={`${NOTA} mt-[3px]`}>{nota}</div>
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="m-0 text-[15px] font-medium tracking-[-0.01em]">Notifiche</h2>
+        <p className="m-0 text-meta text-content/55 max-w-[520px]">
+          Quando una task ha un promemoria, Alia lo fa comparire fra le notifiche del sistema.
+          Funziona anche a finestra chiusa: Alia resta viva vicino all&rsquo;orologio, e si esce
+          da lì.
+        </p>
+      </div>
+
+      <div className="flex flex-col">
+        <div className={RIGA}>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className={ETICHETTA}>Promemoria delle task</span>
+            <span className={NOTA}>
+              L&rsquo;avviso all&rsquo;ora che hai messo sulla task. Spegnendolo non si accumula
+              niente: i promemoria di quel periodo non suoneranno più, nemmeno riaccendendolo.
+            </span>
           </div>
-          <Interruttore acceso={acceso} disabilitato />
+          <Interruttore
+            acceso={accese}
+            onChange={setAccese}
+            etichetta="Promemoria delle task"
+          />
         </div>
-      ))}
+
+        <div className={RIGA}>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className={ETICHETTA}>Suono</span>
+            <span className={NOTA}>
+              Il suono lo mette il sistema, non Alia: qui si può solo chiedergli di tacere. Le
+              notifiche continuano a comparire.
+            </span>
+          </div>
+          <Interruttore acceso={suono} onChange={setSuono} etichetta="Suono delle notifiche" />
+        </div>
+
+        {/* La prova passa dalla stessa strada delle sveglie vere (vedi
+            `prova` in electron/promemoria.js): una prova che prende un'altra
+            strada puo' riuscire mentre quella vera e' rotta, ed e' proprio il
+            caso in cui la si preme. */}
+        <div className={RIGA}>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className={ETICHETTA}>Prova</span>
+            <span className={NOTA}>
+              Manda subito una notifica di prova, con le impostazioni qui sopra. Se non compare,
+              il permesso è negato nelle impostazioni di Windows — non in Alia.
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5 shrink-0">
+            {prova ? (
+              <span className="text-mini text-content/55">
+                {prova === "in corso"
+                  ? "…"
+                  : prova === "mostrata"
+                    ? "Mandata"
+                    : "Il sistema non le supporta"}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={provaAdesso}
+              disabled={!puoiProvare}
+              className={
+                "h-8 px-3 rounded-lg border border-divider bg-transparent text-[12.5px] " +
+                (puoiProvare
+                  ? "cursor-pointer text-content hover:border-accent"
+                  : "cursor-not-allowed text-content/38")
+              }
+            >
+              Prova la notifica
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <p className="m-0 text-meta text-content/45 max-w-[520px] pt-1 border-t border-divider">
+        Un promemoria che scade mentre Alia è chiusa suona alla riapertura, dicendo per quando
+        era. Oltre il giorno di ritardo tace: lì non è più un promemoria, è una task in ritardo —
+        e quello lo dice già l&rsquo;elenco.
+      </p>
     </div>
   );
 }

@@ -1418,6 +1418,25 @@ c'è e si parte da adesso: svegliare tutto lo storico sarebbe una raffica senza 
 Su Windows serve un `app.setAppUserModelId` (`it.mepinformatica.alia`), se no i toast
 arrivano a nome di "electron.app.Electron" quando ci arrivano.
 
+**La sezione Notifiche delle Impostazioni smette di essere una vetrina** (era quattro
+interruttori spenti con scritto "non ancora attivo"). Adesso ha due preferenze vere —
+`notifiche.promemoria` e `notifiche.suono` — che il processo principale rilegge a ogni
+giro invece che una volta all'avvio: si cambiano da un'altra finestra, e un valore
+letto una volta sola resterebbe quello fino al riavvio.
+
+Spegnere i promemoria **non li accumula**: il segnalibro avanza lo stesso, quindi
+riaccendendoli non arriva l'arretrato del periodo in cui erano spenti. Trattenerli
+vorrebbe dire che spegnerli non li spegne, li rimanda.
+
+Il suono è del sistema, non di Alia: l'unica cosa che si può fare è chiedergli di
+tacere (`silent`), e le notifiche continuano a comparire. Acceso di fabbrica — una
+sveglia muta funziona solo se stavi già guardando lo schermo.
+
+Il bottone **Prova la notifica** passa dalla stessa strada delle sveglie vere
+(`prova()` in `electron/promemoria.js`), e non da un `new Notification` scritto nel
+pannello: una prova che prende un'altra strada può riuscire mentre quella vera è
+rotta, ed è esattamente il caso in cui la si preme.
+
 **L'icona vicino all'orologio.** Chiudere la finestra non chiude più Alia: nasconde.
 Si esce dal menu dell'icona. È la condizione perché le sveglie suonino e perché la
 scorciatoia risponda sempre — ma se la creazione dell'icona fallisce si torna al

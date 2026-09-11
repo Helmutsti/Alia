@@ -314,6 +314,14 @@ app.whenReady().then(() => {
     return true;
   });
 
+  /* La prova delle notifiche, dalle Impostazioni. Un'operazione sola e non un
+     elenco: non e' il core, e' un bottone. */
+  ipcMain.handle("notifiche:prova", async () => {
+    const esito = (await promemoria?.prova()) ?? { esito: "non-pronte" };
+    debugLog("notifiche: prova ->", JSON.stringify(esito));
+    return esito;
+  });
+
   const registrata = globalShortcut.register(SCORCIATOIA_CATTURA, () => cattura?.mostra());
   debugLog(
     registrata

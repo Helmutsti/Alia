@@ -98,6 +98,12 @@ contextBridge.exposeInMainWorld("cattura", {
   fatto: (creata) => ipcRenderer.invoke("cattura:fatto", { creata }),
 });
 
+/* Le notifiche: una cosa sola, la prova. Le preferenze non passano di qui —
+   quelle vivono in `t_setting` e le legge il processo principale da se'. */
+contextBridge.exposeInMainWorld("notifiche", {
+  prova: () => ipcRenderer.invoke("notifiche:prova"),
+});
+
 /* La confluenza: un oggetto suo, non una voce di `alia`. Il ponte `alia` e' il
    core — domande al database, tutte con una risposta. La confluenza e' un
    servizio esterno che puo' non esserci, e le sue chiamate restituiscono un

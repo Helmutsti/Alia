@@ -78,6 +78,12 @@ export function creaPromemoria({ core, log = () => {}, onApriTask = () => {} }) 
     inCorso = true;
     try {
       const adesso = Date.now();
+      /* Le due preferenze si rileggono **a ogni giro**, non una volta all'avvio:
+         si cambiano dalle Impostazioni, che vivono in un'altra finestra, e un
+         valore letto una volta sola resterebbe quello fino al riavvio. Un
+         giro e' mezzo minuto: due letture di una riga non sono un carico. */
+      const accese = (await core.getSetting("notifiche.promemoria", true)) !== false;
+      const conSuono = (await core.getSetting("notifiche.suono", true)) !== false;
       const salvato = await core.getSetting(CHIAVE, null);
       const da = salvato ? new Date(salvato).getTime() : adesso;
       /* Primo avvio: si segna il posto e si aspetta il prossimo giro. */
@@ -110,9 +116,22 @@ export function creaPromemoria({ core, log = () => {}, onApriTask = () => {} }) 
 
       for (const task of suonano) {
         const { titolo, corpo } = testoPromemoria(task, new Date(adesso));
-        log("promemoria:", titolo, "—", corpo);
+        log("promemoria:", titolo, "—", corpo, accese ? "" : "(notifiche spente)");
+        /* Spente: si passa avanti **senza fermare il segnalibro**, che infatti
+           si sposta comunque qui sotto. Trattenerle vorrebbe dire che
+           riaccendendo le notifiche arriverebbe tutto l'arretrato del periodo
+           in cui erano spente — cioe' che spegnerle non le spegne, le rimanda. */
+        if (!accese) continue;
         if (!Notification.isSupported()) continue;
-        const n = new Notification({ title: titolo, body: corpo, urgency: "normal" });
+        const n = new Notification({
+          title: titolo,
+          body: corpo,
+          urgency: "normal",
+          /* Il suono lo mette il sistema, non noi: qui si puo' solo dire di
+             tacere. Acceso di fabbrica — una sveglia muta e' una sveglia che
+             funziona solo se stavi guardando lo schermo. */
+          silent: !conSuono,
+        });
         /* Cliccare una notifica porta alla task, non genericamente all'app:
            il motivo per cui la si clicca e' quello. */
         n.on("click", () => onApriTask(task.idTask ?? task.id));
@@ -140,6 +159,24 @@ export function creaPromemoria({ core, log = () => {}, onApriTask = () => {} }) 
     ferma() {
       if (timer) clearInterval(timer);
       timer = null;
+    },
+    /* La notifica di prova delle Impostazioni.
+
+       Passa **da qui** e non da un `new Notification` scritto nel pannello, e
+       non e' un capriccio: una prova che prende un'altra strada di quella vera
+       puo' riuscire mentre quella vera e' rotta, ed e' esattamente il caso in
+       cui la si preme. Stesso processo, stessa classe, stessa preferenza del
+       suono. */
+    async prova() {
+      const conSuono = (await core.getSetting("notifiche.suono", true)) !== false;
+      const { Notification } = await import("electron");
+      if (!Notification.isSupported()) return { esito: "non-supportate" };
+      new Notification({
+        title: "Alia — prova",
+        body: "Se leggi questo, le notifiche di sistema funzionano.",
+        silent: !conSuono,
+      }).show();
+      return { esito: "mostrata", conSuono };
     },
     /* Per i test e per il rilancio a mano dal log. */
     controlla,
