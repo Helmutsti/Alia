@@ -1,0 +1,9 @@
+node_modules/
+# La coda e la configurazione sono dati dell'installazione, non del progetto:
+# il token dell'API e quello del bot vivono in config.json, e non devono
+# nemmeno passare vicino a un commit.
+dati/
+config.json
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

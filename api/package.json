@@ -1,0 +1,19 @@
+{
+  "name": "alia-api",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "description": "La confluenza delle sorgenti di Alia: raccoglie da Telegram (e domani mail e Discord) e le serve ad Alia, che le scarica come da una casella di posta",
+  "bin": {
+    "alia-api": "./bin/alia-api.js"
+  },
+  "scripts": {
+    "start": "node bin/alia-api.js",
+    "test": "node --test",
+    "check": "node --check src/coda.js && node --check src/server.js && node --check src/servizio.js && node --check src/config.js && node --check src/sources/telegram.js && node --check bin/alia-api.js"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
