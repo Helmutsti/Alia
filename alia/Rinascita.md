@@ -1410,9 +1410,12 @@ Il conto di cosa ha già suonato è un **segnalibro** in `t_setting`
 (`promemoria.ultimoControllo`), non un elenco di cose fatte: non cresce mai,
 sopravvive al riavvio senza segnare niente sulle task, e soprattutto **resta indietro
 quando l'app è chiusa** — riaprendo dopo due giorni le sveglie di quei due giorni
-suonano in ritardo, dicendo per quando erano. È la decisione presa; il suo limite è
-un giorno, oltre il quale un promemoria non è più un promemoria ma una task in
-ritardo, e quello lo dice già l'elenco. Al primo avvio in assoluto il segnalibro non
+suonano in ritardo, dicendo per quando erano. È la decisione presa, **senza limite di
+ritardo**: un limite di un giorno c'era stato per mezz'ora, e l'idea era che oltre le
+ventiquattr'ore un promemoria non fosse più un promemoria ma una task in ritardo. È
+vero per l'elenco e falso per il promemoria — chi mette una sveglia sta dicendo
+"questo voglio saperlo", e decidere al posto suo che dopo un giorno non gli interessa
+più è il genere di intelligenza che fa perdere le cose. Al primo avvio in assoluto il segnalibro non
 c'è e si parte da adesso: svegliare tutto lo storico sarebbe una raffica senza senso.
 
 Su Windows serve un `app.setAppUserModelId` (`it.mepinformatica.alia`), se no i toast
@@ -1443,8 +1446,9 @@ scorciatoia risponda sempre — ma se la creazione dell'icona fallisce si torna 
 comportamento di prima (la X chiude davvero), perché un programma vivo e
 irraggiungibile è peggio di un programma chiuso.
 
-**La cattura veloce.** `CommandOrControl+Alt+K`, globale, apre una finestrella senza
-cornice sopra qualunque programma (`electron/cattura.js` + `renderer/cattura.html`).
+**La cattura veloce.** Una scorciatoia globale — `Ctrl+Alt+K` di fabbrica, ma
+**configurabile** (`scorciatoie.cattura` in `t_setting`, si cambia da Impostazioni →
+Scorciatoie) — apre una finestrella senza cornice sopra qualunque programma (`electron/cattura.js` + `renderer/cattura.html`).
 Dentro c'è **la stessa `TaskComposer`** della finestra grande, con l'interruttore
 `nudo` che le toglie velo e sovrapposizione: due composer da tenere allineati
 sarebbero il modo più rapido di farne divergere uno. La finestra è trasparente e la
@@ -1457,6 +1461,22 @@ Una task nata lì arriva in inbox — è esattamente ciò per cui l'inbox esiste
 finestra grande lo viene a sapere da un colpetto sulla spalla (`alia:ricarica`), come
 già faceva per le origini: l'ha scritta un altro renderer, quindi questo non ne sa
 niente finché non glielo si dice.
+
+**La sezione Scorciatoie smette di essere una vetrina, per una riga sola.** La
+combinazione **si preme, non si scrive**: chiedere di digitare
+"CommandOrControl+Alt+K" vorrebbe dire chiedere di conoscere il nome che Electron dà
+ai tasti, e sbagliarlo di una lettera non darebbe nessun errore — semplicemente non
+funzionerebbe. Serve almeno un modificatore, e non per gusto: una scorciatoia globale
+la sente tutto il sistema, e prendersi la K da sola vorrebbe dire rubarla a ogni
+programma che scrive testo.
+
+Cambiarla è **una prova, non una dichiarazione**: si tenta di registrarla, e solo
+quella che ha funzionato davvero finisce in `t_setting` — una preferenza che contiene
+una combinazione occupata sarebbe una promessa che non si può mantenere a ogni avvio.
+Se è occupata si rimette quella di prima e lo si dice lì, mentre si sceglie, invece di
+scoprirlo il giorno in cui serve. Se è occupata **all'avvio** non si ripiega su
+un'altra: si resta senza e le Impostazioni lo segnalano — cambiare sotto il naso la
+combinazione che qualcuno ha scelto sarebbe peggio che non averla.
 
 Il segnaposto del campo cambia con il posto: *Aggiungi un task* dentro l'app,
 *Aggiungi un task in Alia* nella finestrella — lì compare sopra un altro programma, e

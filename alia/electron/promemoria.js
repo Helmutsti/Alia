@@ -36,13 +36,16 @@
 const MEZZO_MINUTO = 30_000;
 const CHIAVE = "promemoria.ultimoControllo";
 
-/* Quanto in ritardo puo' suonare una sveglia prima di smettere di essere una
-   sveglia. Oltre, e' una task in ritardo — e quello lo dice gia' l'elenco.
+/* **Nessun limite al ritardo** (deciso l'11/09/2026, dopo averne messo uno di
+   un giorno e averlo tolto).
 
-   Non e' la decisione presa (gli arretrati suonano), e' il suo limite: due
-   settimane di macchina spenta non devono produrre trenta notifiche all'avvio.
-   Sotto il giorno di ritardo si suona; sopra, si e' gia' guardato altrove. */
-const RITARDO_MASSIMO = 24 * 60 * 60 * 1000;
+   L'idea del limite era che oltre le ventiquattr'ore un promemoria non fosse
+   piu' un promemoria ma una task in ritardo, e che l'elenco lo dicesse gia'.
+   E' vero per l'elenco e falso per il promemoria: chi mette una sveglia sta
+   dicendo "questo voglio saperlo", e decidere al posto suo che dopo un giorno
+   non gli interessa piu' e' esattamente il genere di intelligenza che fa
+   perdere le cose. Se dopo una vacanza arrivano venti notifiche, quelle venti
+   cose erano state messe li' da qualcuno. */
 
 const oraDi = (iso) =>
   new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
@@ -104,7 +107,7 @@ export function creaPromemoria({ core, log = () => {}, onApriTask = () => {} }) 
         /* Una task chiusa non suona: la sveglia serviva a farla fare. */
         if (t.isCompleted || t.isEndState) return false;
         const quando = new Date(t.reminderAt).getTime();
-        return quando > da && quando <= adesso && adesso - quando <= RITARDO_MASSIMO;
+        return quando > da && quando <= adesso;
       });
 
       /* `electron` si carica **qui dentro** e non in cima al file, e non e' una

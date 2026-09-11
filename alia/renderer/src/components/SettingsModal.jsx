@@ -258,8 +258,8 @@ function Notifiche() {
 
       <p className="m-0 text-meta text-content/45 max-w-[520px] pt-1 border-t border-divider">
         Un promemoria che scade mentre Alia è chiusa suona alla riapertura, dicendo per quando
-        era. Oltre il giorno di ritardo tace: lì non è più un promemoria, è una task in ritardo —
-        e quello lo dice già l&rsquo;elenco.
+        era — anche se sono passati giorni. Chi mette una sveglia sta dicendo “questo voglio
+        saperlo”, e non tocca ad Alia decidere che dopo un po&rsquo; non ti interessa più.
       </p>
     </div>
   );
@@ -456,7 +456,93 @@ function Tasto({ children }) {
   );
 }
 
+/* ── La scorciatoia globale, e come si cambia ────────────────────────────────
+
+   Una combinazione **si preme, non si scrive**: chiedere di digitare
+   "CommandOrControl+Alt+K" vorrebbe dire chiedere di conoscere il nome che
+   Electron da' ai tasti, e sbagliarlo di una lettera non darebbe nessun
+   errore — semplicemente non funzionerebbe. Qui si registra il tasto vero.
+
+   Due regole mentre si ascolta:
+
+     · **almeno un modificatore**, e non per gusto: una scorciatoia globale la
+       sente tutto il sistema, e prendersi la K da sola vorrebbe dire rubarla a
+       ogni programma che scrive testo;
+     · i modificatori da soli non contano. Premendo Ctrl si sta ancora
+       componendo, non si e' finito. */
+
+const NOMI_TASTO = {
+  " ": "Space",
+  ArrowUp: "Up",
+  ArrowDown: "Down",
+  ArrowLeft: "Left",
+  ArrowRight: "Right",
+  Escape: "Esc",
+  Enter: "Return",
+};
+
+function combinazioneDa(e) {
+  const modificatori = [];
+  if (e.ctrlKey || e.metaKey) modificatori.push("CommandOrControl");
+  if (e.altKey) modificatori.push("Alt");
+  if (e.shiftKey) modificatori.push("Shift");
+  if (["Control", "Alt", "Shift", "Meta", "OS"].includes(e.key)) return null;
+  if (modificatori.length === 0) return "senza-modificatore";
+  const tasto = NOMI_TASTO[e.key] ?? (e.key.length === 1 ? e.key.toUpperCase() : e.key);
+  return [...modificatori, tasto].join("+");
+}
+
+/* Come si legge a schermo: `CommandOrControl` e' il nome di Electron, non una
+   cosa da mostrare a qualcuno. */
+const aTasti = (combinazione) =>
+  (combinazione ?? "")
+    .replace("CommandOrControl", "Ctrl")
+    .replace("Shift", "Maiusc")
+    .split("+");
+
 function Scorciatoie() {
+  const [stato, setStato] = useState(null);
+  const [inAscolto, setInAscolto] = useState(false);
+  const [errore, setErrore] = useState(null);
+
+  const ponte = typeof window !== "undefined" ? window.scorciatoie : undefined;
+
+  useEffect(() => {
+    if (!ponte) return;
+    ponte.stato().then(setStato);
+  }, [ponte]);
+
+  useEffect(() => {
+    if (!inAscolto || !ponte) return undefined;
+    const onKey = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === "Escape") {
+        setInAscolto(false);
+        setErrore(null);
+        return;
+      }
+      const combinazione = combinazioneDa(e);
+      if (combinazione === null) return;
+      if (combinazione === "senza-modificatore") {
+        setErrore("Serve almeno Ctrl o Alt: una scorciatoia globale la sente tutto il sistema.");
+        return;
+      }
+      setInAscolto(false);
+      const esito = await ponte.imposta(combinazione);
+      setStato((prec) => ({ ...prec, ...esito, attiva: esito.esito === "registrata" }));
+      setErrore(
+        esito.esito === "registrata"
+          ? null
+          : "Quella combinazione se l’è già presa un altro programma. È rimasta quella di prima.",
+      );
+    };
+    /* In cattura si ascolta tutto, anche i tasti che il pannello userebbe per
+       altro: finche' si sta scegliendo, la tastiera e' di questa riga. */
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [inAscolto, ponte]);
+
   const gruppi = [
     ["Navigazione", [
       [["J", "K"], "Vai all'attività successiva / precedente"],
@@ -470,55 +556,90 @@ function Scorciatoie() {
       [["⌫"], "Elimina l'attività"],
     ]],
   ];
+
   return (
-    <div>
-      <div className={SEZ_TITOLO}>Navigazione</div>
-      <NonAttiva>Queste scorciatoie non sono ancora collegate a nessun gesto.</NonAttiva>
-      {gruppi.map(([titolo, righe], i) => (
-        <div key={titolo}>
-          {i > 0 ? <div className={`${SEZ_TITOLO} mt-[22px]`}>{titolo}</div> : null}
-          {righe.map(([tasti, testo]) => (
-            <div key={testo} className="flex items-center gap-3 py-[9px]">
-              {tasti.map((t) => (
-                <Tasto key={t}>{t}</Tasto>
-              ))}
-              <span className={NOTA}>{testo}</span>
-            </div>
-          ))}
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="m-0 text-[15px] font-medium tracking-[-0.01em]">Scorciatoie</h2>
+        <p className="m-0 text-meta text-content/55 max-w-[520px]">
+          Una sola è vera, ed è quella che funziona anche quando Alia non è davanti.
+        </p>
+      </div>
+
+      {/* La riga vera. Sta in cima e da sola, staccata dall'elenco di sotto:
+          mescolarla a sette tasti che nessuno ascolta la farebbe sembrare
+          finta come loro. */}
+      <div className="flex items-start justify-between gap-4 py-3 border-b border-divider">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className={ETICHETTA}>Nuova task, da qualunque programma</span>
+          <span className={NOTA}>
+            Apre la finestrella di cattura sopra quello che stai facendo: scrivi, Invio, torni
+            indietro. {stato && !stato.attiva ? null : "Funziona anche a finestra chiusa."}
+          </span>
+          {errore ? (
+            <span className="text-mini mt-1" style={{ color: "var(--color-danger)" }}>
+              {errore}
+            </span>
+          ) : null}
+          {stato && !stato.attiva && !errore ? (
+            <span className="text-mini mt-1" style={{ color: "var(--color-danger)" }}>
+              Non è attiva: questa combinazione se l’è presa un altro programma. Scegline un’altra.
+            </span>
+          ) : null}
         </div>
-      ))}
+
+        <div className="flex items-center gap-2 shrink-0">
+          {inAscolto ? (
+            <span className="text-mini text-accent">Premi la combinazione…</span>
+          ) : (
+            <span className="flex items-center gap-1">
+              {aTasti(stato?.combinazione).map((t, i) => (
+                <Tasto key={`${t}-${i}`}>{t}</Tasto>
+              ))}
+            </span>
+          )}
+          <button
+            type="button"
+            disabled={!ponte}
+            onClick={() => {
+              setErrore(null);
+              setInAscolto((a) => !a);
+            }}
+            className={
+              "h-8 px-3 rounded-lg border bg-transparent text-[12.5px] " +
+              (ponte
+                ? inAscolto
+                  ? "border-accent text-accent cursor-pointer"
+                  : "border-divider text-content cursor-pointer hover:border-accent"
+                : "border-divider text-content/38 cursor-not-allowed")
+            }
+          >
+            {inAscolto ? "Annulla" : "Cambia"}
+          </button>
+        </div>
+      </div>
+
+      {/* E le altre, che restano quello che erano. */}
+      <div>
+        <NonAttiva>Queste invece non sono ancora collegate a nessun gesto.</NonAttiva>
+        {gruppi.map(([titolo, righe], i) => (
+          <div key={titolo}>
+            <div className={`${SEZ_TITOLO} ${i > 0 ? "mt-[22px]" : ""}`}>{titolo}</div>
+            {righe.map(([tasti, testo]) => (
+              <div key={testo} className="flex items-center gap-3 py-[9px]">
+                {tasti.map((t) => (
+                  <Tasto key={t}>{t}</Tasto>
+                ))}
+                <span className={NOTA}>{testo}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-/* ── Progetti e milestone ───────────────────────────────────────────────────── */
-
-/* I colori assegnabili a un progetto.
-
-   Sono **token del tema**, non valori esadecimali: salvando `var(--color-sky-400)`
-   il progetto segue la palette invece di congelare un colore di oggi. Il campo
-   `t_project.color` è testo libero e finisce dritto in `style`, quindi un `var()`
-   funziona esattamente come un `#rrggbb` — e i progetti nati dalla vecchia
-   migrazione, che hanno un esadecimale dentro, continuano a leggersi bene.
-
-   Otto, tutti al gradino 400 (300 per l'arancio) perché è quello che regge il
-   contrasto sul fondo scuro senza gridare. Non è una tavolozza aperta: un
-   selettore libero produrrebbe presto due progetti che si distinguono per un
-   grado di saturazione, cioè per niente. */
-const COLORI = [
-  { id: "sky", valore: "var(--color-sky-400)", nome: "Azzurro" },
-  { id: "purple", valore: "var(--color-purple-400)", nome: "Viola" },
-  { id: "emerald", valore: "var(--color-emerald-400)", nome: "Verde" },
-  { id: "orange", valore: "var(--color-orange-300)", nome: "Arancio" },
-  { id: "rose", valore: "var(--color-rose-400)", nome: "Rosa" },
-  { id: "amber", valore: "var(--color-amber-400)", nome: "Ambra" },
-  { id: "teal", valore: "var(--color-teal-400)", nome: "Verdeacqua" },
-  { id: "neutral", valore: "var(--color-neutral-400)", nome: "Grigio" },
-];
-
-/* Il pallino del colore è anche il comando che lo cambia: si apre in una
-   tavolozza sotto di lui. Un pallino che non si può premere e un selettore
-   accanto sarebbero due cose dove ne basta una. */
 function ScegliColore({ colore, onScegli }) {
   const [aperta, setAperta] = useState(false);
 

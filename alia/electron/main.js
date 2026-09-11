@@ -140,19 +140,44 @@ function registraHandlerConfluenza() {
   }
 }
 
-/* La scorciatoia globale di cattura.
+/* La scorciatoia globale di cattura — **configurabile** (11/09/2026).
 
-   `CommandOrControl+Alt+K` e non qualcosa di piu' corto: una scorciatoia
-   globale la sente **tutto il sistema**, quindi ruba il tasto a qualunque
-   programma sia in primo piano. Tre modificatori sono la cortesia minima verso
-   gli altri programmi, e la K e' la stessa del composer dentro l'app
-   (Ctrl+Maiusc+K), cosi' e' una cosa sola da ricordare.
+   Questa e' solo quella di fabbrica: la vera vive in `t_setting`
+   (`scorciatoie.cattura`) e si cambia dalle Impostazioni.
 
-   Se un altro programma se l'e' gia' presa, `register` risponde `false` e non
-   succede niente: si scrive nel log invece di lasciar credere che funzioni. Il
-   giorno in cui sara' configurabile, questa costante diventera' una
-   preferenza. */
-const SCORCIATOIA_CATTURA = "CommandOrControl+Alt+K";
+   `CommandOrControl+Alt+K` e non qualcosa di piu' corto perche' una scorciatoia
+   globale la sente **tutto il sistema**, e ruba il tasto a qualunque programma
+   sia in primo piano: due modificatori sono la cortesia minima verso gli altri
+   programmi. La K e' la stessa del composer dentro l'app (Ctrl+Maiusc+K), cosi'
+   e' una cosa sola da ricordare.
+
+   Se un altro programma se l'e' gia' presa, `register` risponde `false`. Prima
+   finiva solo nel log; adesso lo stato e' una domanda che le Impostazioni
+   possono fare (`scorciatoie:stato`), e chi ne sceglie una occupata lo scopre
+   mentre la sceglie invece che il giorno in cui gli serve. */
+const SCORCIATOIA_PREDEFINITA = "CommandOrControl+Alt+K";
+
+let scorciatoiaCattura = SCORCIATOIA_PREDEFINITA;
+let scorciatoiaAttiva = false;
+
+/* Registra, e dice se ce l'ha fatta. Toglie sempre la precedente: `register`
+   sulla stessa combinazione due volte non fallisce, ma lascerebbe in piedi
+   quella vecchia quando si cambia. */
+function registraScorciatoia(combinazione) {
+  globalShortcut.unregisterAll();
+  scorciatoiaAttiva = false;
+  if (!combinazione) return false;
+  try {
+    scorciatoiaAttiva = globalShortcut.register(combinazione, () => cattura?.mostra());
+  } catch (err) {
+    /* Una combinazione malformata lancia invece di rispondere `false`: per chi
+       chiama sono la stessa cosa — non e' registrata. */
+    debugLog("scorciatoia: combinazione rifiutata:", combinazione, err.message);
+    scorciatoiaAttiva = false;
+  }
+  if (scorciatoiaAttiva) scorciatoiaCattura = combinazione;
+  return scorciatoiaAttiva;
+}
 
 let finestraPrincipale = null;
 let tray = null;
@@ -195,7 +220,10 @@ function creaTray() {
     tray.setContextMenu(
       Menu.buildFromTemplate([
         { label: "Apri Alia", click: mostraFinestra },
-        { label: `Nuova task  (${SCORCIATOIA_CATTURA.replace("CommandOrControl", "Ctrl")})`, click: () => cattura?.mostra() },
+        {
+          label: `Nuova task  (${scorciatoiaCattura.replace("CommandOrControl", "Ctrl")})`,
+          click: () => cattura?.mostra(),
+        },
         { type: "separator" },
         {
           label: "Esci",
@@ -322,12 +350,66 @@ app.whenReady().then(() => {
     return esito;
   });
 
-  const registrata = globalShortcut.register(SCORCIATOIA_CATTURA, () => cattura?.mostra());
-  debugLog(
-    registrata
-      ? `scorciatoia ${SCORCIATOIA_CATTURA} registrata`
-      : `scorciatoia ${SCORCIATOIA_CATTURA} NON registrata: se l'e' presa un altro programma`,
-  );
+  /* La scorciatoia salvata, o quella di fabbrica. Se quella salvata e' occupata
+     **non si ripiega** su un'altra: si resta senza, e le Impostazioni lo
+     dicono. Cambiare sotto il naso la combinazione che qualcuno ha scelto
+     sarebbe peggio che non averla. */
+  /* `core` qui e' **il core vero**, non il ponte: le sue chiamate sono
+     sincrone. Nel renderer sembrano asincrone perche' attraversano l'IPC, ed e'
+     l'inganno in cui sono cascato — un `.then` su un valore che non e' una
+     promessa non fallisce dove lo scrivi, fa saltare tutto quello che viene
+     dopo (qui: la registrazione degli handler, che infatti non rispondevano). */
+  try {
+    const salvata = core.getSetting("scorciatoie.cattura", SCORCIATOIA_PREDEFINITA);
+    scorciatoiaCattura =
+      typeof salvata === "string" && salvata ? salvata : SCORCIATOIA_PREDEFINITA;
+    const ok = registraScorciatoia(scorciatoiaCattura);
+    debugLog(
+      ok
+        ? `scorciatoia ${scorciatoiaCattura} registrata`
+        : `scorciatoia ${scorciatoiaCattura} NON registrata: se l'e' presa un altro programma`,
+    );
+    /* Il menu dell'icona porta scritta la combinazione: se e' cambiata, va
+       ricostruito. */
+    if (tray) {
+      tray.destroy();
+      tray = null;
+      creaTray();
+    }
+  } catch (err) {
+    debugLog("scorciatoia: avvio fallito:", err.message);
+  }
+
+  ipcMain.handle("scorciatoie:stato", () => ({
+    combinazione: scorciatoiaCattura,
+    attiva: scorciatoiaAttiva,
+    predefinita: SCORCIATOIA_PREDEFINITA,
+  }));
+
+  /* Cambiare la scorciatoia e' una prova, non una dichiarazione: si tenta, e
+     se il sistema la rifiuta si rimette quella di prima e si risponde cosa e'
+     successo. Si salva **solo** quella che ha funzionato davvero — una
+     preferenza che contiene una combinazione occupata sarebbe una promessa che
+     non si puo' mantenere a ogni avvio. */
+  ipcMain.handle("scorciatoie:imposta", (_event, combinazione) => {
+    const precedente = scorciatoiaCattura;
+    const eraAttiva = scorciatoiaAttiva;
+    if (registraScorciatoia(combinazione)) {
+      core.setSetting("scorciatoie.cattura", combinazione);
+      if (tray) {
+        tray.destroy();
+        tray = null;
+        creaTray();
+      }
+      debugLog("scorciatoia: adesso e'", combinazione);
+      return { esito: "registrata", combinazione };
+    }
+    /* Fallita: si torna com'era, se era qualcosa. */
+    if (eraAttiva) registraScorciatoia(precedente);
+    else scorciatoiaCattura = precedente;
+    debugLog("scorciatoia: rifiutata", combinazione);
+    return { esito: "occupata", combinazione: precedente };
+  });
 
   promemoria = creaPromemoria({ core, log: debugLog, onApriTask: apriTask });
   promemoria.avvia();

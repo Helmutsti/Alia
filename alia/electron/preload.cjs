@@ -98,6 +98,14 @@ contextBridge.exposeInMainWorld("cattura", {
   fatto: (creata) => ipcRenderer.invoke("cattura:fatto", { creata }),
 });
 
+/* Le scorciatoie globali: leggere com'e' messa, e provarne una nuova. Due
+   operazioni e non un elenco, per la stessa ragione delle notifiche — non e' il
+   core, e' un pannello. */
+contextBridge.exposeInMainWorld("scorciatoie", {
+  stato: () => ipcRenderer.invoke("scorciatoie:stato"),
+  imposta: (combinazione) => ipcRenderer.invoke("scorciatoie:imposta", combinazione),
+});
+
 /* Le notifiche: una cosa sola, la prova. Le preferenze non passano di qui —
    quelle vivono in `t_setting` e le legge il processo principale da se'. */
 contextBridge.exposeInMainWorld("notifiche", {

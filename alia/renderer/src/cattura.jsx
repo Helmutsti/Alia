@@ -43,6 +43,16 @@ function Cattura() {
     if (eCattura) window.cattura.fatto(!!creata);
   }, []);
 
+  /* La scorciatoia scritta in fondo alla card e' quella **vera**, chiesta al
+     processo principale: da quando si puo' cambiare (Impostazioni →
+     Scorciatoie), una scritta a mano sarebbe una bugia il giorno dopo. */
+  const [combinazione, setCombinazione] = useState("Ctrl+Alt+K");
+  useEffect(() => {
+    window.scorciatoie?.stato().then((s) => {
+      if (s?.combinazione) setCombinazione(s.combinazione.replace("CommandOrControl", "Ctrl"));
+    });
+  }, []);
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") chiudi(false);
@@ -71,7 +81,7 @@ function Cattura() {
           nudo
           inbox
           segnaposto="Aggiungi un task in Alia"
-          aiutoScorciatoia="Ctrl+Alt+K da qualunque programma"
+          aiutoScorciatoia={`${combinazione} da qualunque programma`}
           onChiudi={(creata) => chiudi(creata)}
         />
       </div>
