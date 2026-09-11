@@ -56,6 +56,33 @@ const ALTEZZA_RIGA = 46;
    misura alla partenza; questa serve se quel dato manca. */
 const ALTEZZA_CARD = 65;
 
+/* Il bersaglio del rilascio torna a sottolinearsi (chiesto l'11/09/2026), e
+   vale per **tutte e due** le viste: i gruppi della Lista e le colonne del
+   Kanban, che sono la stessa cosa detta in due geometrie.
+
+   Era stato tolto il 2026-09-10 perche' ripeteva quello che gia' dicevano il
+   varco e il clone, e perche' com'era fatto gridava: un **bordo** azzurro pieno
+   sul contorno di un contenitore, in una schermata che ha un solo accento e lo
+   spende altrove. Il difetto era il peso, non l'idea — con il varco solo, dove
+   si sta per lasciare si legge guardando *dentro* il contenitore, e l'occhio
+   deve trovarlo.
+
+   Quindi torna, ma come **filo**: un `outline` di 1px al 45% d'accento, staccato
+   di 2 dal contenitore. `outline` e non `border` per una ragione precisa — non
+   occupa spazio nel layout, quindi accendendosi non sposta di un pixel ne' le
+   righe ne' le card, che e' esattamente il genere di scatto che si nota mentre
+   si trascina. Lo stacco lo tiene fuori dal contenuto invece di stringerlo, e il
+   velo di fondo al 7% resta sotto a fare il resto.
+
+   Le due classi tengono `outline` e la sua larghezza **anche da spente**: cosi'
+   a cambiare e' solo il colore, e la transizione ha qualcosa da interpolare. */
+const BERSAGLIO =
+  "outline outline-1 outline-offset-2 " +
+  "outline-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] " +
+  "bg-[color-mix(in_srgb,var(--color-accent)_7%,transparent)]";
+const NON_BERSAGLIO = "outline outline-1 outline-offset-2 outline-transparent bg-transparent";
+const TRANSIZIONE_BERSAGLIO = "transition-[outline-color,background-color] duration-[120ms] ";
+
 const CTL =
   "inline-flex items-center gap-[7px] h-8 px-3 rounded-lg border border-divider bg-transparent " +
   "cursor-pointer text-[12.5px] hover:border-accent";
@@ -1045,7 +1072,22 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
       {view === "lista" ? (
         <div
           ref={rifLista}
-          className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2"
+          /* I 3px di respiro per il filo del bersaglio, e il rientro che li
+             annulla (11/09/2026).
+
+             `outline` si disegna **fuori** dal riquadro, e questo contenitore
+             scorre: quello che esce dal suo riquadro lo taglia la porta di
+             scorrimento, non il contenitore padre. Il padding invece sta
+             *dentro* la porta — ed e' il motivo per cui a destra il filo si
+             vedeva gia' tutto, dove i 12px per la barra fanno da respiro, e a
+             sinistra e in cima no, dove il padding era zero.
+
+             Quindi 3px dove mancavano (1 di filo + 2 di stacco), e a sinistra
+             un margine negativo che li restituisce: le righe restano dove
+             stavano, allineate ai comandi qui sopra, e il rientro mangia la
+             sola imbottitura del pannello. In verticale il margine non serve —
+             la lista comincia 3px piu' in basso e non si allinea a niente. */
+          className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 pl-[3px] -ml-[3px] py-[3px]"
           style={{ paddingRight: Math.max(0, 12 - barra) }}
         >
           {/* Il perche' vuoto, quando la ragione e' un filtro e non il lavoro
@@ -1068,7 +1110,32 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
                    senza un elenco di casi da mantenere. */
                 data-drop-group={chiaveRilascio(g.id)}
                 onDoubleClick={luogo ? (e) => doppioClic(e, g.id) : undefined}
-                className="flex flex-col gap-2 rounded-lg transition-colors duration-[120ms]">
+                /* **Il gruppo e' una scatola, e va imbottita** (11/09/2026).
+
+                   Due difetti che erano lo stesso difetto. Primo: fra un gruppo
+                   e l'altro c'erano 8px, gli stessi che stanno fra due righe
+                   dentro un gruppo — cosi' niente distingueva "la riga dopo" da
+                   "il gruppo dopo", e l'elenco era una colata sola. Secondo: il
+                   filo del bersaglio si appoggiava ai bordi delle righe, perche'
+                   il gruppo non aveva un dentro.
+
+                   L'imbottitura risolve tutti e due, ed e' gratis dove contava:
+                   sta **dentro**, quindi il riquadro esterno non si muove di un
+                   pixel e i 3px di respiro per il filo restano quelli. Le righe
+                   rientrano di 8, e con loro la testata del gruppo e il campo in
+                   fondo: rientrano insieme, perche' sono tutti contenuto della
+                   stessa scatola.
+
+                   I numeri vengono dalla scala di casa (§ Interfaccia, "Il
+                   ritmo: 12, ovunque"): 8 dentro, 12 fra una scatola e l'altra.
+                   Da riga a riga restano 8; da gruppo a gruppo diventano
+                   8+12+8 = 28, cioe' tre volte e mezzo. E' quella differenza a
+                   dire che si sta cambiando posto. */
+                className={
+                  "flex flex-col gap-2 rounded-lg p-2 " +
+                  TRANSIZIONE_BERSAGLIO +
+                  (anteprima?.groupId === chiaveRilascio(g.id) ? BERSAGLIO : NON_BERSAGLIO)
+                }>
                 {g.label ? (
                   /* La testata è il comando che apre e chiude il gruppo, tutta
                      intera — freccia, pallino, nome, conteggio e filo. Un
@@ -1210,7 +1277,12 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
 
       {/* ═══ vista Kanban ═══ */}
       {view === "kanban" ? (
-        <div className="flex-1 min-h-0 flex gap-3.5 overflow-x-auto pr-3"
+        <div
+          /* Lo stesso respiro della Lista, e per la stessa ragione: qui le
+             colonne sono alte quanto la porta, quindi senza padding il filo del
+             bersaglio veniva tagliato sopra e sotto, e a sinistra sulla prima
+             colonna. A destra ci pensano gia' i 12 di `pr-3`. */
+          className="flex-1 min-h-0 flex gap-3.5 overflow-x-auto pr-3 pl-[3px] -ml-[3px] py-[3px]"
         >
           {colonneDaDisegnare.map((col) => (
             <div
@@ -1239,15 +1311,18 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
                  Costo accettato: con poche colonne resta del vuoto a destra. E'
                  vuoto, non spreco — lo spazio non gli serviva. */
               className={
-                "flex-[0_0_220px] flex flex-col rounded-xl p-1.5 " +
-                "transition-colors duration-[120ms] " +
-                /* La colonna sotto il puntatore si accende. Il bersaglio lo
-                   dice `anteprima`, che e' lo stesso canale con cui la vista
-                   Lista sa dove si sta per lasciare: un solo motore, un solo
-                   posto da cui sapere dove si e'. */
-                (anteprima?.groupId === col.key
-                  ? "bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]"
-                  : "bg-transparent")
+                /* Gli stessi 8 del gruppo della Lista, al posto dei 6 che
+                   c'erano: le due viste sono la stessa scatola in due
+                   geometrie, e il filo del bersaglio dev'essere staccato dalle
+                   card quanto lo e' dalle righe. */
+                "flex-[0_0_220px] flex flex-col rounded-xl p-2 " +
+                TRANSIZIONE_BERSAGLIO +
+                /* La colonna sotto il puntatore si accende, con lo stesso filo
+                   dei gruppi della Lista. Il bersaglio lo dice `anteprima`, che
+                   e' lo stesso canale con cui la Lista sa dove si sta per
+                   lasciare: un solo motore, un solo posto da cui saperlo, e ora
+                   anche un solo segno a schermo. */
+                (anteprima?.groupId === col.key ? BERSAGLIO : NON_BERSAGLIO)
               }
             >
               <div className="flex items-center gap-1.5 text-mini tracking-[0.1em] uppercase font-medium text-content/62 px-1 pb-1.5 shrink-0">
