@@ -1,0 +1,56 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: Identità · icona dell'applicazione
+    - heading "Tre gradienti, e un quadrato più grande" [level=1] [ref=e6]
+    - paragraph [ref=e7]:
+      - text: "Due richieste: che l'icona sul Desktop sia"
+      - strong [ref=e8]: leggermente più grande
+      - text: ", come le altre, e che abbia un"
+      - strong [ref=e9]: gradiente su un lato
+      - text: "verso un colore più saturo. La prima non è una questione di misura del file — è il margine interno: il quadrato occupava 193px su 256, cioè il 75% della tela, contro l'86% delle icone di sistema. Qui sale a 220px e il glifo cresce in proporzione, quindi il disegno resta identico e cambia solo quanto è vicino al bordo."
+    - paragraph [ref=e10]:
+      - text: "La geometria non è stata ridisegnata a occhio: è"
+      - strong [ref=e11]: misurata
+      - text: sul file esistente, e combacia con il marchio 04 di «Naming e logo» — M11 20 l10-8 M21 12 v6.5 su griglia 32. Il glifo è
+      - strong [ref=e12]: una spezzata di due segmenti
+      - text: ", non due tratti separati: da qui il giunto tondo in alto a destra. La conferma che la lettura è giusta è che il cap tondo in basso cade esattamente sull'angolo del riquadro visibile."
+  - generic [ref=e13]:
+    - generic [ref=e14]: Oggi
+    - heading "Piatto, 75%" [level=2] [ref=e15]
+    - generic [ref=e20]:
+      - generic [ref=e21]: "48"
+      - generic [ref=e26]: "32"
+      - generic [ref=e31]: "16"
+    - paragraph [ref=e36]: "Fondo unico #45AEEE, glifo #E9EAEA — un grigio chiarissimo che su un fondo piatto non si nota."
+  - generic [ref=e37]:
+    - generic [ref=e38]: Opzione A
+    - heading "Diagonale" [level=2] [ref=e39]
+    - generic [ref=e44]:
+      - generic [ref=e45]: "48"
+      - generic [ref=e50]: "32"
+      - generic [ref=e55]: "16"
+    - paragraph [ref=e60]: "#5BBEF7 → #2585D4Luce da in alto a sinistra: la forma sembra curva invece che piatta. Il più vivo, e quello da cui ci si stanca prima."
+  - generic [ref=e61]:
+    - generic [ref=e62]: Opzione B · in uso
+    - heading "Fianco destro" [level=2] [ref=e63]
+    - generic [ref=e68]:
+      - generic [ref=e69]: "48"
+      - generic [ref=e74]: "32"
+      - generic [ref=e79]: "16"
+    - paragraph [ref=e84]:
+      - text: "#45AEEE piatto fino al 62% → #1477CCIl fondo resta"
+      - strong [ref=e85]: esattamente quello di oggi
+      - text: "dove si guarda, e si satura solo sul bordo. A 16px il gradiente sparisce comunque: è l'unica che a quella misura resta identica a com'era."
+  - generic [ref=e86]:
+    - generic [ref=e87]: Opzione C
+    - heading "Verticale" [level=2] [ref=e88]
+    - generic [ref=e93]:
+      - generic [ref=e94]: "48"
+      - generic [ref=e99]: "32"
+      - generic [ref=e104]: "16"
+    - paragraph [ref=e109]: "#5CBCF5 → #2189D6Chiaro sopra, saturo sotto: imita la luce dall'alto. La convenzione più antica delle icone, e la meno appariscente."
+  - generic [ref=e110]:
+    - generic [ref=e111]: Come si tiene
+    - heading "Il sorgente è l'SVG, il .ico si genera" [level=2] [ref=e112]
+    - paragraph [ref=e113]: "Fino a oggi la sorgente non esisteva: c'era solo icon.ico, e ogni modifica sarebbe stata un ritocco di pixel su una copia — «un po' più grande» non si sarebbe potuto nemmeno chiedere. Ora build/icon.svg è la sorgente e npm run icona rigenera il file a quattro misure passando da Electron, che l'SVG lo sa disegnare davvero. Ridisegnare le stesse forme con una libreria grafica avrebbe messo la geometria in due posti, e due posti prima o poi divergono: si ritocca l'SVG, l'icona resta quella di prima, e non se ne accorge nessuno finché non si guardano vicine."
+    - paragraph [ref=e114]: "Le quattro misure si disegnano una per una invece di rimpicciolire la più grande: a 16px un tratto da 21.7 ridotto sedici volte diventa una scia grigia, disegnato a quella misura resta un tratto. Cambiare variante è sostituire le due righe del linearGradient."

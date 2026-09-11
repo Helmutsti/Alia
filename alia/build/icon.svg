@@ -26,23 +26,25 @@
 
      Un solo posto da cambiare, qui sotto. Le tre varianti provate:
 
-       · fianco  (in uso)  #45AEEE piatto per due terzi, poi giù a #1477CC.
-                           Il fondo resta esattamente quello di prima dove si
-                           guarda, e si satura solo sul bordo destro.
-       · diagonale         x1=0 y1=0 x2=1 y2=1, #5BBEF7 → #2585D4.
-                           Più vivo: la forma sembra curva invece che piatta.
-       · verticale         x1=0 y1=0 x2=0 y2=1, #5CBCF5 → #2189D6.
-                           La convenzione più antica, la meno appariscente.
+       · diagonale (in uso)  x1=0 y1=0 x2=1 y2=1, #5BBEF7 → #2585D4.
+                             La luce arriva da in alto a sinistra e il colore
+                             si satura verso il basso a destra: è il gradiente
+                             che si legge come volume, e la forma sembra
+                             leggermente curva invece che piatta.
+       · fianco              x1=0 y1=0 x2=1 y2=0, stop 0 #45AEEE,
+                             0.62 #3BA5E8, 1 #1477CC. Il fondo resta quello di
+                             prima per due terzi e si satura solo sul bordo.
+       · verticale           x1=0 y1=0 x2=0 y2=1, #5CBCF5 → #2189D6.
+                             La convenzione più antica, la meno appariscente.
 
-     A 16px il gradiente sparisce comunque e conta solo il colore medio: è la
-     ragione per cui "fianco" parte dal colore di oggi — a quella misura resta
-     identica a com'è sempre stata. -->
+     A 16px il gradiente sparisce comunque e conta solo il colore medio: a
+     quella misura le tre si somigliano molto più di quanto non facciano a 256,
+     ed è il motivo per cui la scelta si fa guardando la grande. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
   <defs>
-    <linearGradient id="fondo" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#45AEEE" />
-      <stop offset="0.62" stop-color="#3BA5E8" />
-      <stop offset="1" stop-color="#1477CC" />
+    <linearGradient id="fondo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5BBEF7" />
+      <stop offset="1" stop-color="#2585D4" />
     </linearGradient>
   </defs>
 
