@@ -60,33 +60,64 @@ import { ChevronDown } from "../components/icons.jsx";
    di mezza finestra, cosi' qualcosa di quello che si stava guardando resta in
    scena e l'occhio non deve ricominciare da capo. */
 
-/* Le scale, dalla piu' fitta alla piu' larga: le lenti sono un indice in questo
-   elenco. `minuti` e' quanto dura una colonna, `larghezza` quanto e' larga.
+/* La scaletta dello zoom, dalla piu' fitta alla piu' larga: le lenti sono un
+   indice qui dentro. `minuti` e' quanto dura una colonna, `larghezza` quanto e'
+   larga in pixel.
 
-   I numeri non sono liberi: 52px per un'ora e 44 per un giorno sono la
-   larghezza sotto la quale l'etichetta della colonna non ci sta piu'; 14 e 5
-   sono panoramiche, dove le etichette diventano rade per costruzione. */
+   **Otto gradini e non quattro** (11/09/2026). Con quattro, ogni lente era un
+   salto: dal giorno alla settimana la stessa barra passava da 44 pixel a 14, e
+   quello che si stava guardando diventava un trattino. Uno zoom si usa per
+   avvicinarsi *quanto serve*, e un gradino che triplica non lo permette — si
+   scavalca sempre la misura giusta. Qui ogni gradino sta fra il mezzo e i due
+   terzi del precedente: si arriva dove si vuole, e nessun passo fa perdere di
+   vista quello che si stava guardando.
+
+   Due gradini hanno la colonna piu' corta del giorno (un'ora e tre ore): sono
+   la giornata e la mezza settimana, dove le ore sono il dato. Gli altri sei
+   hanno la colonna di un giorno e cambiano solo quanto e' larga: dal giorno
+   ampio al trimestre, dove una colonna e' un filo di quattro pixel e le
+   etichette si diradano da se' (vedi `etichettata`).
+
+   Gli `id` restano stabili perche' sono quello che finisce in `t_setting`:
+   aggiungere un gradino in mezzo non deve rendere illeggibile la preferenza di
+   chi ne aveva scelto un altro. */
 export const SCALE_GANTT = [
-  { id: "ore", label: "Ore", minuti: 60, larghezza: 52 },
+  { id: "ora", label: "Ora", minuti: 60, larghezza: 56 },
+  { id: "tre-ore", label: "Tre ore", minuti: 180, larghezza: 38 },
+  { id: "giorni-larghi", label: "Giorni larghi", minuti: 1440, larghezza: 68 },
   { id: "giorni", label: "Giorni", minuti: 1440, larghezza: 44 },
-  { id: "settimane", label: "Settimane", minuti: 1440, larghezza: 14 },
-  { id: "mesi", label: "Mesi", minuti: 1440, larghezza: 5 },
+  { id: "quindicina", label: "Quindicina", minuti: 1440, larghezza: 26 },
+  { id: "settimane", label: "Settimane", minuti: 1440, larghezza: 15 },
+  { id: "mesi", label: "Mesi", minuti: 1440, larghezza: 8 },
+  { id: "trimestri", label: "Trimestri", minuti: 1440, larghezza: 4 },
 ];
 
+/* Una colonna che dura meno di un giorno: e' la domanda che separa le due
+   meta' della scaletta, e la fanno in cinque posti diversi. Meglio una
+   funzione che cinque confronti con 1440 sparsi. */
+const aOre = (scala) => scala.minuti < 1440;
+
 export const eScalaGantt = (v) => SCALE_GANTT.some((s) => s.id === v);
-const scalaDi = (id) => SCALE_GANTT.find((s) => s.id === id) ?? SCALE_GANTT[1];
+const scalaDi = (id) => SCALE_GANTT.find((s) => s.id === id) ?? SCALE_GANTT[3];
 
 const MS_MINUTO = 60_000;
 const SIDEBAR = 268;
 const ALTEZZA_RIGA = 34;
 
-/* Il bordo alto della colonna che contiene un istante: l'ora tonda alla scala
-   delle ore, la mezzanotte a tutte le altre. */
+/* Il bordo sinistro della colonna che contiene un istante.
+
+   Si conta **dalla mezzanotte di quel giorno**, non dall'inizio dei tempi: con
+   colonne da tre ore le colonne devono cadere alle 0, 3, 6… di ogni giorno, e
+   partire da un'origine assoluta le farebbe sfasare a ogni ora legale. Alla
+   scala del giorno e oltre, il bordo e' la mezzanotte. */
 function inizioColonna(data, scala) {
-  const d = new Date(data);
-  if (scala.minuti === 60) d.setMinutes(0, 0, 0);
-  else d.setHours(0, 0, 0, 0);
-  return d;
+  const mezzanotte = new Date(data);
+  mezzanotte.setHours(0, 0, 0, 0);
+  if (!aOre(scala)) return mezzanotte;
+  const minutiDelGiorno = (data.getTime() - mezzanotte.getTime()) / MS_MINUTO;
+  return new Date(
+    mezzanotte.getTime() + Math.floor(minutiDelGiorno / scala.minuti) * scala.minuti * MS_MINUTO,
+  );
 }
 
 const piuColonne = (data, scala, n) => new Date(data.getTime() + n * scala.minuti * MS_MINUTO);
@@ -127,7 +158,7 @@ function useLarghezza(rif) {
    dato che si sta guardando. */
 function estremi(task, scala) {
   const fine = new Date(task.dueAt);
-  const perGiorni = scala.minuti === 1440;
+  const perGiorni = !aOre(scala);
 
   if (!task.startAt) {
     return { punto: perGiorni ? inizioColonna(fine, scala) : fine, istante: true };
@@ -197,10 +228,9 @@ function TestaTempo({ colonne, scala }) {
      quante colonne di fila appartengono allo stesso periodo. */
   const fasce = [];
   for (const c of colonne) {
-    const label =
-      scala.minuti === 60
-        ? c.data.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })
-        : c.data.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+    const label = aOre(scala)
+      ? c.data.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })
+      : c.data.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
     const ultima = fasce.at(-1);
     if (ultima?.label === label) ultima.colonne += 1;
     else fasce.push({ label, colonne: 1 });
@@ -257,7 +287,7 @@ function Barra({ task, capi, x, scala, onApri, onPresa, onCapo, inMano = false, 
   const tinta = task.project?.color ?? "var(--color-project-fallback)";
 
   if (capi.istante) {
-    const centro = x(capi.punto) + (scala.minuti === 1440 ? scala.larghezza / 2 : 0);
+    const centro = x(capi.punto) + (scala.minuti >= 1440 ? scala.larghezza / 2 : 0);
     return (
       <button
         type="button"
@@ -384,30 +414,30 @@ export function VistaGantt({
     const adesso = new Date();
     return Array.from({ length: quante }, (_, i) => {
       const data = piuColonne(inizio, scala, i);
-      const perOre = scala.minuti === 60;
+      const perOre = aOre(scala);
       const giorno = data.getDay();
-      /* Quali colonne si etichettano: tutte dove c'e' spazio, i lunedi' alla
-         scala delle settimane, i primi del mese a quella dei mesi. */
+      /* Quali colonne portano un numero, e quali no: lo decide **la larghezza**
+         e non il nome della scala. Sotto i 22px il numero non ci sta senza
+         toccare quello accanto, e si scrive solo il lunedi'; sotto i 10 non ci
+         sta nemmeno quello, e resta il primo del mese. Cosi' aggiungere un
+         gradino alla scaletta non chiede di aggiungere un caso qui. */
       const etichettata =
-        scala.id === "ore" || scala.id === "giorni"
-          ? true
-          : scala.id === "settimane"
-            ? giorno === 1
-            : data.getDate() === 1;
+        scala.larghezza >= 22 ? true : scala.larghezza >= 10 ? giorno === 1 : data.getDate() === 1;
+      const fine = data.getTime() + scala.minuti * MS_MINUTO;
       return {
         data,
         festivo: !perOre && (giorno === 0 || giorno === 6),
-        adesso:
-          perOre
-            ? data.getHours() === adesso.getHours() && data.toDateString() === adesso.toDateString()
-            : data.toDateString() === adesso.toDateString(),
+        /* La colonna che contiene adesso, qualunque sia la sua durata: un
+           confronto fra istanti, non fra ore o giorni. */
+        adesso: adesso.getTime() >= data.getTime() && adesso.getTime() < fine,
         etichetta: etichettata
           ? perOre
             ? `${String(data.getHours()).padStart(2, "0")}`
             : String(data.getDate())
           : null,
+        /* Il giorno della settimana solo dove c'e' spazio per due righe. */
         sottoEtichetta:
-          scala.id === "giorni"
+          !perOre && scala.larghezza >= 36
             ? data.toLocaleDateString("it-IT", { weekday: "short" })
             : null,
       };
@@ -496,7 +526,7 @@ export function VistaGantt({
     (task, iDa, iA) => {
       const da = dataColonna(Math.min(iDa, iA));
       const a = dataColonna(Math.max(iDa, iA));
-      if (scala.minuti === 60) {
+      if (aOre(scala)) {
         return onAggiornaTask?.(task.id, {
           startAt: da.toISOString(),
           dueAt: piuColonne(a, scala, 1).toISOString(),
@@ -520,7 +550,7 @@ export function VistaGantt({
   const scriviPunto = useCallback(
     (task, i) => {
       const d = new Date(dataColonna(i));
-      if (scala.minuti === 1440) d.setHours(9, 0, 0, 0);
+      if (!aOre(scala)) d.setHours(9, 0, 0, 0);
       return onAggiornaTask?.(task.id, { dueAt: d.toISOString(), startAt: null });
     },
     [dataColonna, onAggiornaTask, scala],

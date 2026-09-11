@@ -215,7 +215,7 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
      proporzione giusta, perche' un Gantt si guarda in avanti. */
   const daOggi = useCallback(
     (colonne, scala) => {
-      const sc = SCALE_GANTT.find((x) => x.id === scala) ?? SCALE_GANTT[1];
+      const sc = SCALE_GANTT.find((x) => x.id === scala) ?? SCALE_GANTT[3];
       return new Date(Date.now() - Math.floor(colonne / 4) * sc.minuti * 60_000);
     },
     [],
@@ -244,7 +244,7 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
          mese alle ore si finiva in un giorno qualunque a tre settimane da
          qui: il centro di una finestra lunga non e' un posto che qualcuno
          abbia scelto. */
-      const vecchia = SCALE_GANTT.find((sc) => sc.id === scalaGantt) ?? SCALE_GANTT[1];
+      const vecchia = SCALE_GANTT.find((sc) => sc.id === scalaGantt) ?? SCALE_GANTT[3];
       setAncoraGantt((prec) => {
         const inizio = prec.getTime();
         const durataVecchia = colonneGantt * vecchia.minuti * 60_000;
@@ -261,7 +261,7 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
 
   const passoGantt = useCallback(
     (verso) => {
-      const scala = SCALE_GANTT.find((sc) => sc.id === scalaGantt) ?? SCALE_GANTT[1];
+      const scala = SCALE_GANTT.find((sc) => sc.id === scalaGantt) ?? SCALE_GANTT[3];
       const colonne = Math.max(1, Math.floor(colonneGantt / 2));
       setAncoraGantt(
         (prec) => new Date(prec.getTime() + verso * colonne * scala.minuti * 60_000),
