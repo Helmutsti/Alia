@@ -224,8 +224,15 @@ export function InboxWorkspace({ startFull = false }) {
       if (groupId && String(groupId).includes(":")) {
         await rilascioKanban.current?.(task, groupId);
         if (task.inbox) await alia.smista(id, false);
-        /* Niente riordino: nel Kanban la posizione dentro la colonna la decide
-           l'ordinamento in testata, non il punto in cui si e' lasciata. */
+        /* La posizione si scrive solo con l'ordinamento manuale, come nel ramo
+           qui sotto e per la stessa ragione: con un ordinamento calcolato il
+           task salterebbe subito dove lo mette l'ordinamento, e scrivere la
+           posizione sarebbe una promessa che non si vede. Queste chiavi
+           arrivano dalle colonne del Kanban **e dai gruppi per fase della
+           Lista**, dove il punto in cui si lascia la riga conta. */
+        if (ordinamento === "manuale") {
+          await alia.riordina(null, ordineDelleRadici(locali));
+        }
         return;
       }
 

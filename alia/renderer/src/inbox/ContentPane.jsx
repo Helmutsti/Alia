@@ -7,6 +7,8 @@ import { TaskRow } from "./TaskRow.jsx";
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from "./Dropdown.jsx";
 import {
   GROUP_KEYS,
+  GRUPPI_LUOGO,
+  SENZA_FASE,
   SENZA_PROGETTO,
   SHOW_DONE,
   SORT_KEYS,
@@ -176,9 +178,14 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
   const [apertoIn, setApertoIn] = useState(null);
   const [titoloNuovo, setTitoloNuovo] = useState("");
 
+  /* Il gruppo e' un **posto** — un progetto o una fase — e non un risultato:
+     e' la condizione che apre insieme il rilascio e la scrittura. Vedi
+     `GRUPPI_LUOGO` in contentQuery. */
+  const luogo = GRUPPI_LUOGO.has(group);
+
   const apriIn = useCallback(
     (idGruppo) => {
-      if (group !== "progetto") return;
+      if (!GRUPPI_LUOGO.has(group)) return;
       setTitoloNuovo("");
       setApertoIn(idGruppo);
     },
@@ -210,25 +217,38 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
          chiedergli di ridecidere una cosa che ha appena deciso. E' l'opposto
          del campo della colonna Inbox, dove la task nasce da smistare proprio
          perche' li' non si e' scelto niente. */
+      /* Dove nasce la task, secondo cosa sono i gruppi.
+
+         Per progetto il gruppo **e'** il progetto. Per fase no: il progetto e'
+         l'ambito che si sta guardando — le fasi si raggruppano solo dentro un
+         progetto — e il gruppo e' la fase. Due letture della stessa chiave, e
+         tenerle separate qui evita che `idGruppo` finisca scambiato per un id
+         di progetto quando e' un id di fase. */
+      const dentroUnaFase = group === "milestone";
+      const idProgetto = dentroUnaFase
+        ? scope
+        : idGruppo === SENZA_PROGETTO
+          ? null
+          : idGruppo;
+      const idFase = dentroUnaFase && idGruppo !== SENZA_FASE ? idGruppo : null;
+
       if (completo) {
         /* Il completo non crea: apre il composer con dentro quello che era
            stato scritto e il progetto del gruppo gia' scelto. Chi lo apre da
-           qui ha gia' detto dove va. */
+           qui ha gia' detto dove va. La fase no: il composer non sa ancora
+           riceverne una preselezionata, e la si sceglie li' dentro. */
         setApertoIn(null);
-        onApriComposer?.({
-          titolo,
-          idProgetto: idGruppo === SENZA_PROGETTO ? null : idGruppo,
-          inbox: false,
-        });
+        onApriComposer?.({ titolo, idProgetto, inbox: false });
         return;
       }
       await alia.creaTask({
         title: titolo,
-        idProject: idGruppo === SENZA_PROGETTO ? null : idGruppo,
+        idProject: idProgetto,
+        idMilestone: idFase,
         isInbox: false,
       });
     },
-    [alia, onApriComposer, titoloNuovo],
+    [alia, group, onApriComposer, scope, titoloNuovo],
   );
 
   /* I gruppi chiusi della vista Lista.
@@ -243,6 +263,25 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
      posto è la tabella delle preferenze che ancora non c'è (vedi TODO). */
   const [chiusi, setChiusi] = useState(() => new Set());
   const chiaveGruppo = useCallback((idGruppo) => `${group}:${idGruppo}`, [group]);
+
+  /* Cosa vuol dire rilasciare su questo gruppo, e quindi se il gruppo e' un
+     bersaglio: `undefined` = non lo e', e il motore lo ignora senza bisogno di
+     un elenco di casi (vedi la nota in dragKit).
+
+     Le due forme non sono un capriccio. Il progetto conserva la chiave nuda —
+     e' quella che `onDrop` legge da sempre per il ramo "assegna il progetto".
+     La fase usa `milestone:<id>`, cioe' **la stessa chiave delle colonne del
+     Kanban**: cosi' il rilascio su una fase e' una cosa sola, scritta una volta
+     sola, che arrivi da un elenco o da un tabellone. */
+  const chiaveRilascio = useCallback(
+    (idGruppo) =>
+      group === "progetto"
+        ? idGruppo
+        : group === "milestone"
+          ? `milestone:${idGruppo}`
+          : undefined,
+    [group],
+  );
   const alterna = useCallback(
     (idGruppo) =>
       setChiusi((prec) => {
@@ -271,7 +310,9 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
     const bersaglio = anteprima?.groupId;
     if (!bersaglio) return;
     setChiusi((prec) => {
-      const k = `${group}:${bersaglio}`;
+      /* Raggruppando per fase la chiave di rilascio e' gia' `milestone:<id>`,
+         cioe' esattamente la chiave di chiusura: non va prefissata due volte. */
+      const k = group === "milestone" ? bersaglio : `${group}:${bersaglio}`;
       if (!prec.has(k)) return prec;
       const next = new Set(prec);
       next.delete(k);
@@ -334,6 +375,37 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
      Le due ultime si escludono a vicenda per costruzione, ed e' il motivo per
      cui non c'e' da scegliere fra tre voci sempre presenti: l'ambito decide
      quale delle due ha senso. */
+  /* Le voci del raggruppamento della **Lista**, che seguono l'ambito con la
+     stessa regola del Kanban (aggiunto il 11/09/2026).
+
+     "Fase" mancava del tutto, ed era un buco nel modello prima che
+     nell'interfaccia: il tabellone sapeva mettere le fasi in colonna ma
+     l'elenco non sapeva raggrupparle, cioe' la stessa dimensione esisteva in
+     una vista e non nell'altra. Le fasi appartengono a un progetto, quindi la
+     voce compare **dentro un progetto** e prende il posto di "Progetto", che
+     li' farebbe un gruppo solo — e' esattamente lo scambio che il Kanban fa
+     gia' con le sue colonne.
+
+     L'ordine resta quello del catalogo: il posto (progetto o fase), poi le tre
+     dimensioni che sono un risultato. */
+  const vociLista = useMemo(
+    () =>
+      GROUP_KEYS.filter((k) =>
+        k.id === "progetto" ? scope === "all" : k.id === "milestone" ? scope !== "all" : true,
+      ),
+    [scope],
+  );
+
+  /* Cambiando ambito, un raggruppamento che li' non esiste piu' scivola
+     sull'altro **posto** invece di cadere su una voce qualsiasi: da "Progetto"
+     a "Fase" entrando in un progetto, e ritorno uscendone. E' lo stesso
+     spostamento che fa il Kanban, e conserva l'intenzione di chi guardava per
+     luogo. */
+  useEffect(() => {
+    if (vociLista.some((v) => v.id === group)) return;
+    setGroup(scope === "all" ? "progetto" : "milestone");
+  }, [vociLista, group, scope, setGroup]);
+
   const vociKanban = useMemo(() => {
     const voci = [{ id: "stato", label: "Stato" }];
     if (scope === "all") voci.push({ id: "progetto", label: "Progetto" });
@@ -462,9 +534,14 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
        progetto solo selezionato, gli altri non sono bersagli — ci si finisce
        cambiando ambito, non trascinando in un gruppo che non si sta guardando. */
     const inScena = scope === "all" ? projects : projects.filter((p) => p.id === scope);
+    /* Le fasi sono quelle del progetto guardato: fuori da un progetto il
+       raggruppamento per fase non e' nemmeno offerto (vedi `vociLista`), quindi
+       qui l'elenco vuoto e' la risposta giusta e non un caso da trattare. */
+    const fasiInScena = (alia.milestones ?? []).filter((m) => m.projectId === scope);
     const raggruppate = groupTasks(visibili, view === "lista" ? group : "nessuno", {
       projects: inScena,
       states,
+      milestones: fasiInScena,
       luoghi: view === "lista",
     });
 
@@ -481,14 +558,17 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
        vede raggruppando per "Nessuno". Cosi' la vista vuota e' comunque una
        vista, e il disegno sotto non deve sapere niente di tutto questo. */
     return raggruppate.length > 0 ? raggruppate : [{ id: "tutte", label: null, items: [] }];
-  }, [radici, scope, filters, gruppiFiltro, sortKey, sortDir, group, view, projects, states]);
+  }, [radici, scope, filters, gruppiFiltro, sortKey, sortDir, group, view, projects, states, alia.milestones]);
 
   /* L anteprima si applica **solo a quello che disegna la Lista**, non a
      `gruppi`. I gruppi puri restano la sorgente per il conteggio in testata e
      per le altre viste, che iterano gli elementi aspettandosi dei task: il
      segnaposto del varco non e un task, e infilarlo la faceva esplodere
      colonneKanban, che legge lo stato di ogni elemento. */
-  const gruppiDaDisegnare = useMemo(() => conAnteprima(gruppi), [conAnteprima, gruppi]);
+  const gruppiDaDisegnare = useMemo(
+    () => conAnteprima(gruppi, (g) => chiaveRilascio(g.id)),
+    [conAnteprima, gruppi, chiaveRilascio],
+  );
 
   const totale = gruppi.reduce((n, g) => n + g.items.length, 0);
 
@@ -587,17 +667,32 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
      qui il gesto e' **uno alla volta**, quindi una domanda che si ferma a
      chiedere e' accettabile — al contrario della selezione massiva, dove venti
      domande in fila sarebbero insopportabili. */
+  /* La fase vive dentro il progetto che si sta guardando: si riscrive anche
+     quello, perche' il core vuole la coppia coerente. */
+  const assegnaFase = useCallback(
+    (task, idFase) =>
+      alia.assegnaProgetto(task.id, scope === "all" ? (task.project?.id ?? null) : scope, idFase),
+    [alia, scope],
+  );
+
   const rilasciaKanban = useCallback(
     (task, chiave) => {
       const colonna = colonneKanban.find((c) => c.key === chiave);
-      if (!colonna) return;
-      if (groupKanban === "stato") return alia.cambiaStato(task.id, colonna.valore);
-      if (groupKanban === "progetto") return alia.assegnaProgetto(task.id, colonna.valore, null);
-      /* La fase vive dentro il progetto che si sta guardando: si riscrive anche
-         quello, perche' il core vuole la coppia coerente. */
-      return alia.assegnaProgetto(task.id, scope === "all" ? (task.project?.id ?? null) : scope, colonna.valore);
+      if (colonna) {
+        if (groupKanban === "stato") return alia.cambiaStato(task.id, colonna.valore);
+        if (groupKanban === "progetto") return alia.assegnaProgetto(task.id, colonna.valore, null);
+        return assegnaFase(task, colonna.valore);
+      }
+
+      /* Nessuna colonna con questa chiave: allora arriva dai **gruppi della
+         Lista**, che parlano la stessa lingua (`milestone:<id>`) ma non sono il
+         tabellone — `colonneKanban` e' costruito sul raggruppamento del Kanban,
+         che nella Lista non c'entra. Il significato pero' e' identico, e
+         scriverlo una volta sola e' il punto di usare la stessa chiave. */
+      const [tipo, valore] = String(chiave).split(":");
+      if (tipo === "milestone") return assegnaFase(task, valore === SENZA_FASE ? null : valore);
     },
-    [alia, colonneKanban, groupKanban, scope],
+    [alia, assegnaFase, colonneKanban, groupKanban],
   );
 
   /* Il rilascio lo esegue `onDrop` in InboxWorkspace, che e' l'unico posto a
@@ -923,12 +1018,12 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
               Raggruppa:{" "}
               {(view === "kanban"
                 ? (vociKanban.find((k) => k.id === groupKanban)?.label ?? "Stato")
-                : GROUP_KEYS.find((k) => k.id === group).label
+                : (vociLista.find((k) => k.id === group)?.label ?? "Progetto")
               ).toLowerCase()}
               <ChevronDown size={11} className="opacity-70" />
             </button>
             <Dropdown open={menu === "raggruppa"} onClose={chiudi} width={200}>
-              {(view === "kanban" ? vociKanban : GROUP_KEYS).map((k) => (
+              {(view === "kanban" ? vociKanban : vociLista).map((k) => (
                 <DropdownItem
                   key={k.id}
                   selected={(view === "kanban" ? groupKanban : group) === k.id}
@@ -966,13 +1061,13 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
           {gruppiDaDisegnare.map((g) => (
               <div
                 key={g.id}
-                /* Bersaglio del rilascio solo raggruppando per progetto: e' il
-                   solo raggruppamento in cui il gruppo identifica un valore
-                   assegnabile senza ambiguita'. Sugli altri l'attributo non
-                   c'e', quindi il motore non trova bersagli e il rilascio viene
-                   rifiutato da se' — senza un elenco di casi da mantenere. */
-                data-drop-group={group === "progetto" ? g.id : undefined}
-                onDoubleClick={group === "progetto" ? (e) => doppioClic(e, g.id) : undefined}
+                /* Bersaglio del rilascio dove il gruppo identifica un valore
+                   assegnabile senza ambiguita': il progetto e la fase. Sugli
+                   altri raggruppamenti l'attributo non c'e', quindi il motore
+                   non trova bersagli e il rilascio viene rifiutato da se' —
+                   senza un elenco di casi da mantenere. */
+                data-drop-group={chiaveRilascio(g.id)}
+                onDoubleClick={luogo ? (e) => doppioClic(e, g.id) : undefined}
                 className="flex flex-col gap-2 rounded-lg transition-colors duration-[120ms]">
                 {g.label ? (
                   /* La testata è il comando che apre e chiude il gruppo, tutta
@@ -1035,10 +1130,17 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
                       states={inSelezione ? [] : states}
                       onChangeState={inSelezione ? undefined : (task, stato) => alia.cambiaStato(task.id, stato.id)}
                       onOpen={!inSelezione && onOpenTask ? () => onOpenTask(t.id) : undefined}
+                      /* **Sempre presa in mano**, comunque si raggruppi
+                         (11/09/2026). Prima il gesto esisteva solo raggruppando
+                         per progetto, e la regola confondeva due cose diverse:
+                         dove si puo' *rilasciare* e cosa si puo' *prendere*.
+                         Raggruppando per scadenza o per stato la riga non si
+                         muoveva affatto — nemmeno per rimandarla in triage, che
+                         e' un bersaglio dell'altra meta' della schermata e non
+                         c'entra niente con i gruppi. Il rilascio resta rifiutato
+                         dove non ha senso: lo dicono i bersagli, non la presa. */
                       onPointerDown={
-                        !inSelezione && onRowPointerDown && group === "progetto"
-                          ? (e) => onRowPointerDown(t.id, e)
-                          : undefined
+                        !inSelezione && onRowPointerDown ? (e) => onRowPointerDown(t.id, e) : undefined
                       }
                     />
                   ),
@@ -1087,7 +1189,7 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
                       <Espandi size={12} />
                     </button>
                   </div>
-                ) : (
+                ) : luogo ? (
                   <button
                     type="button"
                     onClick={() => apriIn(g.id)}
@@ -1100,7 +1202,7 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
                   >
                     Nuova task in {g.label ?? "questo gruppo"}…
                   </button>
-                )}
+                ) : null}
               </div>
           ))}
         </div>

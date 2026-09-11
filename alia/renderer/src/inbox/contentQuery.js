@@ -173,9 +173,14 @@ export function sortTasks(tasks, key, dir) {
    Un posto vuoto resta un posto, e farlo sparire vuol dire togliere l'unico
    modo di rimetterci qualcosa: svuoti un progetto e non puoi piu' trascinarci
    niente, perche' il bersaglio e' sparito insieme all'ultima task. */
+/* Il catalogo completo: e' l'elenco da cui la preferenza salvata viene
+   validata. Quali voci siano **offerte** lo decide l'ambito, e non sta qui —
+   "Fase" ha senso dentro un progetto e "Progetto" fuori, esattamente come nel
+   Kanban (vedi `vociLista` in ContentPane). */
 export const GROUP_KEYS = [
   { id: "nessuno", label: "Nessuno" },
   { id: "progetto", label: "Progetto" },
+  { id: "milestone", label: "Fase" },
   { id: "scadenza", label: "Scadenza" },
   { id: "priorita", label: "Priorità" },
   { id: "stato", label: "Stato" },
@@ -186,8 +191,17 @@ export const GROUP_KEYS = [
    questa. Meglio condividerla che riscriverla da due parti. */
 export const SENZA_PROGETTO = "__nessuno__";
 
+/* La stessa cosa per le fasi, e **la stessa parola del Kanban**: la' la colonna
+   "Senza fase" ha chiave `milestone:nessuna`, e qui il gruppo si chiama
+   `nessuna` perche' la chiave di rilascio della Lista e' `${group}:${id}` —
+   cioe' `milestone:nessuna`, la stessa stringa. Due viste, un solo nome per lo
+   stesso posto: chi legge il rilascio non deve sapere da quale delle due
+   arriva. */
+export const SENZA_FASE = "nessuna";
+
 function chiave(task, group) {
   if (group === "progetto") return task.project?.id ?? SENZA_PROGETTO;
+  if (group === "milestone") return task.milestone?.id ?? SENZA_FASE;
   if (group === "priorita") return task.priority;
   if (group === "stato") return String(task.state.id);
   if (group === "scadenza") {
@@ -212,13 +226,21 @@ const ETICHETTA_SCADENZA = {
   senza: "Senza scadenza",
 };
 
+/* I raggruppamenti in cui il gruppo e' un **posto**: identifica un valore
+   assegnabile, quindi ci si rilascia dentro e ci si scrive. Sono anche i soli
+   che si disegnano da vuoti — vedi la nota sopra. */
+export const GRUPPI_LUOGO = new Set(["progetto", "milestone"]);
+
 /**
  * @param {object} [opzioni]
  * @param {boolean} [opzioni.luoghi]  tieni anche i gruppi vuoti che sono un
- *   posto dove rilasciare e dove scrivere (solo il raggruppamento per progetto:
- *   e' il solo in cui il gruppo identifica un valore assegnabile).
+ *   posto dove rilasciare e dove scrivere (vedi `GRUPPI_LUOGO`).
  */
-export function groupTasks(tasks, group, { projects = [], states = [], luoghi = false } = {}) {
+export function groupTasks(
+  tasks,
+  group,
+  { projects = [], states = [], milestones = [], luoghi = false } = {},
+) {
   if (group === "nessuno") return [{ id: "tutte", label: null, items: tasks }];
 
   const per = new Map();
@@ -230,14 +252,15 @@ export function groupTasks(tasks, group, { projects = [], states = [], luoghi = 
 
   const ordine = {
     progetto: [...projects.map((p) => p.id), SENZA_PROGETTO],
+    milestone: [...milestones.map((m) => m.id), SENZA_FASE],
     priorita: PRIORITIES.map((p) => p.id),
     stato: [...states].sort((a, b) => a.stepOrder - b.stepOrder).map((s) => String(s.id)),
     scadenza: ["ritardo", "oggi", "settimana", "dopo", "senza"],
   }[group] ?? [...per.keys()];
 
-  /* Il solo raggruppamento in cui un gruppo vuoto va tenuto: vedi la nota
-     sopra. Sugli altri `per.has` fa il suo lavoro di sempre. */
-  const tieni = luoghi && group === "progetto" ? () => true : (k) => per.has(k);
+  /* I due raggruppamenti in cui un gruppo vuoto va tenuto: vedi la nota sopra.
+     Sugli altri `per.has` fa il suo lavoro di sempre. */
+  const tieni = luoghi && GRUPPI_LUOGO.has(group) ? () => true : (k) => per.has(k);
 
   return ordine
     .filter(tieni)
@@ -246,6 +269,10 @@ export function groupTasks(tasks, group, { projects = [], states = [], luoghi = 
       if (group === "progetto") {
         const p = projects.find((x) => x.id === k);
         return { id: k, label: p ? p.name : "Senza progetto", dot: p ? p.color : null, dashed: !p, items };
+      }
+      if (group === "milestone") {
+        const m = milestones.find((x) => x.id === k);
+        return { id: k, label: m ? m.label : "Senza fase", dashed: !m, items };
       }
       if (group === "priorita") {
         const p = PRIORITIES.find((x) => x.id === k);
