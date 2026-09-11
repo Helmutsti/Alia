@@ -525,7 +525,7 @@ function CampoAggiungi({ segnaposto, onAggiungi, className }) {
   );
 }
 
-function Progetti({ errore }) {
+function Progetti() {
   const alia = useAlia();
   const { projects, milestones, tasks } = alia;
 
@@ -554,10 +554,6 @@ function Progetti({ errore }) {
         Cancellarne uno chiede dove mandare le task che ci vivono; cancellare una fase no — le task
         restano nel progetto e perdono solo la fase.
       </p>
-
-      {errore ? (
-        <p className="m-0 mb-2.5 text-[12px] leading-[1.5] text-priority-high">{errore}</p>
-      ) : null}
 
       {projects.length === 0 ? (
         <p className={`m-0 mb-3 ${NOTA} max-w-none`}>Nessun progetto. Il primo si scrive qui sotto.</p>
@@ -683,7 +679,7 @@ function Progetti({ errore }) {
    concluso, che è una domanda sì/no e vuole un interruttore. Ai capi la
    risposta è già scritta dalla posizione, e infatti lì l'interruttore è spento:
    sull'apertura giù, sulla chiusura su. */
-function Stati({ errore }) {
+function Stati() {
   const alia = useAlia();
   const { states } = alia;
 
@@ -804,13 +800,6 @@ function Stati({ errore }) {
         vuoi, e accendi <span className="text-content/72">Chiude</span> su quelli che contano già come
         conclusi — migrato, archiviato, annullato.
       </p>
-
-      {errore ? (
-        /* Gli errori del core arrivano qui e non in un dialogo: sono rifiuti che
-           spiegano una regola, e si leggono accanto alla cosa che li ha
-           provocati. */
-        <p className="m-0 mb-2.5 text-[12px] leading-[1.5] text-priority-high">{errore}</p>
-      ) : null}
 
       {/* Il bottone di aggiunta sta **prima dell'ultima riga**, non in fondo, ed è
           il posto letterale in cui comparirà lo stato nuovo: `createState` lo
@@ -956,7 +945,6 @@ function NomeStato({ stato, onCommit }) {
 /* ── il pannello ────────────────────────────────────────────────────────────── */
 
 export function SettingsModal({ onClose }) {
-  const { errore, ricarica } = useAlia();
   const [sezione, setSezione] = useState("stati");
   const rifCard = useRef(null);
 
@@ -975,13 +963,12 @@ export function SettingsModal({ onClose }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  /* Chiudendo si ricarica: gli stati appena cambiati sono già nel provider, ma
-     un errore rimasto appeso non deve sopravvivere alla finestra che lo ha
-     prodotto. */
-  const chiudi = () => {
-    if (errore) ricarica();
-    onClose();
-  };
+  /* Chiudere non tocca più l'errore. Prima lo cancellava — con una ricarica —
+     perché l'errore viveva solo dentro questa finestra, e restarci appeso a
+     finestra chiusa voleva dire non essere più leggibile da nessuna parte. Ora
+     ha un posto suo in alto a destra, con la sua ✕: resta in scena finché non
+     lo si scarta, che è il punto. */
+  const chiudi = () => onClose();
 
   return (
     <div onClick={chiudi} className={VELO}>
@@ -1023,9 +1010,9 @@ export function SettingsModal({ onClose }) {
         <div className="flex-1 min-w-0 px-8 py-6 overflow-y-auto">
           {sezione === "notifiche" ? <Notifiche /> : null}
           {sezione === "fonti" ? <Fonti /> : null}
-          {sezione === "progetti" ? <Progetti errore={errore} /> : null}
+          {sezione === "progetti" ? <Progetti /> : null}
           {sezione === "scorciatoie" ? <Scorciatoie /> : null}
-          {sezione === "stati" ? <Stati errore={errore} /> : null}
+          {sezione === "stati" ? <Stati /> : null}
         </div>
       </div>
     </div>

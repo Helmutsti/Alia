@@ -141,13 +141,13 @@ export function AliaProvider({ children, dataset = null }) {
      ridisegni della lista sotto le mani di chi guarda. */
   /* Mettere un avviso in scena senza passare da una mutazione.
 
-     Il canale esiste gia' — l'angolo in basso a destra, `Avvisi` in
+     Il canale esiste gia' — l'angolo in alto a destra, `Messaggi` in
      AliaDialogs — ma finora ci arrivava solo quello che il core restituiva
      dentro un esito. Un resoconto di un'azione in blocco ("17 applicate, 3 da
      guardare") non viene dal core: viene da qui, che e' l'unico posto a sapere
      quante erano.
 
-     Accetta una frase compiuta, che e' una delle due forme che `Avvisi` gia'
+     Accetta una frase compiuta, che e' una delle due forme che `Messaggi` gia'
      sa mostrare. */
   const avvisa = useCallback((testo) => {
     if (!testo) return;
@@ -242,6 +242,12 @@ export function AliaProvider({ children, dataset = null }) {
     setAvvisi((prev) => prev.filter((_, i) => i !== indice));
   }, []);
 
+  /* L'errore si scarta come un avviso, perche' ora sta nello stesso posto.
+     Non e' solo cosmesi: finche' `errore` resta pieno il messaggio resta in
+     scena, e senza un gesto per toglierlo l'unico modo di farlo sparire era
+     una ricarica. */
+  const scartaErrore = useCallback(() => setErrore(null), []);
+
   /* Comodità ricorrenti, calcolate una volta qui invece che in ogni vista. */
   const derivati = useMemo(() => {
     const statoIniziale = dati.states.find((s) => s.role === "start") ?? null;
@@ -266,6 +272,7 @@ export function AliaProvider({ children, dataset = null }) {
       bloccato,
       avvisi,
       scartaAvviso,
+      scartaErrore,
       /* Le mutazioni, già avvolte: chi le usa non deve sapere come si negozia
          una conferma. */
       creaTask: (input) => esegui((decisioni) => core.createTask(input, decisioni)),
@@ -308,7 +315,7 @@ export function AliaProvider({ children, dataset = null }) {
       aggiungiCommento: (id, body) => esegui(() => core.addTaskComment(id, body)),
       togliCommento: (idCommento) => esegui(() => core.removeTaskComment(idCommento)),
     }),
-    [stato, errore, dati, derivati, carica, esegui, rispondi, annulla, richiesta, bloccato, avvisi, scartaAvviso],
+    [stato, errore, dati, derivati, carica, esegui, rispondi, annulla, richiesta, bloccato, avvisi, scartaAvviso, scartaErrore],
   );
 
   return <AliaContext.Provider value={valore}>{children}</AliaContext.Provider>;

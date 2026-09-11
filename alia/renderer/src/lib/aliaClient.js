@@ -40,7 +40,29 @@ function chiama(operazione, ...args) {
   if (typeof fn !== "function") {
     return Promise.reject(new Error(`Operazione non esposta dal preload: ${operazione}`));
   }
-  return fn(...args);
+  return fn(...args).catch((err) => {
+    throw ripulisci(err);
+  });
+}
+
+/* Electron incarta ogni rifiuto che torna dall'IPC: il messaggio del core —
+   "Esiste gia uno stato con questa etichetta: In corso" — arriva preceduto da
+   "Error invoking remote method 'alia:updateState': Error:", cioè dal nome
+   interno del canale e da un secondo "Error:" di troppo.
+
+   Finché quel testo si leggeva solo dentro il pannello Impostazioni era una
+   bruttezza in un angolo. Da quando gli errori hanno un posto loro in alto a
+   destra è la prima cosa che si legge dopo un gesto andato storto, e il core
+   quelle frasi le scrive per essere lette: vanno consegnate come sono.
+
+   Se il messaggio non ha quella forma resta intatto — meglio un testo goffo
+   che un testo mangiato da un'espressione regolare troppo sicura di sé. */
+const RUMORE_IPC = /^Error invoking remote method '[^']*':\s*(?:\w*Error:\s*)?/;
+
+function ripulisci(err) {
+  const testo = err?.message ?? String(err);
+  const pulito = testo.replace(RUMORE_IPC, "");
+  return pulito === testo ? err : new Error(pulito);
 }
 
 export const core = new Proxy(

@@ -237,46 +237,100 @@ function Bloccato({ bloccato, annulla }) {
   );
 }
 
-/* Gli avvisi non fermano niente: sono cose già successe che l'utente deve
-   sapere. Per ora ce n'è uno solo — lo scarto della chiusura per cascata. */
-function Avvisi({ avvisi, scarta }) {
-  if (avvisi.length === 0) return null;
+/* ── il canale dei messaggi, in alto a destra ───────────────────────────────
+
+   Un posto solo per le cose che non fermano niente ma vanno sapute, e sono di
+   due specie:
+
+   - gli **avvisi** dicono "è successo qualcosa che devi sapere" — l'operazione
+     è passata, con una conseguenza che non avevi chiesto;
+   - gli **errori** dicono "non è successo niente" — il core ha rifiutato la
+     scrittura, e il gesto che sembrava riuscito non ha lasciato traccia.
+
+   Stanno insieme perché la domanda che pongono a chi guarda è la stessa
+   ("fermati un attimo e leggi"), e tenerli in due posti diversi voleva dire —
+   ed è quello che succedeva — che uno dei due non aveva nessun posto: l'errore
+   viveva solo dentro il pannello Impostazioni, e ovunque altro una scrittura
+   rifiutata passava inosservata. La differenza fra le due specie resta, ma la
+   porta il colore, non la posizione.
+
+   In alto e non in basso: è l'angolo dove l'occhio arriva da solo quando
+   qualcosa cambia, e in basso a destra ci finisce la mano che lavora.
+
+   `top-20` e non `top-5`, ed è una misura presa sull'app in funzione, non a
+   occhio: quell'angolo è già di due comandi — la rotella delle Impostazioni
+   (finisce a 31px dal bordo) e il selettore di vista (37-69px) — e il riquadro
+   li copriva tutti e due. **Un messaggio che passa non deve coprire un comando
+   che resta**: finché non lo scarti quei due sono incliccabili, e chi ha appena
+   sbagliato qualcosa è esattamente chi potrebbe voler aprire le Impostazioni.
+
+   A 80px il riquadro comincia sotto entrambi e copre solo la cima delle colonne,
+   che è contenuto e non comandi. */
+function Messaggi({ avvisi, scarta, errore, scartaErrore }) {
+  if (!errore && avvisi.length === 0) return null;
   return (
-    <div className="absolute right-5 bottom-5 z-[96] flex flex-col gap-2 w-[340px] max-w-[calc(100%-40px)]">
+    <div className="absolute right-5 top-20 z-[96] flex flex-col gap-2 w-[340px] max-w-[calc(100%-40px)]">
+      {/* L'errore per primo: è l'unico dei due che dice che il lavoro non è
+          stato fatto, e chi ha appena toccato qualcosa deve leggerlo prima. */}
+      {errore ? (
+        <Messaggio grave onChiudi={scartaErrore} etichetta="Chiudi l'errore">
+          {errore}
+        </Messaggio>
+      ) : null}
       {avvisi.map((a, i) => (
-        <div
-          key={i}
-          className="rounded-lg border border-divider bg-elevated shadow-elev-md px-3 py-2.5 flex gap-2 items-start"
-        >
+        <Messaggio key={i} onChiudi={() => scarta(i)} etichetta="Chiudi l'avviso">
           {/* Due forme, perché sono due cose diverse. Gli avvisi della macchina
               a stati sono oggetti con un `tipo`, e la frase la scrive qui chi
               conosce il contesto. Quelli della configurazione degli stati sono
               già frasi compiute — "«Da fare» non è più lo stato di partenza" —
               perché solo il core sa quale stato era, e riportare qui quella
               conoscenza per riscriverne il testo sarebbe duplicarla. */}
-          <p className="m-0 flex-1 text-meta text-content/80">
-            {typeof a === "string"
-              ? a
-              : a.tipo === "chiusura-per-cascata-con-scarto"
-                ? "Una task si è chiusa perché tutti i suoi sotto-task sono chiusi, ma non erano tutti completati: è stata portata sullo stato finale, che potrebbe non riflettere com'è andata davvero."
-                : "Operazione applicata con un avviso."}
-          </p>
-          <button
-            type="button"
-            onClick={() => scarta(i)}
-            aria-label="Chiudi l'avviso"
-            className="shrink-0 w-5 h-5 grid place-items-center rounded-sm bg-transparent border-0 cursor-pointer text-content/55 hover:text-content"
-          >
-            ✕
-          </button>
-        </div>
+          {typeof a === "string"
+            ? a
+            : a.tipo === "chiusura-per-cascata-con-scarto"
+              ? "Una task si è chiusa perché tutti i suoi sotto-task sono chiusi, ma non erano tutti completati: è stata portata sullo stato finale, che potrebbe non riflettere com'è andata davvero."
+              : "Operazione applicata con un avviso."}
+        </Messaggio>
       ))}
     </div>
   );
 }
 
+/* La stessa scatola per tutti e due, perché sono lo stesso gesto di lettura.
+   `grave` cambia il bordo e il colore del testo: quel tanto che basta a far
+   capire, senza leggere, che questo non è andato a buon fine. */
+function Messaggio({ children, onChiudi, etichetta, grave = false }) {
+  return (
+    <div
+      role={grave ? "alert" : "status"}
+      className={
+        "rounded-lg bg-elevated shadow-elev-md px-3 py-2.5 flex gap-2 items-start border " +
+        (grave ? "border-priority-high/55" : "border-divider")
+      }
+    >
+      <p
+        className={
+          "m-0 flex-1 text-meta [overflow-wrap:anywhere] " +
+          (grave ? "text-priority-high" : "text-content/80")
+        }
+      >
+        {children}
+      </p>
+      <button
+        type="button"
+        onClick={onChiudi}
+        aria-label={etichetta}
+        className="shrink-0 w-5 h-5 grid place-items-center rounded-sm bg-transparent border-0 cursor-pointer text-content/55 hover:text-content"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 export function AliaDialogs() {
-  const { richiesta, bloccato, avvisi, rispondi, annulla, scartaAvviso } = useAlia();
+  const { richiesta, bloccato, avvisi, errore, rispondi, annulla, scartaAvviso, scartaErrore } =
+    useAlia();
 
   return (
     <>
@@ -317,7 +371,12 @@ export function AliaDialogs() {
           </div>
         </div>
       ) : null}
-      <Avvisi avvisi={avvisi} scarta={scartaAvviso} />
+      <Messaggi
+        avvisi={avvisi}
+        scarta={scartaAvviso}
+        errore={errore}
+        scartaErrore={scartaErrore}
+      />
     </>
   );
 }

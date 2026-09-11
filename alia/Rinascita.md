@@ -1296,15 +1296,49 @@ Delle tre cose che la chiedevano ne è servita **una**:
 - ⛔ **le Notifiche**: la tabella non basta, manca l'altra metà — chi le manda e
   quando (punto 10).
 
-### 4. Gli errori del core sono invisibili fuori dalle Impostazioni
+### ~~4. Gli errori del core sono invisibili fuori dalle Impostazioni~~ — fatto l'11/09/2026
 
-`esegui` nel provider mette il messaggio in `errore`, e quel campo lo legge solo il
-pannello Impostazioni. Ovunque altro **una scrittura rifiutata passa inosservata**: il
-gesto sembra riuscito e non è successo niente.
+**Sì, un errore ci sta insieme agli avvisi** — era la domanda aperta, e la risposta è
+che la differenza fra i due non è di posto ma di colore. Gli avvisi dicono "è successo
+qualcosa che devi sapere", gli errori dicono "non è successo niente": due frasi diverse,
+ma la stessa richiesta a chi guarda — *fermati un attimo e leggi*. Tenerle in due posti
+voleva dire, ed è quello che succedeva, che una delle due non aveva **nessun** posto.
 
-Il posto pronto è l'angolo in basso a destra, dove già compaiono gli avvisi. Da
-decidere se un errore ci sta davvero insieme — gli avvisi dicono "è successo qualcosa
-che devi sapere", un errore dice "non è successo niente".
+**Il canale si è anche spostato: da in basso a destra a in alto a destra.** In basso a
+destra ci finisce la mano che lavora — è dove sta il campo di aggiunta in fondo alla
+colonna, ed è la zona che il puntatore attraversa di continuo; in alto è dove l'occhio
+arriva da solo quando qualcosa cambia.
+
+In pratica: `Avvisi` in `lib/AliaDialogs.jsx` è diventato `Messaggi`, che prende dal
+provider sia `avvisi` sia `errore`. La scatola è una sola (`Messaggio`), con un
+interruttore `grave` che cambia bordo e colore del testo; l'errore sta sempre in cima,
+perché è l'unico dei due che dice che il lavoro non è stato fatto. Nuovo in
+`AliaProvider`: `scartaErrore`, la ✕ che prima non esisteva — `errore` si svuotava solo
+con una ricarica.
+
+**Due cose sono venute fuori solo lanciando l'app, e sono nel codice per quello.**
+
+- **L'angolo in alto a destra è già di due comandi**: la rotella delle Impostazioni
+  (finisce a 31px) e il selettore di vista (37-69px). A `top-5` il riquadro li copriva
+  entrambi, e finché non lo si scarta restano incliccabili — proprio mentre chi ha
+  appena sbagliato qualcosa potrebbe voler aprire le Impostazioni. Il riquadro parte
+  quindi da **80px**, misurati sull'app in funzione: sotto i due comandi, sopra solo la
+  cima delle colonne, che è contenuto.
+- **Il messaggio arrivava incartato dall'IPC**: "Error invoking remote method
+  'alia:updateState': Error: Esiste gia uno stato con questa etichetta: In corso" — nome
+  del canale e un secondo "Error:" davanti alla frase vera. Finché si leggeva solo nelle
+  Impostazioni era una bruttezza in un angolo; ora è la prima cosa che si legge dopo un
+  gesto andato storto. `ripulisci` in `lib/aliaClient.js` toglie il prefisso, e lascia
+  intatto qualunque messaggio non abbia quella forma.
+
+**Conseguenza voluta: le due copie inline nelle Impostazioni sono sparite.** `Progetti`
+e `Stati` stampavano l'errore accanto alla sezione che l'aveva provocato — la
+motivazione era "si legge accanto alla cosa che l'ha causato", e con un canale globale
+sarebbero diventate un doppione a schermo, visto che il pannello dei messaggi sta sopra
+il velo delle Impostazioni (z-96 contro z-92). Per la stessa ragione **chiudere le
+Impostazioni non cancella più l'errore**: prima lo faceva, con una ricarica, perché
+l'errore viveva solo lì dentro e sopravvivergli voleva dire diventare illeggibile. Ora
+resta finché non lo si scarta, che è il punto di tutto il giro.
 
 ### 5. CRUD rapido sulla riga, e il gesto che lo apre — fuso con il 16 l'11/09/2026
 
@@ -1377,12 +1411,24 @@ Priorità e stato sono i candidati forti (sono a valore chiuso, quindi un tocco
 basta); scadenza e progetto vogliono un selettore, che sotto una card non ci
 sta — per quelli la strada è la modifica in luogo o il dettaglio.
 
-### 6. Selezione massiva nella vista Lista
+### ~~6. Selezione massiva nella vista Lista~~ — fatto
 
-Selezionare più task e agire in blocco: assegnare un progetto, cambiare stato,
-smistare, cancellare. È il gesto che manca al triage vero. Da decidere come si entra in
-selezione (checkbox che compaiono, clic con modificatore, trascinamento a lazo) e dove
-vivono le azioni una volta selezionato qualcosa.
+Le due domande aperte hanno avuto risposta, e sono in `inbox/BarraSelezione.jsx` con il
+ragionamento per esteso.
+
+**Come si entra**: un tasto "Seleziona" in testata, cioè una **modalità esplicita**.
+Non `Ctrl`+clic, che costa zero a schermo ma è invisibile a chi non lo sa; non la
+casella in hover, che rende ambiguo ogni clic su una riga che già si apre *e* si
+trascina. Con la modalità il clic cambia significato solo quando l'hai chiesto tu.
+
+**Dove vivono le azioni**: una barra in fondo alla colonna, e l'azione **si sceglie e
+poi si conferma** invece di partire al clic — un'azione in blocco è la cosa più
+distruttiva che l'app sa fare e non ha un "annulla", e così si corregge la mira senza
+uscire dalla selezione.
+
+Trovato per strada: dopo ogni scrittura la lista si ricarica e metà degli id
+selezionati può non esserci più, quindi la selezione si **interseca** con quello che
+resta invece di essere buttata.
 
 ### ~~7. "Aggiungi task" nella vista divisa~~ — fatto il 2026-09-10
 
