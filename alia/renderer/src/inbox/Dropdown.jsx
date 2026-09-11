@@ -38,7 +38,25 @@ import { Check } from "../components/icons.jsx";
    (è suo fratello) e a sapere se un clic è caduto "dentro" il menu o fuori —
    che con il pannello su `body` non si può più dedurre dalla parentela. */
 
-const PANEL = "fixed z-[80] p-1.5 rounded-lg border border-divider bg-surface shadow-elev-lg";
+/* ── Lo z del pannello, e perché è così alto (12/09/2026) ───────────────────
+
+   Era `z-[80]`, e con il pannello appeso al `body` voleva dire **sotto i veli**.
+   Nessun antenato fa da stacking context — `relative` senza z-index e
+   `overflow-hidden` non lo creano — quindi il pannello si confronta con i veli
+   dei pannelli sovrapposti nello stesso contesto, quello della radice, e 80
+   perdeva contro tutti: dettaglio task 90, Impostazioni 92, composer 93.
+
+   L'effetto: i menu del dettaglio task e delle Impostazioni sparivano dietro un
+   velo nero al 52% con 7px di sfocatura. Non sembravano coperti, sembravano
+   morti — e nelle Impostazioni era peggio, perché il clic finiva sul velo, che
+   chiude la modale. Finché il pannello era figlio del comando (`absolute z-20`)
+   il problema non poteva esistere: stava dentro il velo, non sotto.
+
+   94 e non 99: sopra i tre veli, **sotto** i dialoghi di conferma (95) e gli
+   avvisi (96). Quelli non sono pannelli fra i quali un menu galleggia, sono
+   domande e guasti: un menu aperto che copre "vuoi cancellare il progetto?"
+   sarebbe la cosa sbagliata da mettere davanti. */
+const PANEL = "fixed z-[94] p-1.5 rounded-lg border border-divider bg-surface shadow-elev-lg";
 const ITEM =
   "flex items-center gap-[9px] px-[9px] py-2 w-full text-left rounded-sm border-none bg-transparent " +
   "cursor-pointer text-[12.5px] hover:bg-[color-mix(in_srgb,var(--color-accent)_14%,transparent)]";

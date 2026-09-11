@@ -48,6 +48,35 @@ const CARTELLA_DATI = process.env.ALIA_DATA ?? app.getPath("userData");
 mkdirSync(CARTELLA_DATI, { recursive: true });
 if (process.env.ALIA_DATA) app.setPath("userData", CARTELLA_DATI);
 
+/* ── Una sola Alia per volta ────────────────────────────────────────────────
+
+   Electron tiene un lucchetto **per cartella dati**: il primo processo lo
+   prende, chi arriva dopo si sente rispondere `false` e se ne va. Va chiesto
+   qui e non in `whenReady`, cioe' prima che qualcuno apra il database: due
+   processi sullo stesso file SQLite non sono una finestra in piu', sono due
+   scrittori sugli stessi dati.
+
+   Il secondo lancio non e' un errore: e' qualcuno che vuole Alia davanti. Il
+   processo nuovo esce e il vecchio si fa vedere — che e' quello che l'utente
+   stava chiedendo premendo l'icona una seconda volta. Senza questo, chiudere
+   la finestra nell'icona e ripremere il collegamento apriva una seconda Alia
+   invisibile alla prima, con la sua tray e i suoi promemoria: le sveglie
+   suonavano due volte e la scorciatoia globale, che la puo' avere un processo
+   solo, restava a quello che era arrivato prima.
+
+   Il lucchetto sta nella cartella dati, quindi due installazioni diverse
+   (globale e sotto nvm) si riconoscono: e' il database che devono spartirsi,
+   non la cartella del programma. Con `ALIA_DATA` puntato altrove sono invece
+   due Alie legittime, e nessuna disturba l'altra. */
+const istanzaUnica = app.requestSingleInstanceLock();
+if (!istanzaUnica) {
+  /* Si esce subito e in silenzio. Nessun log: il file e' dell'altra istanza, e
+     un avviso per un gesto che ha fatto la cosa giusta sarebbe rumore. */
+  app.quit();
+} else {
+  app.on("second-instance", () => mostraFinestra());
+}
+
 /* Nota sulle scrollbar in overlay (`--enable-features=OverlayScrollbar`): le fa
    galleggiare sopra il contenuto invece di occupare spazio nel layout. Senza,
    la scrollbar verticale della colonna Inbox si prende 10px di larghezza, che
@@ -188,6 +217,35 @@ let cattura = null;
    l'icona vicino all'orologio sono due cose diverse. */
 let inUscita = false;
 
+/* ── Cosa fa la X ───────────────────────────────────────────────────────────
+
+   Era murato: la X nasconde, si esce dal menu dell'icona. Buono per chi vuole
+   le sveglie sempre accese, sbagliato per chi chiude un programma e si aspetta
+   che sia chiuso — e scoprire un processo ancora vivo nel Gestore attivita'
+   dopo aver premuto la X e' il genere di sorpresa che fa perdere fiducia.
+   Adesso si sceglie in Impostazioni -> Generale, e il ripiego resta quello di
+   prima perche' e' l'unico che non fa mancare una sveglia a chi non ha scelto
+   niente.
+
+   **Si legge al momento della chiusura, non all'avvio.** La preferenza vive in
+   `t_setting`, la scrive il renderer, e qui il core e' sincrono: una lettura
+   costa niente e vale sempre quella di adesso. Tenerne una copia in una
+   variabile vorrebbe dire un messaggio IPC in piu' da mandare a ogni cambio, e
+   un modo in piu' di restare indietro. */
+const CHIUSURA_PREDEFINITA = "riduci";
+
+function chiusuraRiduce() {
+  try {
+    return core?.getSetting("generale.chiusura", CHIUSURA_PREDEFINITA) !== "esci";
+  } catch (err) {
+    /* Database non ancora aperto o gia' chiuso: vale il ripiego. Non e' il
+       momento di decidere niente di diverso da quello che Alia farebbe
+       comunque. */
+    debugLog("chiusura: preferenza illeggibile:", err.message);
+    return true;
+  }
+}
+
 function mostraFinestra() {
   if (!finestraPrincipale || finestraPrincipale.isDestroyed()) {
     createWindow();
@@ -304,18 +362,36 @@ function createWindow() {
 
   finestraPrincipale = window;
 
-  /* **Chiudere la finestra non chiude Alia** (11/09/2026): le sveglie devono
-     suonare anche a finestra chiusa, e la scorciatoia di cattura deve
-     rispondere sempre. La X nasconde; si esce dal menu dell'icona vicino
-     all'orologio.
+  /* **Chiudere la finestra non chiude Alia**, se e' cosi' che si e' scelto
+     (vedi `chiusuraRiduce`): le sveglie devono poter suonare a finestra
+     chiusa, e la scorciatoia di cattura rispondere sempre. La X nasconde; si
+     esce dal menu dell'icona vicino all'orologio.
 
-     Senza icona (creazione fallita) si torna al comportamento di prima e la X
-     chiude davvero: un programma vivo senza nessun modo di raggiungerlo e'
+     Chi ha scelto "esci" esce **da qui**, con un `app.quit()` esplicito, e non
+     lasciando che la finestra si chiuda aspettando `window-all-closed`: quello
+     scatta quando non c'e' piu' **nessuna** finestra, e la finestrella di
+     cattura, una volta nata, resta viva nascosta per tutta la sessione (vedi
+     cattura.js — e' nascosta, non chiusa, perche' ricrearla a ogni scorciatoia
+     costerebbe mezzo secondo di finestra bianca). Chi avesse premuto la
+     scorciatoia anche una sola volta si troverebbe la X che chiude la finestra
+     e Alia che resta su, cioe' esattamente quello che ha chiesto di non fare.
+
+     Senza icona (creazione fallita) la X chiude davvero comunque, qualunque sia
+     la preferenza: un programma vivo senza nessun modo di raggiungerlo e'
      peggio di un programma chiuso. */
   window.on("close", (e) => {
     if (inUscita || !tray) return;
-    e.preventDefault();
-    window.hide();
+    if (chiusuraRiduce()) {
+      e.preventDefault();
+      window.hide();
+      return;
+    }
+    /* La finestra si chiude e si porta dietro tutto il resto. `inUscita` prima
+       di `quit` perche' `quit` richiude questa stessa finestra: senza, si
+       rientrerebbe qui a rileggere una preferenza gia' decisa. */
+    inUscita = true;
+    debugLog("chiusura: la X chiude Alia (generale.chiusura = esci)");
+    app.quit();
   });
   window.on("closed", () => {
     if (finestraPrincipale === window) finestraPrincipale = null;
@@ -331,6 +407,10 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  /* La seconda istanza ha gia' chiamato `app.quit()` la' sopra e non deve
+     arrivare qui: se il `ready` la precede, apre il database dell'altra. Una
+     riga di guardia, perche' il prezzo di sbagliarsi si paga sui dati. */
+  if (!istanzaUnica) return;
   debugLog("app ready, dati in", CARTELLA_DATI);
   core = createAliaCore({
     databasePath: join(CARTELLA_DATI, "scheduler.sqlite"),
@@ -449,15 +529,26 @@ app.whenReady().then(() => {
   });
 });
 
-/* **Non si esce piu' quando si chiude l'ultima finestra.** Da quando c'e'
-   l'icona vicino all'orologio, nessuna finestra aperta vuol dire "sto lavorando
-   ad altro", non "ho finito": le sveglie continuano e la scorciatoia risponde.
+/* Nessuna finestra aperta puo' voler dire due cose diverse, e adesso lo decide
+   chi usa Alia (Impostazioni -> Generale): con la chiusura che riduce vuol dire
+   "sto lavorando ad altro" — si resta vivi nell'icona, le sveglie continuano,
+   la scorciatoia risponde.
 
-   Senza icona (creazione fallita) vale la regola di prima, se no resterebbe un
-   processo vivo e irraggiungibile. */
+   Chi ha scelto "esci" non passa piu' di qui: l'uscita la decide la X (vedi
+   `close` in `createWindow`), e a questo punto `inUscita` e' gia' vero. Qui
+   restano i due casi che la preferenza non copre — nessuna icona, e macOS. */
 app.on("window-all-closed", () => {
-  if (tray && !inUscita) return;
-  if (process.platform !== "darwin") app.quit();
+  /* L'uscita e' gia' in corso: non c'e' niente da decidere e la preferenza non
+     va nemmeno riletta, perche' `before-quit` ha gia' chiuso il database. */
+  if (inUscita) return;
+  /* Senza icona si esce, se no resterebbe un processo vivo e irraggiungibile.
+     Su macOS, dove un'applicazione senza finestre resta nel Dock, si resta —
+     ma solo se la X deve ridurre: la scelta esplicita di uscire vale su tutte
+     le piattaforme, se no sarebbe una preferenza che non si puo' spiegare. */
+  const riduce = chiusuraRiduce();
+  if (tray && riduce) return;
+  if (process.platform === "darwin" && riduce) return;
+  app.quit();
 });
 
 /* Lo smontaggio sta qui e non piu' in `window-all-closed`: quello adesso puo'
@@ -469,6 +560,14 @@ app.on("window-all-closed", () => {
    possibilità di scrivere su un core appena chiuso. */
 app.on("before-quit", () => {
   inUscita = true;
+  /* L'icona va via per prima, ed e' l'unica cosa che si vede di tutto questo
+     smontaggio: su Windows un'icona non distrutta resta disegnata accanto
+     all'orologio finche' non ci passi sopra col mouse — un fantasma che invita
+     a cliccare un programma che non c'e' piu'. */
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
   globalShortcut.unregisterAll();
   if (promemoria) promemoria.ferma();
   if (cattura) cattura.chiudi();

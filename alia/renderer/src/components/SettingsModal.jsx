@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { confluenza } from "../lib/confluenza.js";
-import { Bell, Calendario, Cartella, Check, Flusso, Layers, ManigliaRiordino, Plus, Sorgenti, Tastiera, Trash } from "./icons.jsx";
+import { Bell, Calendario, Cartella, Check, Flusso, Gear, Layers, ManigliaRiordino, Plus, Sorgenti, Tastiera, Trash } from "./icons.jsx";
 import {
   DISPONIBILITA_PREDEFINITA,
   GIORNI,
@@ -81,6 +81,10 @@ const IcoCalendario = (p) => <Calendario size={15} {...p} />;
    da dove pesca, come si chiama quello che fa; le Scorciatoie sono un
    promemoria, non una configurazione, e i promemoria stanno in fondo. */
 const SEZIONI = [
+  /* Prima di tutte: dentro c'e' l'unica decisione che riguarda Alia **come
+     programma** e non come agenda — se la X la chiude o la riduce. Chi la cerca
+     la cerca in cima, come in ogni pannello di impostazioni. */
+  { id: "generale", label: "Generale", Icona: Gear },
   { id: "notifiche", label: "Notifiche", Icona: Bell },
   { id: "fonti", label: "Fonti collegate", Icona: Sorgenti },
   { id: "progetti", label: "Progetti", Icona: Cartella },
@@ -159,6 +163,104 @@ function NonAttiva({ children }) {
   );
 }
 
+/* ── Generale: cosa fa la X ──────────────────────────────────────────────────
+
+   L'unica preferenza che il **processo principale** legge al volo, senza che
+   nessuno gliela mandi: sta in `t_setting` come tutte le altre, e
+   `electron/main.js` la rilegge nel momento in cui la finestra si chiude (vedi
+   `chiusuraRiduce` la'). Qui non serve nessun canale IPC nuovo — si scrive
+   dove si scrive tutto il resto.
+
+   Due voci e non un interruttore: "Chiudi del tutto: sì/no" obbliga a
+   indovinare cosa succede nel caso spento, mentre due righe con le loro
+   conseguenze scritte si leggono e si scelgono. Le conseguenze sono il punto:
+   la differenza fra le due non e' una finestra che sparisce, sono i promemoria
+   che suonano o non suonano. */
+const CHIUSURA_PREDEFINITA = "riduci";
+const chiusuraValida = (v) => v === "riduci" || v === "esci";
+
+const CHIUSURE = [
+  {
+    id: "riduci",
+    label: "Resta vicino all’orologio",
+    nota: "La X nasconde la finestra e Alia continua a girare: i promemoria suonano e la scorciatoia di cattura risponde. Si esce dal menu dell’icona.",
+  },
+  {
+    id: "esci",
+    label: "Esci da Alia",
+    nota: "La X chiude tutto: nessun processo acceso, nessun promemoria, nessuna scorciatoia. Quelli scaduti nel frattempo suonano alla riapertura.",
+  },
+];
+
+function useChiusura() {
+  return usePreferenza("generale.chiusura", CHIUSURA_PREDEFINITA, chiusuraValida);
+}
+
+function Generale() {
+  const [chiusura, setChiusura] = useChiusura();
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="m-0 text-[15px] font-medium tracking-[-0.01em]">Generale</h2>
+        <p className="m-0 text-meta text-content/55 max-w-[520px]">
+          Come si comporta Alia quando non la stai guardando.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className={ETICHETTA}>Quando chiudi la finestra</span>
+        {/* Una sotto l'altra e non affiancate come le densita' dell'aspetto: qui
+            la nota e' la scelta, e su due colonne da 240px andrebbe a capo
+            quattro volte per dire la cosa che conta. */}
+        <div className="flex flex-col gap-2" role="radiogroup" aria-label="Quando chiudi la finestra">
+          {CHIUSURE.map((c) => {
+            const scelta = chiusura === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="radio"
+                aria-checked={scelta}
+                onClick={() => setChiusura(c.id)}
+                className={
+                  "flex flex-col gap-0.5 text-left px-3.5 py-2.5 rounded-lg border bg-transparent " +
+                  "cursor-pointer transition-colors duration-[120ms] " +
+                  (scelta
+                    ? "border-accent bg-[color-mix(in_srgb,var(--color-accent)_8%,transparent)]"
+                    : "border-divider hover:border-card-line-hover")
+                }
+              >
+                <span className={`text-card font-medium ${scelta ? "text-accent" : "text-content"}`}>
+                  {c.label}
+                </span>
+                <span className="text-micro text-content/48 leading-[1.35]">{c.nota}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Due cose che non si scelgono e che e' giusto leggere qui: la prima
+          perche' contraddice la scelta di sopra in un caso che non dipende da
+          Alia, la seconda perche' spiega un'assenza — il secondo lancio che non
+          apre niente sembra un comando che non ha funzionato. */}
+      <div className="flex flex-col gap-2 pt-1 border-t border-divider">
+        <p className="m-0 text-meta text-content/45 max-w-[520px]">
+          Se Windows non concede l’icona accanto all’orologio, la X chiude comunque: un programma
+          vivo che non si può riaprire da nessuna parte è peggio di un programma chiuso.
+        </p>
+        <p className="m-0 text-meta text-content/45 max-w-[520px]">
+          Alia gira in un processo solo. Riaprirla mentre è già aperta — dal collegamento, dal menu
+          Start, da un&rsquo;altra installazione — riporta davanti quella che c’è invece di
+          affiancarne una seconda: due Alie sugli stessi dati vorrebbero dire due sveglie per ogni
+          promemoria.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function Notifiche() {
   /* Due preferenze vere, lette **anche dal processo principale** (vedi
      electron/promemoria.js): qui si scrivono, la' si leggono a ogni giro. Non
@@ -167,6 +269,11 @@ function Notifiche() {
   const [accese, setAccese] = usePreferenza("notifiche.promemoria", true, (v) => typeof v === "boolean");
   const [suono, setSuono] = usePreferenza("notifiche.suono", true, (v) => typeof v === "boolean");
   const [prova, setProva] = useState(null);
+
+  /* Non si cambia da qui, si legge: "funziona anche a finestra chiusa" e' vero
+     solo se la X riduce, e lasciarlo scritto per tutti sarebbe promettere
+     sveglie a chi ha scelto che Alia si chiuda davvero. */
+  const [chiusura] = useChiusura();
 
   const puoiProvare = typeof window !== "undefined" && !!window.notifiche;
 
@@ -184,9 +291,10 @@ function Notifiche() {
       <div className="flex flex-col gap-1.5">
         <h2 className="m-0 text-[15px] font-medium tracking-[-0.01em]">Notifiche</h2>
         <p className="m-0 text-meta text-content/55 max-w-[520px]">
-          Quando una task ha un promemoria, Alia lo fa comparire fra le notifiche del sistema.
-          Funziona anche a finestra chiusa: Alia resta viva vicino all&rsquo;orologio, e si esce
-          da lì.
+          Quando una task ha un promemoria, Alia lo fa comparire fra le notifiche del sistema.{" "}
+          {chiusura === "esci"
+            ? "Solo mentre Alia è aperta: hai scelto che la X la chiuda del tutto (Generale)."
+            : "Funziona anche a finestra chiusa: Alia resta viva vicino all’orologio, e si esce da lì."}
         </p>
       </div>
 
@@ -505,6 +613,10 @@ function Scorciatoie() {
   const [inAscolto, setInAscolto] = useState(false);
   const [errore, setErrore] = useState(null);
 
+  /* Come in Notifiche: la scorciatoia globale risponde a finestra chiusa solo
+     se a finestra chiusa Alia c'e' ancora. */
+  const [chiusura] = useChiusura();
+
   const ponte = typeof window !== "undefined" ? window.scorciatoie : undefined;
 
   useEffect(() => {
@@ -574,7 +686,12 @@ function Scorciatoie() {
           <span className={ETICHETTA}>Nuova task, da qualunque programma</span>
           <span className={NOTA}>
             Apre la finestrella di cattura sopra quello che stai facendo: scrivi, Invio, torni
-            indietro. {stato && !stato.attiva ? null : "Funziona anche a finestra chiusa."}
+            indietro.{" "}
+            {stato && !stato.attiva
+              ? null
+              : chiusura === "esci"
+                ? "Finché Alia è aperta: la X la chiude del tutto (Generale)."
+                : "Funziona anche a finestra chiusa."}
           </span>
           {errore ? (
             <span className="text-mini mt-1" style={{ color: "var(--color-danger)" }}>
@@ -640,6 +757,34 @@ function Scorciatoie() {
   );
 }
 
+/* ── Progetti e milestone ───────────────────────────────────────────────────── */
+
+/* I colori assegnabili a un progetto.
+
+   Sono **token del tema**, non valori esadecimali: salvando `var(--color-sky-400)`
+   il progetto segue la palette invece di congelare un colore di oggi. Il campo
+   `t_project.color` è testo libero e finisce dritto in `style`, quindi un `var()`
+   funziona esattamente come un `#rrggbb` — e i progetti nati dalla vecchia
+   migrazione, che hanno un esadecimale dentro, continuano a leggersi bene.
+
+   Otto, tutti al gradino 400 (300 per l'arancio) perché è quello che regge il
+   contrasto sul fondo scuro senza gridare. Non è una tavolozza aperta: un
+   selettore libero produrrebbe presto due progetti che si distinguono per un
+   grado di saturazione, cioè per niente. */
+const COLORI = [
+  { id: "sky", valore: "var(--color-sky-400)", nome: "Azzurro" },
+  { id: "purple", valore: "var(--color-purple-400)", nome: "Viola" },
+  { id: "emerald", valore: "var(--color-emerald-400)", nome: "Verde" },
+  { id: "orange", valore: "var(--color-orange-300)", nome: "Arancio" },
+  { id: "rose", valore: "var(--color-rose-400)", nome: "Rosa" },
+  { id: "amber", valore: "var(--color-amber-400)", nome: "Ambra" },
+  { id: "teal", valore: "var(--color-teal-400)", nome: "Verdeacqua" },
+  { id: "neutral", valore: "var(--color-neutral-400)", nome: "Grigio" },
+];
+
+/* Il pallino del colore è anche il comando che lo cambia: si apre in una
+   tavolozza sotto di lui. Un pallino che non si può premere e un selettore
+   accanto sarebbero due cose dove ne basta una. */
 function ScegliColore({ colore, onScegli }) {
   const [aperta, setAperta] = useState(false);
 
@@ -1702,6 +1847,7 @@ export function SettingsModal({
         </div>
 
         <div className="flex-1 min-w-0 px-8 py-6 overflow-y-auto">
+          {sezione === "generale" ? <Generale /> : null}
           {sezione === "notifiche" ? <Notifiche /> : null}
           {sezione === "fonti" ? <Fonti /> : null}
           {sezione === "progetti" ? <Progetti /> : null}

@@ -1086,8 +1086,25 @@ scorrere, non una preferenza da ricordare (vedi ToDo).
 ### Impostazioni
 
 Modale a tutta finestra sullo stampo del dettaglio task, card 820×600: navigazione a
-sinistra (220px), contenuto a destra. Cinque sezioni: Notifiche, Fonti collegate,
-**Progetti**, Stati, Scorciatoie — le ultime due sono le sole che scrivono.
+sinistra (220px), contenuto a destra. Otto sezioni: **Generale**, Notifiche, Fonti
+collegate, Progetti, Stati, Aspetto, Calendario, Scorciatoie.
+
+**Generale** (12/09/2026) tiene l'unica decisione che riguarda Alia *come programma* e
+non come agenda: **cosa fa la X**. Due voci — resta vicino all'orologio, oppure esci da
+Alia — e non un interruttore, perché "Chiudi del tutto: sì/no" obbliga a indovinare cosa
+succede nel caso spento, mentre due righe con le conseguenze scritte si leggono e si
+scelgono. E le conseguenze sono il punto: la differenza non è una finestra che sparisce,
+sono i promemoria che suonano o non suonano. Il ripiego resta *riduci*, che è l'unico
+che non fa mancare una sveglia a chi non ha scelto niente.
+
+La preferenza (`generale.chiusura`) è **l'unica che il processo principale legge al
+volo**, senza che nessuno gliela mandi: la scrive il renderer in `t_setting`, e
+`electron/main.js` la rilegge nel momento in cui la finestra si chiude. Là il core è
+sincrono, quindi una lettura costa niente e vale sempre quella di adesso; tenerne una
+copia in una variabile vorrebbe dire un messaggio IPC in più da mandare a ogni cambio, e
+un modo in più di restare indietro. Le due sezioni che promettevano "funziona anche a
+finestra chiusa" — Notifiche e Scorciatoie — la leggono anche loro, e con *esci* dicono
+un'altra cosa: quella frase è vera solo se a finestra chiusa Alia c'è ancora.
 
 **Progetti e Stati funzionano; le altre tre lo dichiarano.** Non è un rinvio silenzioso: Fonti
 lo diceva già l'artboard, Notifiche non ha un posto dove salvare le preferenze,
@@ -1445,6 +1462,32 @@ Si esce dal menu dell'icona. È la condizione perché le sveglie suonino e perch
 scorciatoia risponda sempre — ma se la creazione dell'icona fallisce si torna al
 comportamento di prima (la X chiude davvero), perché un programma vivo e
 irraggiungibile è peggio di un programma chiuso.
+
+**E da lì, il 12/09/2026, non è più murato: si sceglie** (Impostazioni → Generale, sopra).
+La regola vecchia era buona per chi vuole le sveglie sempre accese e sbagliata per chi
+chiude un programma e si aspetta che sia chiuso — trovare il processo ancora vivo nel
+Gestore attività dopo aver premuto la X è il genere di sorpresa che fa perdere fiducia.
+
+Chi ha scelto *esci* esce **dal gestore del `close`**, con un `app.quit()` esplicito, e
+non lasciando che la finestra si chiuda in attesa di `window-all-closed`: quello scatta
+quando non c'è più *nessuna* finestra, e la finestrella di cattura, una volta nata, resta
+viva nascosta per tutta la sessione. Chi avesse premuto la scorciatoia anche una sola
+volta si sarebbe trovato la X che chiude la finestra e Alia che resta su — esattamente
+quello che aveva chiesto di non fare. Nello stesso passaggio l'icona si distrugge in
+`before-quit`: su Windows un'icona non distrutta resta disegnata accanto all'orologio
+finché non ci passi sopra col mouse, e invita a cliccare un programma che non c'è più.
+
+**Una sola Alia per volta.** `requestSingleInstanceLock()` chiesto **prima** di
+`whenReady`, cioè prima che qualcuno apra il database: due processi sullo stesso file
+SQLite non sono una finestra in più, sono due scrittori sugli stessi dati. Il secondo
+lancio non è un errore ma qualcuno che vuole Alia davanti, e infatti il processo nuovo
+esce e il vecchio si fa vedere (`second-instance` → `mostraFinestra`). Senza, chiudere
+la finestra nell'icona e ripremere il collegamento apriva una seconda Alia invisibile
+alla prima, con la sua icona e i suoi promemoria: le sveglie suonavano due volte, e la
+scorciatoia globale — che la può avere un processo solo — restava a chi era arrivato
+prima. Il lucchetto sta nella **cartella dati**, quindi due installazioni diverse
+(globale e sotto nvm) si riconoscono: è il database che devono spartirsi, non la
+cartella del programma. Con `ALIA_DATA` puntato altrove sono invece due Alie legittime.
 
 **La cattura veloce.** Una scorciatoia globale — `Ctrl+Alt+K` di fabbrica, ma
 **configurabile** (`scorciatoie.cattura` in `t_setting`, si cambia da Impostazioni →
