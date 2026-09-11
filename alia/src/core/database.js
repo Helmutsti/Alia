@@ -8,7 +8,7 @@ import { RINASCITA_VERSION, migrateRinascita } from "./rinascita-schema.js";
    qui sotto. `RINASCITA_VERSION` (7) resta il gradino in cui e arrivato lo
    schema nuovo: i passi successivi lo estendono e non lo rifanno, quindi da 7
    in avanti la versione buona da confrontare e questa. */
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 export function openDatabase(databasePath) {
   if (typeof databasePath !== "string" || databasePath.trim() === "") {
@@ -435,6 +435,56 @@ function migrate(database) {
         valore TEXT NOT NULL
       );
       PRAGMA user_version = 11;
+      COMMIT;
+    `);
+  }
+
+  if (version < 12) {
+    /* `t_notifica`: quello che Alia ti ha detto.
+
+       Serve alla campanella accanto all'ingranaggio, che elenca i promemoria
+       suonati e le origini arrivate. Prima non esisteva nessun posto dove una
+       notifica restasse: il toast di Windows spariva e con lui l'unica traccia
+       — chi era in riunione quando ha suonato non aveva modo di sapere che cosa
+       si era perso.
+
+       ── Perche' una tabella e non un calcolo ──────────────────────────────
+
+       L'alternativa era ricavare l'elenco dalle task con un promemoria gia'
+       passato, senza schema nuovo. Non regge su due punti: non sa distinguere
+       due sveglie sulla stessa task (una rimandata e risuonata e' un evento
+       diverso, non lo stesso), e soprattutto non sa dire **cosa hai gia'
+       letto** se non con un unico "visto fino a qui" globale. Il letto e' per
+       riga, perche' e' cosi' che lo si legge.
+
+       ── Cosa c'e' dentro, e perche' il titolo e' copiato ──────────────────
+
+       `titolo` e `corpo` sono il testo **al momento in cui e' suonata**, non un
+       riferimento da risolvere dopo. Una notifica e' un fatto accaduto: se la
+       task nel frattempo cambia nome, la campanella deve continuare a dire
+       quello che ti aveva detto, se no il registro si riscrive da solo.
+
+       `idTask` e' il collegamento per andarci sopra, e puo' mancare: le origini
+       non sono task — vivono nel servizio della confluenza finche' non le si
+       accetta (vedi § Flussi, "Vita di un'origine").
+
+       `lettaAt` invece di un booleano: costa uguale e dice anche **quando**,
+       che e' il genere di cosa che serve il giorno in cui si vuole sapere
+       perche' una sveglia e' stata ignorata. */
+    database.exec(`
+      BEGIN IMMEDIATE;
+      CREATE TABLE t_notifica (
+        idNotifica TEXT PRIMARY KEY,
+        tipo TEXT NOT NULL CHECK (tipo IN ('promemoria', 'origine')),
+        titolo TEXT NOT NULL,
+        corpo TEXT,
+        idTask TEXT REFERENCES t_task(idTask) ON DELETE CASCADE,
+        creataAt TEXT NOT NULL,
+        lettaAt TEXT
+      );
+      CREATE INDEX t_notifica_creata ON t_notifica(creataAt DESC);
+      CREATE INDEX t_notifica_non_lette ON t_notifica(lettaAt) WHERE lettaAt IS NULL;
+      PRAGMA user_version = 12;
       COMMIT;
     `);
   }

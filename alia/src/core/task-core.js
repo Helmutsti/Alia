@@ -1343,6 +1343,89 @@ export function removeTaskComment(database, idTaskComment) {
    Chi legge resta responsabile di **validare la forma**: qui si garantisce che
    torni qualcosa, non che quel qualcosa sia sensato. Un ordinamento salvato va
    confrontato con quelli che esistono ora, prima di usarlo. */
+/* ── Le notifiche: quello che Alia ti ha detto ─────────────────────────────
+
+   Tre operazioni e nessuna cancellazione: un registro di cose accadute non si
+   corregge, al massimo si segna come letto. Cresce, e va bene che cresca —
+   una riga per sveglia e' qualche decina di byte al giorno; il giorno in cui
+   qualcuno ne avra' centomila, sara' perche' Alia gli e' servita per anni. */
+
+export function creaNotifica(database, input = {}) {
+  const tipo = input.tipo === "origine" ? "origine" : "promemoria";
+  const titolo = String(input.titolo ?? "").trim();
+  if (!titolo) return { esito: "titolo-mancante" };
+
+  const idNotifica = randomUUID();
+  database
+    .prepare(`
+      INSERT INTO t_notifica (idNotifica, tipo, titolo, corpo, idTask, creataAt, lettaAt)
+      VALUES (?, ?, ?, ?, ?, ?, NULL)
+    `)
+    .run(
+      idNotifica,
+      tipo,
+      titolo,
+      input.corpo ?? null,
+      input.idTask ?? null,
+      input.creataAt ?? new Date().toISOString(),
+    );
+  return { esito: "applicato", idNotifica };
+}
+
+/* Le ultime, le piu' recenti per prime, con il conto di quelle non lette.
+
+   Il conto arriva **con** l'elenco e non da un'operazione a parte: chi disegna
+   la campanella vuole il pallino e la tendina, e due domande separate
+   possono rispondere numeri diversi se in mezzo suona qualcosa. */
+/* A parita' di istante decide l'ordine di inserimento (`rowid`): due sveglie
+   che suonano nello stesso giro hanno lo **stesso** `creataAt` al millisecondo,
+   e senza un secondo criterio l'ordine fra loro sarebbe quello che capita —
+   cioe' diverso a ogni apertura della campanella.
+
+   (Nota per chi scrivera' qui dentro: i commenti con i backtick **non** vanno
+   dentro la stringa SQL, che e' un template literal. Un backtick li' chiude la
+   stringa, e l'errore che si ottiene — "missing ) after argument list" — non
+   somiglia per niente alla sua causa.) */
+export function listNotifiche(database, { limite = 50 } = {}) {
+  const righe = database
+    .prepare(`
+      SELECT n.idNotifica, n.tipo, n.titolo, n.corpo, n.idTask, n.creataAt, n.lettaAt,
+             t.title AS titoloTask, t.deletedAt AS taskCancellata
+        FROM t_notifica n
+        LEFT JOIN t_task t ON t.idTask = n.idTask
+       ORDER BY n.creataAt DESC, n.rowid DESC
+       LIMIT ?
+    `)
+    .all(Math.max(1, Math.min(200, Number(limite) || 50)));
+
+  const { nonLette } = database
+    .prepare("SELECT COUNT(*) AS nonLette FROM t_notifica WHERE lettaAt IS NULL")
+    .get();
+
+  return { notifiche: righe, nonLette };
+}
+
+/* Segnare come lette: tutte, o quelle che si passano. Aprire la campanella le
+   legge tutte — e' il gesto con cui si dice "visto" — mentre l'elenco degli id
+   serve a chi un giorno vorra' segnarne una sola. */
+export function segnaNotificheLette(database, idNotifiche = null) {
+  const adesso = new Date().toISOString();
+  return runInTransaction(database, () => {
+    if (Array.isArray(idNotifiche) && idNotifiche.length > 0) {
+      const segna = database.prepare(
+        "UPDATE t_notifica SET lettaAt = ? WHERE idNotifica = ? AND lettaAt IS NULL",
+      );
+      let quante = 0;
+      for (const id of idNotifiche) quante += segna.run(adesso, id).changes;
+      return { esito: "applicato", quante };
+    }
+    const { changes } = database
+      .prepare("UPDATE t_notifica SET lettaAt = ? WHERE lettaAt IS NULL")
+      .run(adesso);
+    return { esito: "applicato", quante: changes };
+  });
+}
+
 export function getSetting(database, chiave, ripiego = null) {
   const riga = database.prepare("SELECT valore FROM t_setting WHERE chiave = ?").get(chiave);
   if (!riga) return ripiego;

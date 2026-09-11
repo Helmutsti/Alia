@@ -16,6 +16,7 @@ import {
 } from "../lib/tasks.js";
 import { usePreferenza } from "../lib/preferenze.js";
 import { bridge } from "../lib/aliaClient.js";
+import { Campanella } from "./Campanella.jsx";
 import {
   DISPONIBILITA_PREDEFINITA,
   eDisponibilita,
@@ -571,13 +572,18 @@ export function InboxWorkspace({ startFull = false }) {
         ) : null}
       </div>
 
-      {/* L'ingranaggio: elemento a sé, posizionato per contorno dell'icona e non
-          per riquadro del bottone (vedi CHROME_BTN). Resta il vicino di casa
-          delle notifiche, quando ci saranno. */}
+      {/* L'ingranaggio, e adesso la campanella: elementi a sé, posizionati per
+          contorno dell'icona e non per riquadro del bottone (vedi CHROME_BTN).
+          Le notifiche erano previste qui — "il vicino di casa dell'ingranaggio"
+          — e qui sono arrivate (11/09/2026).
+
+          La campanella sta **prima**: si legge da sinistra, e quello che è
+          successo viene prima di come si configura. */}
       <div
-        className="absolute flex items-center gap-1 z-[7]"
+        className="absolute flex items-center gap-1.5 z-[7]"
         style={{ top: FRAME.headerTop, right: FRAME.pad - 5 }}
       >
+        <Campanella onApriTask={setDetailTask} />
         <button
           type="button"
           onClick={apriImpostazioni}

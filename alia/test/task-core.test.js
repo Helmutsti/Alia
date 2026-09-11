@@ -33,7 +33,10 @@ import {
   addTaskTag,
   listTaskComments,
   listTaskTags,
+  listNotifiche,
   listTags,
+  creaNotifica,
+  segnaNotificheLette,
   removeTaskComment,
   removeTaskTag,
 } from "../src/core/task-core.js";
@@ -1065,4 +1068,46 @@ test("listTasks porta con se le etichette dei tag, concatenate", () => {
      persona e possono contenere virgole — questa ce l'ha apposta. */
   assert.deepEqual(conTag.tagLabels.split("\u001f").sort(), ["da rivedere, forse", "urgente"]);
   assert.equal(righe.find((t) => t.idTask === senza).tagLabels, null);
+});
+
+/* ── Le notifiche: il registro di quello che Alia ha detto ────────────────── */
+
+test("una notifica si registra, si conta e si segna letta", () => {
+  const database = nuovoDatabase();
+
+  assert.deepEqual(listNotifiche(database), { notifiche: [], nonLette: 0 });
+
+  const prima = creaNotifica(database, { tipo: "promemoria", titolo: "Chiamare l'idraulico", corpo: "Era per le 09:00" });
+  assert.equal(prima.esito, "applicato");
+  creaNotifica(database, { tipo: "origine", titolo: "Idea dal canale #progetti", corpo: "Arrivata da discord" });
+
+  const elenco = listNotifiche(database);
+  assert.equal(elenco.nonLette, 2);
+  /* La piu' recente per prima: la campanella si legge dall'alto. */
+  assert.equal(elenco.notifiche[0].titolo, "Idea dal canale #progetti");
+  assert.equal(elenco.notifiche[0].tipo, "origine");
+
+  assert.equal(segnaNotificheLette(database).quante, 2);
+  assert.equal(listNotifiche(database).nonLette, 0);
+  /* Segnarle due volte non le conta due volte. */
+  assert.equal(segnaNotificheLette(database).quante, 0);
+});
+
+test("una notifica senza titolo non si registra", () => {
+  const database = nuovoDatabase();
+  assert.equal(creaNotifica(database, { tipo: "promemoria", titolo: "   " }).esito, "titolo-mancante");
+  assert.equal(listNotifiche(database).nonLette, 0);
+});
+
+/* Il titolo e' copiato al momento in cui suona: una notifica e' un fatto
+   accaduto, e se la task cambia nome il registro non si riscrive da solo. */
+test("il registro non segue i cambi di nome della task", () => {
+  const database = nuovoDatabase();
+  const idTask = crea(database, "Pagare la bolletta");
+  creaNotifica(database, { tipo: "promemoria", titolo: "Pagare la bolletta", idTask });
+  updateTask(database, idTask, { title: "Pagare la bolletta del gas" });
+
+  const [n] = listNotifiche(database).notifiche;
+  assert.equal(n.titolo, "Pagare la bolletta", "il registro dice quello che aveva detto");
+  assert.equal(n.titoloTask, "Pagare la bolletta del gas", "e sa anche come si chiama adesso");
 });

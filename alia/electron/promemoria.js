@@ -120,6 +120,24 @@ export function creaPromemoria({ core, log = () => {}, onApriTask = () => {} }) 
       for (const task of suonano) {
         const { titolo, corpo } = testoPromemoria(task, new Date(adesso));
         log("promemoria:", titolo, "—", corpo, accese ? "" : "(notifiche spente)");
+
+        /* La riga nel registro si scrive **sempre**, anche a notifiche spente.
+           Il toast e' come te lo dico, la campanella e' *che* te l'ho detto:
+           spegnere il toast vuol dire "non interrompermi", non "non
+           registrare". Chi le riaccende dopo una settimana trova nella
+           campanella quello che e' successo mentre taceva. */
+        try {
+          core.creaNotifica({
+            tipo: "promemoria",
+            titolo,
+            corpo,
+            idTask: task.idTask ?? task.id ?? null,
+            creataAt: new Date(adesso).toISOString(),
+          });
+        } catch (err) {
+          log("promemoria: registro non scritto:", err.message);
+        }
+
         /* Spente: si passa avanti **senza fermare il segnalibro**, che infatti
            si sposta comunque qui sotto. Trattenerle vorrebbe dire che
            riaccendendo le notifiche arriverebbe tutto l'arretrato del periodo

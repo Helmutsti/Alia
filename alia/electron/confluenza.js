@@ -87,11 +87,56 @@ export function creaConfluenzaAlia({ core, cartella, log, avvisaFinestre }) {
       ogniSecondi: config.ogniSecondi,
       log: (...parti) => log("confluenza:", ...parti),
       /* Il colpetto: il numero è cambiato, la finestra si riaffacci. Non porta
-         i dati — li va a prendere chi li mostra. */
-      onCambio: avvisaFinestre,
+         i dati — li va a prendere chi li mostra.
+
+         E da quando c'è la campanella, il colpetto e' anche il momento in cui
+         si scopre **cosa** e' arrivato: il cliente sa solo che il numero e'
+         cambiato, quindi qui si va a vedere l'elenco e si registra una riga
+         per ogni origine mai vista prima. Il costo e' una chiamata in piu' per
+         ogni cambio, non per ogni giro — i giri in cui non arriva niente non
+         chiamano `onCambio` affatto. */
+      onCambio: () => {
+        registraOriginiNuove().finally(avvisaFinestre);
+      },
     });
     cliente.avviaPeriodico();
     log(`confluenza: pronta su ${config.url}, modo ${config.modo}`);
+  }
+
+  /* Quali origini sono gia' entrate nella campanella. Un segnalibro sul `seq`
+     piu' alto visto, con la stessa forma del segnalibro delle sveglie: le
+     origini arrivano in ordine e il servizio non le rinumera, quindi un numero
+     solo basta a dire "queste le so gia'".
+
+     Vive in `t_setting` e non in memoria: riaprendo Alia le origini arrivate
+     mentre era chiusa **sono gia' in elenco** (le vede la colonna), e non
+     devono ricomparire come novita' nella campanella. */
+  async function registraOriginiNuove() {
+    if (!cliente) return;
+    try {
+      const visto = Number(core.getSetting("notifiche.ultimaOrigine", 0)) || 0;
+      const { origini = [] } = await cliente.elenco();
+      const nuove = origini.filter((o) => Number(o.seq) > visto);
+      if (nuove.length === 0) return;
+      for (const o of nuove) {
+        core.creaNotifica({
+          tipo: "origine",
+          titolo: String(o.title ?? "").trim() || "Origine senza titolo",
+          /* Da dove viene, che e' l'unica cosa che un'origine ha in piu' di un
+             titolo e la sola che aiuti a decidere se aprirla adesso. */
+          corpo: o.sourceType ? `Arrivata da ${o.sourceType}` : null,
+        });
+      }
+      core.setSetting(
+        "notifiche.ultimaOrigine",
+        Math.max(visto, ...nuove.map((o) => Number(o.seq) || 0)),
+      );
+      log(`confluenza: ${nuove.length} origini nuove nel registro`);
+    } catch (err) {
+      /* Il registro e' un di piu': se non si riesce a scriverlo, le origini
+         arrivano lo stesso e la colonna le mostra. */
+      log("confluenza: registro delle origini non scritto:", err.message);
+    }
   }
 
   configura();

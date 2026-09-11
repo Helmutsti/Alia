@@ -20,7 +20,10 @@ import {
   deleteProject,
   deleteState,
   deleteTask,
+  creaNotifica,
   getSetting,
+  listNotifiche,
+  segnaNotificheLette,
   getTask,
   getTaskHistory,
   addTaskComment,
@@ -95,6 +98,12 @@ export const ALIA_OPERATIONS = [
   "setSetting",
   "listSettings",
   "removeSettings",
+  /* Notifiche: il registro di quello che Alia ti ha detto. Lo scrive il
+     processo principale (le sveglie, le origini in arrivo), lo legge la
+     campanella accanto all'ingranaggio. */
+  "listNotifiche",
+  "creaNotifica",
+  "segnaNotificheLette",
   "listTaskComments",
   "addTaskComment",
   "removeTaskComment",
@@ -114,6 +123,9 @@ export function createAliaCore({ databasePath }) {
     listTags: () => listTags(database),
     listTaskTags: (idTask) => listTaskTags(database, idTask),
     listTaskComments: (idTask) => listTaskComments(database, idTask),
+    listNotifiche: (opzioni) => listNotifiche(database, opzioni),
+    creaNotifica: (input) => creaNotifica(database, input),
+    segnaNotificheLette: (idNotifiche) => segnaNotificheLette(database, idNotifiche),
     getSetting: (chiave, ripiego) => getSetting(database, chiave, ripiego),
     listSettings: (prefisso) => listSettings(database, prefisso),
 

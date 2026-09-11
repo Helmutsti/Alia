@@ -30,13 +30,16 @@ function databaseAllaVersione6(popola) {
 
   const grezzo = new DatabaseSync(percorso);
   grezzo.exec("PRAGMA foreign_keys = ON");
-  /* `t_setting` sta in coda: non e' una tabella del modello, e' arrivata con lo
-     schema 11. Sta qui per la stessa ragione delle altre — questo elenco e'
-     "tutto cio' che alla versione 6 non esisteva", e lasciarla fuori farebbe
-     inciampare la migrazione su una tabella che trova gia' fatta. */
+  /* `t_setting` e `t_notifica` stanno in coda: non sono tabelle del modello,
+     sono arrivate con gli schemi 11 e 12. Stanno qui per la stessa ragione
+     delle altre — questo elenco e' "tutto cio' che alla versione 6 non
+     esisteva", e lasciarne fuori una farebbe inciampare la migrazione su una
+     tabella che trova gia' fatta. **E' il punto da aggiornare ogni volta che lo
+     schema guadagna una tabella**: il sintomo, se lo si dimentica, e' un
+     "table ... already exists" in questo file e in nessun altro. */
   for (const tabella of [
     "t_attachment", "t_task_tag", "t_tag", "t_task_comment", "t_task_history",
-    "t_task", "t_milestone", "t_project", "t_state", "t_setting",
+    "t_task", "t_milestone", "t_project", "t_state", "t_setting", "t_notifica",
   ]) {
     grezzo.exec(`DROP TABLE IF EXISTS ${tabella}`);
   }
@@ -252,9 +255,11 @@ test("un database con isNew arriva allo schema corrente senza quella colonna", (
        VALUES (?, (SELECT idState FROM t_state ORDER BY stepOrder LIMIT 1), ?, 'none', ?, ?, 0, 0, 1, 1,
                '2026-09-01T10:00:00.000Z', '2026-09-01T10:00:00.000Z')`,
     ).run("t-origine", "Arrivata per mail", "mail", "Arrivata per mail");
-    /* Indietro allo schema 9: rimessa la colonna, tolta la tabella arrivata
-       dopo, e la versione riportata indietro. */
+    /* Indietro allo schema 9: rimessa la colonna, tolte le tabelle arrivate
+       dopo (`t_setting` con lo schema 11, `t_notifica` con il 12), e la
+       versione riportata indietro. */
     nuovo.exec("DROP TABLE t_setting");
+    nuovo.exec("DROP TABLE t_notifica");
     nuovo.exec("PRAGMA user_version = 9");
     nuovo.close();
 
