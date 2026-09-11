@@ -210,7 +210,7 @@ const etichettaOre = (f) =>
    task alle 7 del mattino in un giorno che comincia alle 9 non deve sparire:
    la griglia si allunga, e la task si vede fuori dalle fasce accese, che e'
    esattamente l'informazione. */
-function fasciaOraria(intervalli, blocchi) {
+function fasciaOraria(intervalli, blocchi, minutiAdesso) {
   let da = 9 * 60;
   let a = 18 * 60;
   if (intervalli.length > 0) {
@@ -222,6 +222,16 @@ function fasciaOraria(intervalli, blocchi) {
   for (const b of blocchi) {
     da = Math.min(da, b.inizio);
     a = Math.max(a, b.fine);
+  }
+  /* E **adesso**, quando il giorno guardato e' oggi. Senza, guardando la
+     giornata alle dieci di sera la barra dell'ora corrente non avrebbe un
+     posto dove stare: la fascia finisce un'ora dopo il lavoro, e la sera
+     resterebbe fuori. La griglia si allunga fin qui per la stessa ragione per
+     cui si allunga fino a una task fuori orario — quello che esiste in quel
+     giorno si deve vedere. */
+  if (minutiAdesso != null) {
+    da = Math.min(da, minutiAdesso);
+    a = Math.max(a, minutiAdesso + 30);
   }
   return {
     da: Math.max(0, Math.floor(da / 60) * 60),
@@ -392,6 +402,31 @@ function ChiediOrari({ minuti, top, onConferma, onChiudi }) {
   );
 }
 
+/* L'ora corrente, che **si muove da sola**.
+
+   Senza questo la barra dell'adesso c'era gia', ma stava dove si trovava
+   l'ultimo ridisegno: aprendo la vista alle nove e guardandola a mezzogiorno
+   era ancora sulle nove, cioe' diceva una cosa falsa con la sicurezza di un
+   dato. Una riga che dice "adesso" o si muove o non serve.
+
+   Ogni trenta secondi: alla scala della griglia un minuto vale meno di un
+   pixel, quindi e' gia' piu' fitto di quanto l'occhio possa vedere, ed e'
+   abbastanza sparso da non pesare. Il battito vive **solo finche' la vista
+   Giorno e' in scena** (il componente si smonta cambiando estensione), e
+   l'intervallo si spegne con lei.
+
+   `adesso` e' anche cio' che decide se il giorno guardato e' oggi: cosi' a
+   mezzanotte la barra lascia il giorno vecchio da sola, invece di restarci
+   fino al prossimo ridisegno. */
+function useAdesso() {
+  const [adesso, setAdesso] = useState(() => new Date());
+  useEffect(() => {
+    const battito = setInterval(() => setAdesso(new Date()), 30_000);
+    return () => clearInterval(battito);
+  }, []);
+  return adesso;
+}
+
 function GrigliaOre({
   giorno,
   tasks,
@@ -432,7 +467,18 @@ function GrigliaOre({
 
      `blocchi` e' quella disegnata, con dentro le ore provvisorie del gesto. */
   const fermi = useMemo(() => disponi(conOra), [conOra]);
-  const fascia = useMemo(() => fasciaOraria(intervalli, fermi), [intervalli, fermi]);
+  /* La barra dell'ora corrente, e solo se il giorno guardato e' oggi: su un
+     altro giorno sarebbe una riga che indica un momento che li' non esiste. */
+  const adesso = useAdesso();
+  const eOggi = chiaveGiorno(giorno) === chiaveGiorno(adesso);
+  const minutiOra = adesso.getHours() * 60 + adesso.getMinutes();
+  const oraScritta = daMinuti(minutiOra);
+
+  const fascia = useMemo(
+    () => fasciaOraria(intervalli, fermi, eOggi ? minutiOra : null),
+    [intervalli, fermi, eOggi, minutiOra],
+  );
+
   const sostituzioni = gesto?.mosso
     ? { [gesto.id]: { inizio: gesto.inizio, fine: gesto.fine, puntuale: gesto.puntuale } }
     : null;
@@ -444,11 +490,6 @@ function GrigliaOre({
      stirarsi in altezza senza che nessuno debba ricalcolare niente. */
   const quota = (minuti) => ((minuti - fascia.da) / ampiezza) * 100;
 
-  /* La riga dell'ora corrente, e solo se il giorno guardato e' oggi: su un
-     altro giorno sarebbe una riga che indica un momento che li' non esiste. */
-  const adesso = new Date();
-  const eOggi = chiaveGiorno(giorno) === chiaveGiorno(adesso);
-  const minutiOra = adesso.getHours() * 60 + adesso.getMinutes();
   const mostraAdesso = eOggi && minutiOra >= fascia.da && minutiOra <= fascia.a;
 
   const oreDelGiorno = oreDisponibili(intervalli);
@@ -681,9 +722,24 @@ function GrigliaOre({
           {/* Le etichette. Ogni ora scritta al proprio bordo alto, spenta
               quando cade fuori dalla disponibilita'. */}
           <div
-            className="w-[54px] shrink-0 grid border-r border-divider"
+            className="w-[54px] shrink-0 grid border-r border-divider relative"
             style={{ gridTemplateRows: `repeat(${ore.length}, 1fr)` }}
           >
+            {/* L'ora di adesso, scritta dove stanno le ore. Non sulla pista:
+                li' coprirebbe le task, e questa colonna e' esattamente il posto
+                in cui l'occhio va a cercare che ora e'. */}
+            {mostraAdesso ? (
+              <span
+                className="absolute right-1.5 -translate-y-1/2 z-[3] px-1 rounded-sm text-micro tabular-nums font-medium leading-none py-[2px]"
+                style={{
+                  top: `${quota(minutiOra)}%`,
+                  background: "var(--color-adesso)",
+                  color: "var(--color-bg)",
+                }}
+              >
+                {oraScritta}
+              </span>
+            ) : null}
             {ore.map((m) => {
               const dentro = intervalli.some((iv) => m >= inMinuti(iv.da) && m < inMinuti(iv.a));
               return (
@@ -745,13 +801,26 @@ function GrigliaOre({
               />
             ))}
 
+            {/* La barra dell'adesso. Sopra le bande e sopra i blocchi, ed e'
+                l'unica cosa che li scavalca: e' il riferimento rispetto a cui
+                tutto il resto si legge — cosa e' passato, cosa deve ancora
+                venire — e passarle sotto una task la renderebbe vera solo dove
+                la giornata e' vuota.
+
+                Oro e non accento: qui l'azzurro vuol dire "si puo' toccare", e
+                questa e' la sola cosa in scena che non risponde a niente (vedi
+                `--color-adesso` in theme.css). Due pixel, non uno: deve
+                vincere sulle righe delle ore senza diventare un blocco. */}
             {mostraAdesso ? (
               <div
                 aria-hidden="true"
-                className="absolute left-0 right-0 h-px bg-accent z-[2]"
-                style={{ top: `${quota(minutiOra)}%` }}
+                className="absolute left-0 right-0 h-[2px] z-[8] pointer-events-none"
+                style={{ top: `${quota(minutiOra)}%`, background: "var(--color-adesso)" }}
               >
-                <span className="absolute -left-[3px] -top-[3px] w-[7px] h-[7px] rounded-full bg-accent" />
+                <span
+                  className="absolute -left-[1px] -top-[3px] w-[8px] h-[8px] rounded-full"
+                  style={{ background: "var(--color-adesso)" }}
+                />
               </div>
             ) : null}
 

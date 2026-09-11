@@ -1185,6 +1185,22 @@ Una task a mezzanotte tonda è una task **senza ora** — chi scrive una scadenz
 dall'app le dà le 9, quindi mezzanotte è quasi sempre un import — e va nella fascia
 "tutto il giorno" sopra la griglia, invece di essere appoggiata in cima alla notte.
 
+**La barra dell'adesso** (11/09/2026) attraversa la giornata all'ora corrente, sopra
+le bande e sopra i blocchi: è il riferimento rispetto a cui tutto il resto si legge —
+cosa è passato, cosa deve ancora venire — e passarle sotto una task la renderebbe vera
+solo dove la giornata è vuota. **Si muove da sola**, ogni trenta secondi, e il battito
+vive solo finché la vista Giorno è in scena: una riga che dice "adesso" o si muove o
+non serve. È anche ciò che decide se il giorno guardato è oggi, così a mezzanotte la
+barra lascia il giorno vecchio da sé. La fascia di ore si allunga per contenerla, come
+fa per una task fuori orario: altrimenti alle dieci di sera non avrebbe dove stare.
+
+È **oro** (`--color-adesso`, amber-300) e non l'accento, e l'ora si ripete su un
+cartellino nella colonna delle ore. Sulla linea l'azzurro vuol dire "si può toccare"
+(i comandi, il fantasma del rilascio), e questa è la sola cosa in scena che non
+risponde a niente: non si prende, non si sposta, si muove da sola. Un colore che
+l'interfaccia non usa per nient'altro lo dice senza scriverlo — è un token di
+prodotto, come le priorità, non un secondo accento.
+
 Sopra le ore ci sono le **ore di disponibilità** (`lib/disponibilita.js`,
 Impostazioni → Calendario): le fasce in cui si lavora davvero, accese, e tutto il
 resto spento. Accese di **grigio** e non d'accento (11/09/2026): una banda colorata

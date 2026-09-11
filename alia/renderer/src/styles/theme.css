@@ -90,6 +90,18 @@
   --color-confirm: var(--color-emerald-400); /* #3ddc97, ΔE 0.036 */
   --color-danger: var(--color-red-400); /* #d4614f, ΔE 0.088 */
 
+  /* — adesso — la barra dell'ora corrente, vista Calendario/Giorno —
+     Oro, e non l'accento: sulla linea temporale l'azzurro vuol dire "si puo'
+     toccare" (i comandi, il fantasma del rilascio), e questa barra e' l'unica
+     cosa in scena che non risponde a niente — non si prende, non si sposta, si
+     muove da sola. Un colore che l'interfaccia non usa per nient'altro e' il
+     modo di dirlo senza scriverlo.
+
+     Non contraddice la regola dell'accento unico piu' di quanto la
+     contraddicano le priorita': e' un token di prodotto, cioe' un colore che
+     significa una cosa sola in un posto solo. */
+  --color-adesso: var(--color-amber-300); /* #ffd230 */
+
   /* — scala tipografica —
      La scala di Tailwind NON viene toccata: 12px = text-xs, 14px = text-sm,
      20px = text-xl sono già suoi. Qui si aggiungono solo i gradini del design
