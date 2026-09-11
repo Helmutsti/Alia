@@ -11,6 +11,7 @@ import { useOrigini } from "./useOrigini.js";
 import { useBoardDrag } from "./dragKit.js";
 import { FRAME, useInboxMorph } from "./useInboxMorph.js";
 import { useAlia } from "../lib/AliaProvider.jsx";
+import { dueLabel } from "../lib/tasks.js";
 import { SCORCIATOIA_COMPOSER, SCORCIATOIA_NUOVA_TASK, eComposer, eNuovaTask } from "../lib/piattaforma.js";
 import "./inbox.css";
 
@@ -685,6 +686,13 @@ export function InboxWorkspace({ startFull = false }) {
               id={task.id}
               idAttr="data-task"
               title={task.title}
+              /* La scadenza c'era nel componente e non arrivava qui: la card
+                 sapeva mostrarla (la mostra nel Kanban da sempre) e questo
+                 punto di chiamata non gliela passava. Non era una scelta —
+                 "quando scade" e' la seconda cosa che si guarda di una task da
+                 smistare, subito dopo com'e' scritta, ed e' anche quello che
+                 aiuta a decidere dove mandarla. */
+              due={dueLabel(task.dueAt)}
               priorityColor={task.priorityColor}
               editing={editingTask === task.id}
               dragging={draggingTask === task.id}

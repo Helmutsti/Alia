@@ -777,15 +777,22 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
   const mostraProgetto = scope === "all" && group !== "progetto";
 
   /* Il Kanban dispone le task in colonne, quindi lì sono card e non righe:
-     è la stessa distinzione che tiene separati TaskRow e InboxCard. */
+     è la stessa distinzione che tiene separati TaskRow e InboxCard.
+
+     **Una card sola, davvero** (11/09/2026). Qui stavano `titleSize` e
+     `dueSize`, gli ultimi due resti dei due artboard "Inbox min" e "Inbox max":
+     erano l'unica cosa che distingueva questa card da quella della colonna
+     Inbox. Misurate sull'app, le due larghezze sono 208 e 232 — ventiquattro
+     pixel — e la differenza di carattere mezzo pixel. Non era un adattamento
+     alla larghezza, era una distinzione senza differenza, e teneva in vita
+     l'idea che le card fossero due. Tolte: adesso la card e' una e si vede che
+     lo e'. */
   const kanbanCard = (t) => (
     <InboxCard
       key={t.id}
       id={t.id}
       title={t.title}
       due={dueLabel(t.dueAt)}
-      titleSize="text-meta"
-      dueSize="text-[10.5px]"
       priorityColor={t.priorityColor}
     />
   );
