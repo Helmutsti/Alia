@@ -15,6 +15,7 @@ import {
   DENSITA_CARD, dueLabel, eCampiCard, eInRitardo, metaCard, risolviCampiCard,
 } from "../lib/tasks.js";
 import { usePreferenza } from "../lib/preferenze.js";
+import { bridge } from "../lib/aliaClient.js";
 import {
   DISPONIBILITA_PREDEFINITA,
   eDisponibilita,
@@ -450,6 +451,20 @@ export function InboxWorkspace({ startFull = false }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [apriNuova, titoloNuova]);
+
+  /* La notifica di un promemoria, cliccata: porta **su quella task**.
+
+     Il processo principale rimette in scena la finestra e manda l'id; qui si
+     apre il dettaglio. Senza questo pezzo la notifica faceva meta' strada — la
+     finestra tornava davanti e poi non succedeva niente, che e' peggio di non
+     rispondere affatto: uno crede di aver cliccato male.
+
+     `bridge` puo' non esserci (pagina di anteprima) e il canale nemmeno: si
+     resta senza, come per le origini. */
+  useEffect(() => {
+    if (typeof bridge?.onApriTask !== "function") return undefined;
+    return bridge.onApriTask((idTask) => setDetailTask(idTask));
+  }, []);
 
   const { start } = useBoardDrag({
     boardRef,
