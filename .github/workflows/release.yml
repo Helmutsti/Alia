@@ -1,5 +1,10 @@
 name: Release
 
+# Il repo tiene due progetti affiancati: `alia/` (l'app) e `api/` (la confluenza
+# delle sorgenti). Il rilascio riguarda solo l'app, quindi ogni job lavora
+# dentro `alia/` — senza questo, `npm ci` cercherebbe un package.json nella
+# radice, dove non c'e'.
+
 on:
   release:
     types: [published]
@@ -14,6 +19,9 @@ jobs:
     # incluso nel tarball): qui verifichiamo solo che core e build funzionino
     # anche su macOS prima di rilasciare, non produciamo un artifact separato.
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: alia
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -35,6 +43,9 @@ jobs:
   package:
     needs: verify-macos
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: alia
     steps:
       - name: Checkout
         uses: actions/checkout@v5

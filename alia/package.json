@@ -1,0 +1,55 @@
+{
+  "name": "alia",
+  "version": "1.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "description": "Task manager locale con interfaccia grafica Electron + React (\"Alia\")",
+  "main": "electron/main.js",
+  "bin": {
+    "alia": "./bin/alia.js"
+  },
+  "files": [
+    "bin",
+    "build",
+    "electron",
+    "scripts/postinstall.js",
+    "src",
+    "renderer/dist"
+  ],
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Helmutsti/Alia.git"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/index.js && node --check src/core/database.js && node --check src/core/task-core.js && node --check src/core/rinascita-schema.js && node --check src/core/alia-core.js && node --check src/confluenza/cliente.js && node --check electron/confluenza.js && node --check electron/preload.cjs && node --check electron/main.js",
+    "dev:renderer": "vite --config renderer/vite.config.js",
+    "dev": "concurrently -k -n renderer,electron -c blue,green \"npm:dev:renderer\" \"node electron/wait-and-launch.js\"",
+    "build:renderer": "vite build --config renderer/vite.config.js",
+    "start": "npm run build:renderer && electron . --enable-features=OverlayScrollbar",
+    "electron": "electron . --enable-features=OverlayScrollbar",
+    "seed": "node scripts/seed.js",
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "tailwindcss": "^4.3.3",
+    "vite": "^6.0.7"
+  },
+  "dependencies": {
+    "electron": "^44.2.0",
+    "lucide-react": "^1.43.0",
+    "rcedit": "^5.0.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

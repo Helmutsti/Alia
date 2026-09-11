@@ -1,0 +1,55 @@
+/* **Niente si illumina piu' durante il trascinamento** (2026-09-10).
+
+   Qui stava `[data-drop-col].hit`, il contorno azzurro della colonna bersaglio
+   preso da `.fi-col.hit` di DEF_Inbox max. E' stato tolto per la stessa ragione
+   per cui un giro prima lo avevano perso i gruppi della vista Lista: la
+   destinazione la dicono gia' il varco che si apre e il clone che cambia
+   larghezza passando da card a riga: il contorno era una terza voce che
+   ripeteva, e sulla colonna diventata card di superficie era anche la piu'
+   rumorosa. Un disegno migliore per sottolineare la destinazione resta da
+   studiare (vedi Rinascita.md, § Interfaccia). */
+
+/* Sottolineatura della tab attiva — da `.sp-tab.active::after` di
+   DEF_Inbox min: uno pseudo-elemento non è esprimibile come utility. */
+.sp-tab-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-accent);
+}
+
+/* Il "Niente di nuovo" della testata origini: sta in scena il tempo di essere
+   letto e se ne va da solo (vedi TestataOrigini.jsx).
+
+   L'animazione tiene l'opacita' piena per i primi tre quarti e sfuma
+   nell'ultimo: cosi' lo smontaggio a 4s cade quando l'elemento e' gia'
+   invisibile, e la frase svanisce invece di essere tagliata via. Le durate qui
+   e nel componente devono restare le stesse — sono due meta' dello stesso
+   gesto.
+
+   `prefers-reduced-motion`: chi ha chiesto meno movimento vede la frase piena
+   fino alla fine e poi sparire. Sparire e' il comportamento, non l'effetto:
+   togliere la dissolvenza non toglie l'informazione. */
+@keyframes origini-respiro {
+  0%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.origini-respiro {
+  animation: origini-respiro 4000ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .origini-respiro {
+    animation: none;
+  }
+}
