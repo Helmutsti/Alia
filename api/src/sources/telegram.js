@@ -29,6 +29,8 @@
    la ricevuta di lettura. Lo si conserva fuori (in un file, vedi
    `electron/telegram.js`) perché sopravviva alla chiusura dell'app. */
 
+import { titoloDaTesto } from "./testo.js";
+
 const API = "https://api.telegram.org";
 
 /* Il server tiene aperta la richiesta fino a 25s. Non è un'attesa sprecata:
@@ -41,23 +43,12 @@ const ATTESA_POLL = 25;
 const PAUSA_MINIMA = 1_000;
 const PAUSA_MASSIMA = 60_000;
 
-/* Il titolo di un task è una riga in una card larga ~250px: ci sta poco, e
-   quello che avanza vive comunque in `originalContent`, che non taglia niente. */
-const TITOLO_MASSIMO = 120;
-
 /* ── da messaggio a origine ────────────────────────────────────────────────── */
 
-/* Il titolo è la prima riga, perché è così che si scrive un messaggio che
-   contiene una cosa da fare: l'oggetto prima, i dettagli sotto. Se la prima
-   riga è lunga si taglia sull'ultimo spazio prima del limite — spezzare una
-   parola a metà si legge peggio di un titolo più corto. */
-export function titoloDaTesto(testo) {
-  const prima = testo.split("\n").find((riga) => riga.trim() !== "")?.trim() ?? "";
-  if (prima.length <= TITOLO_MASSIMO) return prima;
-  const tagliato = prima.slice(0, TITOLO_MASSIMO);
-  const spazio = tagliato.lastIndexOf(" ");
-  return `${(spazio > TITOLO_MASSIMO / 2 ? tagliato.slice(0, spazio) : tagliato).trimEnd()}…`;
-}
+/* Il titolo lo fa `testo.js`, perché la regola non è di Telegram: è di come si
+   scrive una cosa da fare, e Discord la vuole identica. Si riesporta perché chi
+   importa il connettore non deve sapere che è finita in un altro file. */
+export { titoloDaTesto } from "./testo.js";
 
 /* Un messaggio → un'origine (deciso l'11/09/2026). La regola "1 sorgente → N
    task" resta vera nel modello: un messaggio con tre cose dentro si spezza

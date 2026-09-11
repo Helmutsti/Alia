@@ -170,8 +170,9 @@ confini e ognuno ha la sua guardia, senza che nessuna contraddica le altre:
 | Confine | Guardia |
 |---|---|
 | Telegram → servizio | l'offset di `getUpdates`, in `sorgente_stato` |
+| Discord → servizio | il cursore `after` per canale, nella stessa `sorgente_stato` |
 | dentro il servizio | `UNIQUE(sourceType, sourceId)` su `origine` — lì una riga **è** un messaggio |
-| servizio → Alia | il cursore della tabella `lettore` |
+| servizio → Alia | nessuna, e non serve: leggere non consuma (vedi `isProcessed`) |
 
 E su `t_task` non c'è nessun vincolo, come deve essere: una riga di `origine` può
 diventare tre task, e nessuno glielo impedisce.
@@ -222,16 +223,53 @@ che il core non conosce — rete, token, servizio spento.
 
 - **Servizio**: `api/config.json`, creato al primo avvio con un token casuale
   dentro. Porta, host (`127.0.0.1` di default: farsi vedere dalla rete è una
-  scelta da fare apposta), percorso della coda, e il token del bot Telegram.
+  scelta da fare apposta), percorso della coda, e una voce per sorgente sotto
+  `sorgenti` — `telegram` (token del bot, `chat` autorizzate), `discord` (token
+  del bot, `canali` da leggere). Ogni campo si può scavalcare con una variabile
+  d'ambiente (`ALIA_DISCORD_TOKEN`, `ALIA_DISCORD_CANALI`, e le equivalenti di
+  Telegram), perché in un container un segreto non si passa con un file.
 - **Alia**: `confluenza.json` nella cartella dei dati — indirizzo, token, modo,
   intervallo. Si compila da Impostazioni, Fonti collegate: la sezione che era
   disegnata e vuota.
 
+#### Il connettore Discord — aggiunto l'11/09/2026
+
+Seconda sorgente, sulla forma della prima: `api/src/sources/discord.js` è un
+modulo puro come `telegram.js`, e il montaggio in `servizio.js` è diventato un
+registro (`SORGENTI`) invece di un `if` per sorgente — la terza si aggiunge con
+una voce e un file.
+
+**REST a intervalli, non Gateway.** Un bot Discord di solito tiene aperta una
+WebSocket e riceve `MESSAGE_CREATE` in tempo reale. Serve a ricevere da tutto
+quello che il bot vede; qui i canali sono quelli che gli dici tu, e per quelli
+`GET /channels/{id}/messages?after=` dice la stessa cosa con una `fetch` e zero
+dipendenze. Il prezzo è la latenza, fino a cinque secondi. Il Gateway, se un
+giorno servisse, entra dietro la stessa interfaccia (`start`/`stop`/`attivo`).
+
+**Il ricevuto è una reazione, non una risposta.** Su Telegram la chat col bot è
+una casella privata e una risposta è l'unica conferma possibile. Un canale
+Discord è condiviso: un bot che replica a ogni messaggio lo rende illeggibile
+per tutti gli altri. Quindi ✅ quando l'origine è entrata, 🚫 quando non c'era
+testo da prenderci — silenzioso, e visibile a chi ha scritto.
+
+**La storia non si importa.** Al primo sguardo su un canale il cursore si pianta
+ad *adesso* (uno snowflake fabbricato dall'orologio, che funziona anche su un
+canale ancora vuoto). Un canale vivo da tre anni non è un arretrato da smistare:
+è rumore che seppellirebbe la colonna al primo avvio.
+
+**La trappola, per iscritto.** `GET messages` restituisce anche i messaggi dei
+bot — al contrario di `getUpdates`, che non ti ridà quello che hai mandato tu.
+Senza il filtro su `author.bot`, un bot che scrivesse in canale si rileggerebbe
+da solo, per sempre. Per questo il filtro è una funzione esportata e provata
+(`daGuardare`), non un `if` dentro il ciclo.
+
 #### Resta fuori
 
-Gli allegati senza didascalia (il modello del task è fatto di testo); il webhook
-al posto del long polling verso Telegram, che diventerà possibile quando il
-servizio avrà un indirizzo pubblico; e il push, questione aperta 15.
+Gli allegati senza didascalia (il modello del task è fatto di testo); la mail,
+che è la terza sorgente prevista e non c'è; il webhook al posto del long polling
+verso Telegram e il Gateway al posto del polling verso Discord, che diventeranno
+sensati quando il servizio avrà un indirizzo pubblico; e il push, questione
+aperta 15.
 
 ### Dove vivono i dati — sul Desktop, fuori dal repo (2026-09-11)
 
@@ -1450,10 +1488,11 @@ riga, non un ritorno del menu.
 
 ### ~~9. Non c'è nessuna origine: badge e colonna sono costruiti e invisibili~~ — risolto l'11/09/2026
 
-Il bot Telegram è il mittente che mancava: le origini arrivano, `isNew` si accende
-e il badge conta. Vedi § Database, "Sorgente Telegram". Mail e Discord restano da
-scrivere, ma ora hanno una forma da ricalcare — il connettore è un modulo puro che
-non sa niente né di Electron né del database.
+I bot Telegram e Discord sono il mittente che mancava: le origini arrivano,
+`isNew` si accende e il badge conta. Vedi § Database, "La confluenza delle
+sorgenti". La mail resta da scrivere, ma ha due forme da ricalcare — il
+connettore è un modulo puro che non sa niente né di Electron né del database, e
+il montaggio è un registro dove aggiungerla è una voce.
 
 ### 10. Notifiche desktop (riscritto l'11/09/2026)
 

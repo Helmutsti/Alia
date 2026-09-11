@@ -19,8 +19,15 @@ if (!config.token) {
   console.error(`Manca il token dell'API. Mettilo in ${percorso} o in ALIA_API_TOKEN.`);
   process.exit(1);
 }
-if (!config.sorgenti.telegram?.token) {
-  log("Telegram non configurato: metti il token del bot in", percorso, "→ sorgenti.telegram.token");
+/* Una sorgente senza token non è un errore — il servizio parte lo stesso, e
+   con una sola sorgente accesa è la situazione normale, non un guasto. Ma
+   tacerlo vorrebbe dire lasciare che una configurazione a metà somigli a una
+   finita: il servizio in ascolto, la coda che non si riempie, e niente che
+   dica perché. */
+for (const [nome, campo] of [["Telegram", "telegram.token"], ["Discord", "discord.token"]]) {
+  if (!config.sorgenti[campo.split(".")[0]]?.token) {
+    log(`${nome} non configurato: metti il token del bot in`, percorso, `→ sorgenti.${campo}`);
+  }
 }
 
 const servizio = avviaServizio(config, log);
@@ -47,8 +54,9 @@ log(`confluenza in ascolto su http://${config.host}:${indirizzo.port}`);
 log(`coda: ${config.dati} — ${servizio.coda.quanteDaProcessare()} origini da processare`);
 
 /* Si esce in silenzio e per bene: i connettori hanno una richiesta lunga aperta
-   verso Telegram, e senza `ferma()` la chiusura resterebbe appesa fino a 25
-   secondi dietro a un `getUpdates` che aspetta. */
+   (il `getUpdates` di Telegram aspetta fino a 25 secondi, il ciclo di Discord
+   dorme fra un giro e l'altro), e senza `ferma()` la chiusura resterebbe appesa
+   dietro a un'attesa che non interessa più a nessuno. */
 let inChiusura = false;
 for (const segnale of ["SIGINT", "SIGTERM"]) {
   process.on(segnale, async () => {

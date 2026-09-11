@@ -25,6 +25,14 @@ const PREDEFINITI = {
   sorgenti: {},
 };
 
+/* Una lista in una variabile d'ambiente è una stringa separata da virgole: non
+   c'è un altro modo, e ogni sorgente ne ha una (le chat di Telegram, i canali di
+   Discord). `undefined` quando la variabile non c'è, perché "non l'hai scritta"
+   e "l'hai scritta vuota" devono restare due cose diverse: la prima lascia
+   vincere il file, la seconda lo azzera apposta. */
+const elenco = (valore) =>
+  valore === undefined ? undefined : valore.split(",").map((s) => s.trim()).filter(Boolean);
+
 export function leggiConfig(percorso = PERCORSO_CONFIG) {
   let file = {};
   if (existsSync(percorso)) {
@@ -42,9 +50,12 @@ export function leggiConfig(percorso = PERCORSO_CONFIG) {
       telegram: {
         ...file.sorgenti?.telegram,
         token: process.env.ALIA_TELEGRAM_TOKEN ?? file.sorgenti?.telegram?.token ?? null,
-        chat: process.env.ALIA_TELEGRAM_CHAT
-          ? process.env.ALIA_TELEGRAM_CHAT.split(",").map((s) => s.trim()).filter(Boolean)
-          : (file.sorgenti?.telegram?.chat ?? []),
+        chat: elenco(process.env.ALIA_TELEGRAM_CHAT) ?? file.sorgenti?.telegram?.chat ?? [],
+      },
+      discord: {
+        ...file.sorgenti?.discord,
+        token: process.env.ALIA_DISCORD_TOKEN ?? file.sorgenti?.discord?.token ?? null,
+        canali: elenco(process.env.ALIA_DISCORD_CANALI) ?? file.sorgenti?.discord?.canali ?? [],
       },
     },
   };
@@ -72,8 +83,12 @@ export function assicuraConfig(percorso = PERCORSO_CONFIG) {
     host: PREDEFINITI.host,
     token: randomBytes(32).toString("hex"),
     dati: PREDEFINITI.dati,
+    /* Le sorgenti compaiono tutte, vuote: un file che le nomina si compila
+       riempiendo un campo, uno che le tace si compila andando a cercare come si
+       chiamano. */
     sorgenti: {
       telegram: { token: null, chat: [] },
+      discord: { token: null, canali: [] },
     },
   };
   writeFileSync(percorso, `${JSON.stringify(iniziale, null, 2)}\n`, "utf8");
