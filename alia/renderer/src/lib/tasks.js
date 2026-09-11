@@ -16,6 +16,131 @@ export const PRIORITIES = [
   { id: "none", label: "Nessuna", color: "var(--color-priority-none)" },
 ];
 
+/* — cosa raccontano le card —
+   Ogni campo che una card **puo'** mostrare oltre al titolo, uno per uno.
+
+   Il titolo non e' nell'elenco ed e' apposta: e' la card. Tutto il resto si
+   puo' spegnere, lui no.
+
+   L'ordine e' quello con cui i campi si disegnano, dal piu' al meno
+   identificante — chi e', dove vive, com'e' etichettato, a che punto sta — e
+   tenerlo uguale qui e nel componente vuol dire che l'elenco delle
+   Impostazioni si legge nello stesso ordine della card che descrive.
+
+   Sta qui e non dentro un componente perche' lo leggono in tre: chi lo imposta
+   (le Impostazioni) e i due punti che disegnano card (la colonna Inbox e il
+   Kanban). */
+export const CAMPI_CARD = [
+  {
+    id: "priorita",
+    label: "Priorità",
+    nota: "Il pallino colorato sempre acceso, invece che solo passandoci sopra.",
+  },
+  { id: "progetto", label: "Progetto e fase", nota: "Dove vive la task." },
+  { id: "tag", label: "Tag", nota: "Le etichette scritte a mano. Le più care in larghezza." },
+  { id: "sottotask", label: "Sotto-task", nota: "Quanti ne sono chiusi sul totale." },
+  { id: "scadenza", label: "Scadenza", nota: "In rosso quando è passata." },
+  { id: "promemoria", label: "Promemoria", nota: "L'ora della sveglia, quando ce n'è una." },
+  { id: "note", label: "Note", nota: "Un segno che dice che c'è scritto qualcosa dentro." },
+  { id: "sorgente", label: "Sorgente", nota: "Da dove è arrivata, se non l'hai scritta tu." },
+  { id: "stato", label: "Stato", nota: "Il chip colorato per ruolo." },
+];
+
+const SPENTI = Object.fromEntries(CAMPI_CARD.map((c) => [c.id, false]));
+const ACCESI = Object.fromEntries(CAMPI_CARD.map((c) => [c.id, true]));
+
+/* Le due preselezioni sono **scorciatoie**, non modi diversi di funzionare:
+   scrivono lo stesso insieme di interruttori che si possono toccare a mano.
+   Da qui discende che "personalizzata" non e' una terza configurazione ma il
+   nome che prende l'insieme appena si discosta dalle due note — e infatti non
+   c'e' niente da scegliere prima di poter toccare un interruttore. */
+export const PRESET_CARD = {
+  essenziale: { ...SPENTI, scadenza: true },
+  completa: { ...ACCESI },
+};
+
+export const DENSITA_CARD = [
+  { id: "essenziale", label: "Essenziale", nota: "Titolo e scadenza, come è sempre stata." },
+  { id: "completa", label: "Completa", nota: "Tutto quello che la task sa dire di sé." },
+  { id: "personalizzata", label: "Personalizzata", nota: "Scegli campo per campo, qui sotto." },
+];
+
+/* Un insieme di campi vale se e' un oggetto di booleani con chiavi che
+   esistono ancora. Serve perche' `t_setting` e' chiave-valore: dentro puo'
+   esserci un campo tolto da una versione precedente (vedi `usePreferenza`). */
+export const eCampiCard = (v) =>
+  !!v &&
+  typeof v === "object" &&
+  !Array.isArray(v) &&
+  Object.entries(v).every(
+    ([k, on]) => typeof on === "boolean" && CAMPI_CARD.some((c) => c.id === k),
+  );
+
+/* Da quale preselezione si sta guardando + cosa si e' scelto a mano → gli
+   interruttori veri. Un campo assente vale spento: e' cosi' che un campo
+   aggiunto in futuro non compare da solo su card che nessuno ha mai
+   configurato per mostrarlo.
+
+   **"Personalizzata" senza niente di salvato vale "Essenziale"**, e non
+   "tutto spento". Sono due cose diverse: tutto spento e' una card con il solo
+   titolo — una configurazione legittima, ma solo se qualcuno l'ha chiesta.
+   Trovarcisi per un'incoerenza fra le due preferenze (la modalita' scritta e
+   i campi no: due righe di `t_setting`, e niente garantisce che siano
+   d'accordo) vorrebbe dire aprire l'app con le card svuotate senza aver
+   toccato niente. Il ripiego e' quello che l'applicazione farebbe comunque —
+   la stessa regola di `usePreferenza`, un gradino piu' su. */
+export function risolviCampiCard(densita, personalizzati) {
+  if (densita !== "personalizzata") return PRESET_CARD[densita] ?? PRESET_CARD.essenziale;
+  return personalizzati ? { ...SPENTI, ...personalizzati } : { ...PRESET_CARD.essenziale };
+}
+
+/* Quale preselezione descrive questo insieme, se ce n'e' una. Serve alle
+   Impostazioni per riaccendere "Essenziale" o "Completa" quando si torna con
+   gli interruttori esattamente su una delle due, invece di lasciare acceso
+   "Personalizzata" su una configurazione che ha gia' un nome. */
+export function densitaDeiCampi(campi) {
+  const uguale = (preset) => CAMPI_CARD.every((c) => !!campi[c.id] === !!preset[c.id]);
+  if (uguale(PRESET_CARD.essenziale)) return "essenziale";
+  if (uguale(PRESET_CARD.completa)) return "completa";
+  return "personalizzata";
+}
+
+/* I dati della card a partire dal task, filtrati dagli interruttori.
+
+   `escludi` e' la regola del Kanban, e arriva da fuori: la colonna dice gia'
+   una dimensione del task, e ripeterla su ogni card dentro quella colonna e'
+   rumore. Chi chiama passa quali togliere, perche' e' l'unico a sapere come
+   sono fatte le colonne.
+
+   Torna `null` quando non resta niente: cosi' la card torna ad essere quella
+   essenziale senza che nessuno debba dirglielo. */
+export function metaCard(task, campi, escludi = {}) {
+  const attivo = (id) => !!campi[id] && !escludi[id];
+  const meta = {
+    progetto: attivo("progetto") ? task.project : null,
+    fase: attivo("progetto") && !escludi.fase ? (task.milestone?.label ?? null) : null,
+    tag: attivo("tag") ? task.tags : [],
+    sottotask:
+      attivo("sottotask") && task.childCount > 0
+        ? { fatti: task.childDoneCount, totali: task.childCount }
+        : null,
+    promemoria: attivo("promemoria") ? task.reminderAt : null,
+    note: attivo("note") && !!(task.notes || task.description),
+    sorgente: attivo("sorgente") && task.sourceType !== "manual" ? task.sourceType : null,
+    stato: attivo("stato") ? task.state : null,
+  };
+  const vuota =
+    !meta.progetto &&
+    !meta.fase &&
+    meta.tag.length === 0 &&
+    !meta.sottotask &&
+    !meta.promemoria &&
+    !meta.note &&
+    !meta.sorgente &&
+    !meta.stato;
+  return vuota ? null : meta;
+}
+
 const PER_PRIORITA = new Map(PRIORITIES.map((p) => [p.id, p]));
 export const priorityOf = (id) => PER_PRIORITA.get(id) ?? PER_PRIORITA.get("none");
 export const priorityRank = (id) => {
@@ -50,6 +175,15 @@ export function giorniDiScarto(iso, adesso = new Date()) {
 
 /* Stessa logica di DEF_Card: le date vicine si dicono a parole, le altre come
    giorno e mese. */
+/* In ritardo: scaduta e non ancora chiusa. Una task chiusa in ritardo non e'
+   piu' in ritardo — e' finita, e accenderla di rosso chiederebbe di fare una
+   cosa che e' gia' stata fatta. */
+export function eInRitardo(task, adesso = new Date()) {
+  if (task.done) return false;
+  const scarto = giorniDiScarto(task.dueAt, adesso);
+  return scarto !== null && scarto < 0;
+}
+
 export function dueLabel(iso, adesso = new Date()) {
   const scarto = giorniDiScarto(iso, adesso);
   if (scarto === null) return "";

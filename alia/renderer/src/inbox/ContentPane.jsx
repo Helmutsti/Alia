@@ -23,7 +23,7 @@ import {
 } from "./contentQuery.js";
 import { VIEW_BLOCKED, VIEW_ICONS, VIEW_LABELS, VIEW_ORDER } from "./data.js";
 import { useAlia } from "../lib/AliaProvider.jsx";
-import { dueLabel, giorniDiScarto } from "../lib/tasks.js";
+import { dueLabel, eInRitardo, giorniDiScarto, metaCard, PRESET_CARD } from "../lib/tasks.js";
 
 /* Area contenuto — testata risolta in DEF_Content.
 
@@ -126,7 +126,7 @@ function useLarghezzaBarra(rif, dipendenze) {
   return barra;
 }
 
-export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanban, onOpenTask, onApriComposer, onRowPointerDown, onOrdinamento, anteprima }) {
+export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanban, onOpenTask, onApriComposer, onRowPointerDown, onOrdinamento, anteprima, campiCard = PRESET_CARD.essenziale }) {
   const alia = useAlia();
   const rifLista = useRef(null);
   const barra = useLarghezzaBarra(rifLista);
@@ -776,6 +776,35 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
      l'ambito è su tutti: altrimenti sarebbe la stessa parola su ogni riga. */
   const mostraProgetto = scope === "all" && group !== "progetto";
 
+  /* Cosa la card del Kanban **non** deve ripetere.
+
+     La colonna dice gia' una cosa del task — quale, lo decide il
+     raggruppamento — e ridirla su ogni card dentro quella colonna e' l'unica
+     informazione che a schermo si vede subito essere di troppo: sotto
+     l'intestazione "IN CORSO", dodici card che dicono "In corso".
+
+     Quindi si toglie esattamente la dimensione delle colonne:
+
+       · per stato    → via il chip dello stato;
+       · per progetto → via il progetto, ma **la fase resta**: dentro la
+                        colonna "Lavoro" sapere che una task e' in "Clienti" e'
+                        una distinzione che la colonna non fa;
+       · per fase     → via tutti e due, che e' l'ambito stesso: le fasi si
+                        guardano dentro un progetto solo, quindi il progetto e'
+                        gia' detto dalla testata della schermata e la fase
+                        dalla colonna.
+
+     Vive qui e non dentro la card perche' questo e' l'unico posto che sa come
+     sono fatte le colonne. La card disegna quello che riceve. */
+  const escludiKanban = {
+    stato: groupKanban === "stato",
+    progetto: groupKanban === "progetto" || groupKanban === "milestone",
+    /* `fase` da sola: raggruppando per progetto la fase **resta** — dentro la
+       colonna "Lavoro", sapere che una task e' in "Clienti" e' una distinzione
+       che la colonna non fa. Sparisce solo quando le colonne sono le fasi. */
+    fase: groupKanban === "milestone",
+  };
+
   /* Il Kanban dispone le task in colonne, quindi lì sono card e non righe:
      è la stessa distinzione che tiene separati TaskRow e InboxCard.
 
@@ -792,7 +821,10 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
       key={t.id}
       id={t.id}
       title={t.title}
-      due={dueLabel(t.dueAt)}
+      due={campiCard.scadenza ? dueLabel(t.dueAt) : ""}
+      scaduta={eInRitardo(t)}
+      prioritaFissa={campiCard.priorita}
+      meta={metaCard(t, campiCard, escludiKanban)}
       priorityColor={t.priorityColor}
     />
   );
@@ -1315,6 +1347,17 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
                  fino a 600px in un tabellone con due colonne la trasformerebbe
                  in una riga lunga con un titolo perso in mezzo.
 
+                 **248 e non 220** (11/09/2026), e il numero non e' scelto a
+                 occhio: 248 meno i 16 di imbottitura fa 232, cioe' esattamente
+                 la card della colonna Inbox. Le due erano a 232 e 204, e finche'
+                 le card dicevano titolo e scadenza la differenza non si vedeva;
+                 da quando possono dire progetto, fase, tag e il resto, i 28px
+                 in meno si pagano tutti — un titolo che va a capo una volta in
+                 piu', i tag che scendono di riga. Adesso la card e' la stessa
+                 **anche in larghezza**, non solo nel componente: quello che sta
+                 in una sta nell'altra, e non c'e' un posto in cui e' piu'
+                 stretta senza una ragione.
+
                  Costo accettato: con poche colonne resta del vuoto a destra. E'
                  vuoto, non spreco — lo spazio non gli serviva. */
               className={
@@ -1322,7 +1365,7 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
                    c'erano: le due viste sono la stessa scatola in due
                    geometrie, e il filo del bersaglio dev'essere staccato dalle
                    card quanto lo e' dalle righe. */
-                "flex-[0_0_220px] flex flex-col rounded-xl p-2 " +
+                "flex-[0_0_248px] flex flex-col rounded-xl p-2 " +
                 TRANSIZIONE_BERSAGLIO +
                 /* La colonna sotto il puntatore si accende, con lo stesso filo
                    dei gruppi della Lista. Il bersaglio lo dice `anteprima`, che

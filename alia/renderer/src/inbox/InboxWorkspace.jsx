@@ -11,7 +11,10 @@ import { useOrigini } from "./useOrigini.js";
 import { useBoardDrag } from "./dragKit.js";
 import { FRAME, useInboxMorph } from "./useInboxMorph.js";
 import { useAlia } from "../lib/AliaProvider.jsx";
-import { dueLabel } from "../lib/tasks.js";
+import {
+  DENSITA_CARD, dueLabel, eCampiCard, eInRitardo, metaCard, risolviCampiCard,
+} from "../lib/tasks.js";
+import { usePreferenza } from "../lib/preferenze.js";
 import { SCORCIATOIA_COMPOSER, SCORCIATOIA_NUOVA_TASK, eComposer, eNuovaTask } from "../lib/piattaforma.js";
 import "./inbox.css";
 
@@ -106,6 +109,29 @@ export function InboxWorkspace({ startFull = false }) {
   /* Con che ordinamento il pannello contenuto sta mostrando l'elenco. Lo
      riferisce ContentPane; serve al rilascio del trascinamento (vedi onDrop). */
   const [ordinamento, setOrdinamento] = useState("scadenza");
+
+  /* Quanto raccontano le card. **Letta qui e passata giu'**, non letta due
+     volte: `usePreferenza` tiene uno stato per chiamata, quindi due letture
+     della stessa chiave partono d'accordo e poi divergono al primo cambio —
+     la colonna Inbox resterebbe indietro rispetto al Kanban fino al riavvio.
+     Un solo posto che la legge, e due che la ricevono. */
+  const [densitaCard, setDensitaCard] = usePreferenza(
+    "aspetto.densitaCard",
+    "essenziale",
+    (v) => DENSITA_CARD.some((d) => d.id === v),
+  );
+  /* Gli interruttori scelti a mano. Preferenza a parte dalla precedente, e non
+     un valore dentro quella: tornando su "Completa" e poi di nuovo su
+     "Personalizzata" si ritrova la propria scelta invece di ricominciare. */
+  const [campiScelti, setCampiScelti] = usePreferenza(
+    "aspetto.campiCard",
+    null,
+    eCampiCard,
+  );
+  const campiCard = useMemo(
+    () => risolviCampiCard(densitaCard, campiScelti),
+    [densitaCard, campiScelti],
+  );
 
   /* Cosa voglia dire rilasciare su una colonna del Kanban lo sa ContentPane,
      che conosce raggruppamento e ambito; ma il rilascio passa da qui, perche'
@@ -533,6 +559,7 @@ export function InboxWorkspace({ startFull = false }) {
             modale copre tutta la schermata e non solo il pannello. */}
         <ContentPane
           refRilascioKanban={rilascioKanban}
+          campiCard={campiCard}
           /* Il rientro sinistro segue la colonna: a colonna chiusa sparisce,
              perche' e' lo stacco *da quella*, non un margine del pannello. */
           padSinistra={m.content.padSinistra}
@@ -692,7 +719,13 @@ export function InboxWorkspace({ startFull = false }) {
                  "quando scade" e' la seconda cosa che si guarda di una task da
                  smistare, subito dopo com'e' scritta, ed e' anche quello che
                  aiuta a decidere dove mandarla. */
-              due={dueLabel(task.dueAt)}
+              due={campiCard.scadenza ? dueLabel(task.dueAt) : ""}
+              scaduta={eInRitardo(task)}
+              prioritaFissa={campiCard.priorita}
+              /* Niente da escludere: la colonna del triage non e' raggruppata
+                 per niente, quindi non dice niente del task che la card
+                 rischi di ripetere. E' il contrario del Kanban. */
+              meta={metaCard(task, campiCard)}
               priorityColor={task.priorityColor}
               editing={editingTask === task.id}
               dragging={draggingTask === task.id}
@@ -781,7 +814,18 @@ export function InboxWorkspace({ startFull = false }) {
       ) : null}
 
       {/* ═══ impostazioni — DEF_Impostazioni ═══ */}
-      {impostazioniAperte ? <SettingsModal onClose={() => setImpostazioniAperte(false)} /> : null}
+      {impostazioniAperte ? (
+        <SettingsModal
+          onClose={() => setImpostazioniAperte(false)}
+          densitaCard={densitaCard}
+          onDensitaCard={setDensitaCard}
+          campiCard={campiCard}
+          onCampiCard={(campi, densita) => {
+            setCampiScelti(campi);
+            setDensitaCard(densita);
+          }}
+        />
+      ) : null}
 
       {/* ═══ dettaglio task — DEF_Task Detail ═══ */}
       {detail ? <TaskDetailModal task={detail} onClose={() => setDetailTask(null)} /> : null}

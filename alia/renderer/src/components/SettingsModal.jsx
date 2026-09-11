@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { confluenza } from "../lib/confluenza.js";
-import { Bell, Cartella, Check, Flusso, ManigliaRiordino, Plus, Sorgenti, Tastiera, Trash } from "./icons.jsx";
+import { Bell, Cartella, Check, Flusso, Layers, ManigliaRiordino, Plus, Sorgenti, Tastiera, Trash } from "./icons.jsx";
+import { CAMPI_CARD, DENSITA_CARD, PRESET_CARD, densitaDeiCampi } from "../lib/tasks.js";
 import { useAlia } from "../lib/AliaProvider.jsx";
 import { useTrappolaFuoco } from "../lib/fuoco.js";
 
@@ -60,6 +61,10 @@ const SEZIONI = [
   { id: "fonti", label: "Fonti collegate", Icona: Sorgenti },
   { id: "progetti", label: "Progetti", Icona: Cartella },
   { id: "stati", label: "Stati", Icona: Flusso },
+  /* Dopo le quattro che dicono **come lavora** Alia e prima delle Scorciatoie,
+     che sono un promemoria: l'aspetto non e' una configurazione del lavoro, ma
+     non e' nemmeno un ripasso. */
+  { id: "aspetto", label: "Aspetto", Icona: Layers },
   { id: "scorciatoie", label: "Scorciatoie", Icona: Tastiera },
 ];
 
@@ -942,9 +947,121 @@ function NomeStato({ stato, onCommit }) {
   );
 }
 
+/* ── Aspetto: quanto raccontano le card ─────────────────────────────────────
+
+   Qui e non nella testata del pannello contenuto, ed e' una distinzione che
+   vale la pena tenere ferma: vista, ordinamento, raggruppamento e filtri sono
+   **domande sui dati** — cosa guardo, in che ordine, diviso come — e si
+   cambiano di continuo mentre si lavora, quindi stanno a portata di mano.
+   Quanto una card racconta e' una domanda sul **gusto**: la si decide una
+   volta, come si decide un tema, e poi non la si tocca piu'. Una quinta
+   tendina in testata per una cosa che si sceglie una volta l'anno sarebbe un
+   comando che pesa tutti i giorni e serve una volta.
+
+   Vale per le card e non per le righe della vista Lista: la riga mostra gia'
+   progetto, sotto-task, scadenza e stato: e' larga abbastanza da non doverli
+   nascondere, e non c'e' niente da scegliere. */
+function Aspetto({ densita, campi, onDensita, onCampi }) {
+  /* Toccare un interruttore **non** chiede di scegliere prima "Personalizzata":
+     si accende o si spegne un campo, e il nome dell'insieme si aggiorna da se'.
+     Chiedere di cambiare modalita' prima di poter toccare qualcosa sarebbe un
+     passaggio in piu' per dire una cosa che il gesto dice gia'.
+
+     E funziona anche al contrario: se spegnendo e riaccendendo si torna esatti
+     su una delle due preselezioni, si riaccende quella — perche' quella
+     configurazione **ha un nome**, e lasciare acceso "Personalizzata" su
+     qualcosa che si chiama "Completa" sarebbe dire una cosa falsa. */
+  const alterna = (id) => {
+    const prossimi = { ...campi, [id]: !campi[id] };
+    onCampi?.(prossimi, densitaDeiCampi(prossimi));
+  };
+
+  const scegliPreset = (id) => {
+    if (id === "personalizzata") return onDensita?.(id);
+    onCampi?.({ ...PRESET_CARD[id] }, id);
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="m-0 text-[15px] font-medium tracking-[-0.01em]">Aspetto</h2>
+        <p className="m-0 text-meta text-content/55 max-w-[520px]">
+          Quanto raccontano le card della colonna Inbox e del Kanban. Le righe della vista Lista non
+          cambiano: sono larghe abbastanza da mostrare tutto senza doverlo scegliere.
+        </p>
+      </div>
+
+      {/* Le due preselezioni, come scorciatoie: scrivono gli stessi
+          interruttori qui sotto, invece di essere una modalita' a parte. */}
+      <div className="flex gap-2" role="radiogroup" aria-label="Quanto raccontano le card">
+        {DENSITA_CARD.map((d) => {
+          const scelta = densita === d.id;
+          return (
+            <button
+              key={d.id}
+              type="button"
+              role="radio"
+              aria-checked={scelta}
+              onClick={() => scegliPreset(d.id)}
+              disabled={!onCampi}
+              title={d.nota}
+              className={
+                "flex-1 flex flex-col gap-0.5 text-left px-3.5 py-2.5 rounded-lg border bg-transparent " +
+                "transition-colors duration-[120ms] " +
+                (onCampi ? "cursor-pointer " : "cursor-default opacity-45 ") +
+                (scelta
+                  ? "border-accent bg-[color-mix(in_srgb,var(--color-accent)_8%,transparent)]"
+                  : "border-divider hover:border-card-line-hover")
+              }
+            >
+              <span className={`text-card font-medium ${scelta ? "text-accent" : "text-content"}`}>
+                {d.label}
+              </span>
+              <span className="text-micro text-content/48 leading-[1.35]">{d.nota}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Gli interruttori, **sempre attivi**: sono il posto in cui si guarda
+          cosa fa una preselezione, non solo quello in cui si personalizza. */}
+      <div className="flex flex-col">
+        {CAMPI_CARD.map((c, i) => (
+          <div
+            key={c.id}
+            className={
+              "flex items-center gap-4 py-2.5 " + (i > 0 ? "border-t border-divider" : "")
+            }
+          >
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <span className="text-card">{c.label}</span>
+              <span className="text-meta text-content/48">{c.nota}</span>
+            </div>
+            <Interruttore
+              acceso={!!campi[c.id]}
+              onChange={onCampi ? () => alterna(c.id) : undefined}
+              etichetta={`Mostra ${c.label.toLowerCase()} sulle card`}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* La regola del Kanban non e' configurabile, ed e' giusto che si legga
+          qui: e' l'unica cosa che succede alle card **senza** che nessuno
+          l'abbia chiesta, e scoprirla per caso guardando il tabellone farebbe
+          pensare a un interruttore che non ha funzionato. */}
+      <p className="m-0 text-meta text-content/45 max-w-[520px] pt-1 border-t border-divider">
+        Nel Kanban la card non ripete mai quello che dice già la colonna:
+        raggruppando per stato sparisce lo stato, per progetto il progetto, per fase il progetto e
+        la fase. Vale anche se qui sono accesi.
+      </p>
+    </div>
+  );
+}
+
 /* ── il pannello ────────────────────────────────────────────────────────────── */
 
-export function SettingsModal({ onClose }) {
+export function SettingsModal({ onClose, densitaCard, onDensitaCard, campiCard, onCampiCard }) {
   const [sezione, setSezione] = useState("stati");
   const rifCard = useRef(null);
 
@@ -1013,6 +1130,14 @@ export function SettingsModal({ onClose }) {
           {sezione === "progetti" ? <Progetti /> : null}
           {sezione === "scorciatoie" ? <Scorciatoie /> : null}
           {sezione === "stati" ? <Stati /> : null}
+          {sezione === "aspetto" ? (
+            <Aspetto
+              densita={densitaCard}
+              campi={campiCard ?? PRESET_CARD.essenziale}
+              onDensita={onDensitaCard}
+              onCampi={onCampiCard}
+            />
+          ) : null}
         </div>
       </div>
     </div>

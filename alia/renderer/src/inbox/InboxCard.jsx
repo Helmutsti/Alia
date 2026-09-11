@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Alarm, NoteLines, Subtasks } from "../components/icons.jsx";
 
 /* Card minima dell'Inbox — trascritta da `.sp-card` / `.sp-check` di
    DEF_Inbox min. È la forma usata dalla colonna Small Inbox, dalle righe
@@ -58,6 +59,125 @@ const CHECK =
 const TITLE =
   "flex-1 min-w-0 font-medium tracking-[-0.01em] leading-[1.35] [overflow-wrap:anywhere]";
 
+/* ── la card completa ───────────────────────────────────────────────────────
+
+   Una preferenza decide se la card dice il minimo (titolo e scadenza, com'e'
+   sempre stata) o tutto quello che il task sa di se'. Sta nelle Impostazioni,
+   sezione Aspetto: e' una scelta di gusto che si fa una volta, non un gesto da
+   ripetere mentre si lavora.
+
+   **La card non sa niente di chi la ospita, ed e' voluto.** Riceve `meta` e
+   disegna quello che c'e' dentro; un campo assente non si disegna. Cosi' la
+   regola "nel Kanban non ripetere quello che la colonna dice gia'" — niente
+   stato nelle colonne per stato, niente progetto in quelle per progetto,
+   niente progetto ne' fase in quelle per fase — vive nel **punto di chiamata**,
+   che e' l'unico a sapere come sono fatte le colonne. Qui dentro sarebbe una
+   catena di casi da tenere allineata a mano con il raggruppamento.
+
+   L'ordine delle fasce va dal piu' al meno identificante: chi e' (priorita' e
+   titolo), dove vive (progetto e fase), come e' etichettato (i tag), a che
+   punto sta (sotto-task, scadenza, promemoria, note, sorgente, stato).
+
+   L'ultima fascia va a capo da sola: a 204px non ci sta in riga, e andare a
+   capo e' meglio che troncare — il dato c'e' o non c'e', non si mostra a
+   meta'. */
+const CHIP = "inline-flex items-center h-[18px] px-2 rounded-full text-micro whitespace-nowrap";
+const CHIP_RUOLO = {
+  start: `${CHIP} bg-card-line text-content`,
+  mid: `${CHIP} bg-accent text-bg`,
+  end: `${CHIP} border border-card-line text-content/45`,
+};
+
+const oraDi = (iso) =>
+  new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+
+/* Il cancelletto si mette solo se non c'e' gia'. Le etichette arrivano da due
+   strade che la pensano diversamente: scritte nel composer valgono la parola
+   nuda (`casa`), raccolte da una sorgente esterna arrivano con il simbolo
+   attaccato (`#progetti`, che su Discord e' il nome del canale). Anteporlo
+   sempre scriveva `##progetti`. Si normalizza a schermo e non nel dato: il
+   dato e' quello che l'utente ha scritto, e riscriverglielo sotto non e'
+   compito di una card. */
+const conCancelletto = (label) => (label.startsWith("#") ? label : `#${label}`);
+
+function Meta({ meta, due, scaduta, dueSize }) {
+  const { progetto, fase, tag = [], sottotask, promemoria, note, sorgente, stato } = meta;
+  const fasciaBassa = due || sottotask || promemoria || note || sorgente || stato;
+
+  return (
+    <>
+      {progetto || fase ? (
+        <span className="flex items-center gap-1.5 text-mini text-content/62 min-w-0">
+          {progetto ? (
+            <span
+              className="w-[6px] h-[6px] shrink-0 rounded-full"
+              style={{ background: progetto.color }}
+            />
+          ) : null}
+          <span className="truncate">
+            {progetto && fase ? `${progetto.name} / ${fase}` : (progetto?.name ?? fase)}
+          </span>
+        </span>
+      ) : null}
+
+      {tag.length > 0 ? (
+        <span className="flex flex-wrap gap-1">
+          {tag.map((t) => (
+            <span
+              key={t}
+              className="inline-flex items-center h-[17px] px-1.5 rounded-sm text-micro bg-content/8 text-content/55"
+            >
+              {conCancelletto(t)}
+            </span>
+          ))}
+        </span>
+      ) : null}
+
+      {fasciaBassa ? (
+        <div className={`flex flex-wrap items-center gap-x-2.5 gap-y-1 ${dueSize} text-content/55`}>
+          {sottotask ? (
+            <span className="inline-flex items-center gap-1 tabular-nums" title="Sotto-task completati">
+              <Subtasks size={11} />
+              {sottotask.fatti}/{sottotask.totali}
+            </span>
+          ) : null}
+          {/* La scadenza sta **in riga con il resto**, non su una riga sua:
+              nella card essenziale e' l'unica cosa sotto il titolo e la riga se
+              la merita tutta, qui e' una fra sei e sprecare una riga per lei
+              spingerebbe la card a un'altezza che non serve. */}
+          {due ? (
+            <span
+              className="whitespace-nowrap"
+              style={scaduta ? { color: "var(--color-priority-urgent)" } : undefined}
+            >
+              {due}
+            </span>
+          ) : null}
+          {promemoria ? (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap" title="Promemoria">
+              <Alarm size={11} />
+              {oraDi(promemoria)}
+            </span>
+          ) : null}
+          {note ? (
+            <span title="Ha delle note">
+              <NoteLines size={11} />
+            </span>
+          ) : null}
+          {sorgente ? (
+            <span className="text-micro uppercase tracking-[0.08em] text-content/42">{sorgente}</span>
+          ) : null}
+          {stato ? (
+            <span className="ml-auto">
+              <span className={CHIP_RUOLO[stato.role]}>{stato.label}</span>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 export function InboxCard({
   id,
   title,
@@ -74,6 +194,17 @@ export function InboxCard({
   onPointerDown,
   idAttr = "data-card",
   className = "",
+  /* Assente = card essenziale, cioe' quella di sempre. Vedi la nota sopra:
+     quello che c'e' dentro lo decide chi chiama, non la card. */
+  meta = null,
+  /* Il pallino della priorita' sempre acceso. E' una prop sua e non una
+     conseguenza di `meta` perche' e' un interruttore come gli altri: si puo'
+     volere il pallino fisso e nient'altro, o tutto il resto senza il pallino. */
+  prioritaFissa = false,
+  /* La scadenza passata si accende del rosso della priorita' urgente. Lo dice
+     chi chiama perche' e' lui a sapere la data vera: qui arriva gia' scritta
+     ("in ritardo", "domani"), e da una parola non si ricava un confronto. */
+  scaduta = false,
 }) {
   return (
     <div
@@ -83,7 +214,18 @@ export function InboxCard({
       className={`${CARD} ${className}`}
     >
       <div className="flex flex-nowrap items-start w-full">
-        <span className={CHECK} style={{ borderColor: priorityColor }} />
+        {/* Acceso fisso, il pallino dice la priorita' a colpo d'occhio; spento,
+            resta il gesto dell'artboard — a riposo occupa zero, in hover si
+            apre spingendo il titolo. Un dato che si vede solo passandoci sopra
+            non e' "mostrato", ed e' per questo che si puo' chiedere fisso. */}
+        {prioritaFissa ? (
+          <span
+            className="w-[13px] h-[13px] mt-0.5 mr-2 shrink-0 rounded-full"
+            style={{ border: `2.2px solid ${priorityColor}` }}
+          />
+        ) : (
+          <span className={CHECK} style={{ borderColor: priorityColor }} />
+        )}
         {editing ? (
           <TitleInput value={title} size={titleSize} onCommit={onCommit} />
         ) : (
@@ -97,7 +239,16 @@ export function InboxCard({
           </span>
         )}
       </div>
-      {due ? <span className={`${dueSize} text-content/55`}>{due}</span> : null}
+      {meta ? (
+        <Meta meta={meta} due={due} scaduta={scaduta} dueSize={dueSize} />
+      ) : due ? (
+        <span
+          className={`${dueSize} ${scaduta ? "" : "text-content/55"}`}
+          style={scaduta ? { color: "var(--color-priority-urgent)" } : undefined}
+        >
+          {due}
+        </span>
+      ) : null}
     </div>
   );
 }
