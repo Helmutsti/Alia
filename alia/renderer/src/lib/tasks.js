@@ -108,3 +108,28 @@ export function normalizeState(row) {
 export function normalizeProject(row) {
   return { id: row.idProject, name: row.name, color: row.color, taskCount: row.taskCount ?? 0 };
 }
+
+/* Le fasi erano l'unica lista che arrivava al renderer **grezza** (2026-09-11).
+
+   Tasks, stati e progetti passavano tutti di qui e uscivano con `id`; le fasi
+   no, e restavano con `idMilestone`/`idProject` addosso. Cosi' meta' del codice
+   leggeva un nome e meta' l'altro, e dove sbagliava non si vedeva niente di
+   rotto: leggeva `undefined`.
+
+   Il danno peggiore era nella tendina delle fasi del dettaglio, dove il
+   confronto `m.id === task.milestone?.id` diventava `undefined === undefined` —
+   **vero** — e con un task senza fase risultavano selezionate insieme "Nessuna
+   fase" e tutte le fasi del progetto. Non un difetto di disegno: una domanda
+   fatta a un campo che non esisteva.
+
+   `label` e non `name` perche' e' quello che la colonna si chiama nel database,
+   ed e' gia' il nome che porta `task.milestone`. Una fase e una fase, comunque
+   la si guardi. */
+export function normalizeMilestone(row) {
+  return {
+    id: row.idMilestone,
+    label: row.label,
+    projectId: row.idProject,
+    position: row.position ?? 0,
+  };
+}

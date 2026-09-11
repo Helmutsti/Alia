@@ -48,6 +48,12 @@ const VARCO = Symbol("varco");
    testo per 1.35 di interlinea, piu' 12+12 di padding verticale e 3 di bordi. */
 const ALTEZZA_RIGA = 46;
 
+/* Quella di una card del Kanban con titolo e scadenza: 12+12 di imbottitura, 3
+   di bordi, 18 di titolo, 6 di distanza e 14 di scadenza. E' solo una scorta —
+   il varco usa l'altezza vera della card che si sta trascinando, che il motore
+   misura alla partenza; questa serve se quel dato manca. */
+const ALTEZZA_CARD = 65;
+
 const CTL =
   "inline-flex items-center gap-[7px] h-8 px-3 rounded-lg border border-divider bg-transparent " +
   "cursor-pointer text-[12.5px] hover:border-accent";
@@ -430,12 +436,12 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
      arbitrario — e farlo a ogni pixel ri-impaginava tutti i gruppi, che e' il
      difetto per cui trascinando una riga si muoveva tutto. */
   const conAnteprima = useCallback(
-    (gruppi) => {
+    (gruppi, chiave = (g) => g.id) => {
       if (!anteprima?.groupId) return gruppi;
 
       return gruppi.map((g) => {
         const senza = g.items.filter((t) => t.id !== anteprima.id);
-        if (g.id !== anteprima.groupId) {
+        if (chiave(g) !== anteprima.groupId) {
           return senza.length === g.items.length ? g : { ...g, items: senza };
         }
         const dove = anteprima.beforeId
@@ -452,7 +458,29 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
   const gruppi = useMemo(() => {
     const inAmbito = scope === "all" ? radici : radici.filter((t) => t.project?.id === scope);
     const visibili = sortTasks(filterTasks(inAmbito, filters, gruppiFiltro), sortKey, sortDir);
-    return groupTasks(visibili, view === "lista" ? group : "nessuno", { projects, states });
+    /* I progetti che sono **posti** qui dentro sono quelli dell'ambito: con un
+       progetto solo selezionato, gli altri non sono bersagli — ci si finisce
+       cambiando ambito, non trascinando in un gruppo che non si sta guardando. */
+    const inScena = scope === "all" ? projects : projects.filter((p) => p.id === scope);
+    const raggruppate = groupTasks(visibili, view === "lista" ? group : "nessuno", {
+      projects: inScena,
+      states,
+      luoghi: view === "lista",
+    });
+
+    /* **Almeno un posto, sempre** (11/09/2026).
+
+       Raggruppando per scadenza, priorita' o stato i gruppi vuoti non si
+       disegnano, e a elenco esaurito non ne resta nemmeno uno: la vista si
+       svuotava del tutto, e con lei sparivano il campo "Nuova task in…" e
+       l'unico bersaglio del trascinamento. Finire il lavoro diventava un vicolo
+       cieco — non c'era piu' nessun gesto per ricominciare.
+
+       Il rimedio non e' un caso speciale a schermo ma un invariante qui: quando
+       non resta nessun gruppo, resta il gruppo senza nome — lo stesso che si
+       vede raggruppando per "Nessuno". Cosi' la vista vuota e' comunque una
+       vista, e il disegno sotto non deve sapere niente di tutto questo. */
+    return raggruppate.length > 0 ? raggruppate : [{ id: "tutte", label: null, items: [] }];
   }, [radici, scope, filters, gruppiFiltro, sortKey, sortDir, group, view, projects, states]);
 
   /* L anteprima si applica **solo a quello che disegna la Lista**, non a
@@ -509,10 +537,10 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
       return colonne;
     }
 
-    const fasi = (alia.milestones ?? []).filter((m) => m.idProject === scope);
+    const fasi = (alia.milestones ?? []).filter((m) => m.projectId === scope);
     const colonne = fasi.map((m) => ({
       key: `milestone:${m.id}`,
-      label: m.name,
+      label: m.label,
       valore: m.id,
       items: visibili.filter((t) => t.milestone?.id === m.id),
     }));
@@ -524,6 +552,29 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
     });
     return colonne;
   }, [gruppi, groupKanban, states, projects, alia.milestones, scope]);
+
+  /* Le stesse colonne, con il varco aperto sotto il puntatore — **la cosa che
+     il Kanban non aveva ereditato** (aggiunto l'11/09/2026).
+
+     Le card facevano spazio nella colonna dell'inbox e le righe lo facevano
+     nella Lista; il tabellone no: la colonna si limitava a schiarirsi, e dove
+     sarebbe caduta la card non lo diceva niente. Non era una scelta ma un
+     residuo: quando il varco e' nato, infilare il segnaposto in `gruppi`
+     mandava in pezzi la costruzione delle colonne (che legge lo stato, il
+     progetto e la fase di ogni elemento, e il varco non ne ha), e la via
+     rapida fu tenere l'anteprima fuori dal Kanban.
+
+     La via giusta e' la stessa della Lista: `gruppi` resta puro — e' la
+     sorgente dei conteggi e delle colonne — e il varco si aggiunge **dopo**,
+     sull'ultima forma, quella che si disegna e basta. Il motore del
+     trascinamento non cambia di una riga: le colonne sono gia' bersagli
+     (`data-drop-group={col.key}`) e il punto d'inserimento arriva gia' in
+     `anteprima.beforeId`, perche' le card hanno `data-task`. Mancava solo
+     qualcuno che lo ascoltasse. */
+  const colonneDaDisegnare = useMemo(
+    () => conAnteprima(colonneKanban, (c) => c.key),
+    [conAnteprima, colonneKanban],
+  );
 
   /* Il rilascio scrive **la dimensione su cui si sta raggruppando**, e nient'altro.
 
@@ -902,12 +953,17 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
           className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2"
           style={{ paddingRight: Math.max(0, 12 - barra) }}
         >
-          {totale === 0 ? (
+          {/* Il perche' vuoto, quando la ragione e' un filtro e non il lavoro
+              finito: senza la frase, una lista svuotata dai filtri si
+              confonderebbe con una lista finita davvero. Ma e' una **riga in
+              piu'**, non un ricambio: i gruppi restano disegnati sotto, perche'
+              sono i posti dove si ricomincia. Vedi la nota su `gruppi`. */}
+          {totale === 0 && nFiltri > 0 ? (
             <p className="text-meta text-content/45 m-0 pt-2">
               Nessuna task con questi filtri.
             </p>
-          ) : (
-            gruppiDaDisegnare.map((g) => (
+          ) : null}
+          {gruppiDaDisegnare.map((g) => (
               <div
                 key={g.id}
                 /* Bersaglio del rilascio solo raggruppando per progetto: e' il
@@ -1046,8 +1102,7 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
                   </button>
                 )}
               </div>
-            ))
-          )}
+          ))}
         </div>
       ) : null}
 
@@ -1055,7 +1110,7 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
       {view === "kanban" ? (
         <div className="flex-1 min-h-0 flex gap-3.5 overflow-x-auto pr-3"
         >
-          {colonneKanban.map((col) => (
+          {colonneDaDisegnare.map((col) => (
             <div
               key={col.key}
               /* Lo stesso attributo dei gruppi della vista Lista: cosi' il
@@ -1098,22 +1153,39 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
                   <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ background: col.colore }} />
                 ) : null}
                 <span className="truncate">{col.label}</span>
-                <span className="font-normal text-content/50">{col.items.length}</span>
+                {/* Il varco non e' una task: non va contato. */}
+                <span className="font-normal text-content/50">
+                  {col.items.filter((t) => t !== VARCO).length}
+                </span>
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
-                {col.items.map((t) => (
-                  <div
-                    key={t.id}
-                    /* `data-task` e' cio' che rende la card visibile al motore:
-                       senza, non si prende nemmeno. */
-                    data-task={t.id}
-                    onPointerDown={onRowPointerDown ? (e) => onRowPointerDown(t.id, e) : undefined}
-                    className="cursor-grab touch-none"
-                  >
-                    {kanbanCard(t)}
-                  </div>
-                ))}
+                {col.items.map((t) =>
+                  t === VARCO ? (
+                    /* Spazio e nient'altro, alto quanto la card che si ha in
+                       mano: niente `data-task`, quindi il varco non entra ne'
+                       nel FLIP ne' nel calcolo del punto d'inserimento — resta
+                       fermo mentre le card intorno scorrono. Stessa regola
+                       della Lista, stesso motivo. */
+                    <div
+                      key="varco"
+                      aria-hidden="true"
+                      className="shrink-0"
+                      style={{ height: anteprima?.altezza ?? ALTEZZA_CARD }}
+                    />
+                  ) : (
+                    <div
+                      key={t.id}
+                      /* `data-task` e' cio' che rende la card visibile al motore:
+                         senza, non si prende nemmeno. */
+                      data-task={t.id}
+                      onPointerDown={onRowPointerDown ? (e) => onRowPointerDown(t.id, e) : undefined}
+                      className="cursor-grab touch-none"
+                    >
+                      {kanbanCard(t)}
+                    </div>
+                  ),
+                )}
                 {col.items.length === 0 ? (
                   /* Una colonna vuota deve restare un bersaglio: senza questo
                      riempitivo sarebbe alta zero, e non ci si potrebbe lasciare

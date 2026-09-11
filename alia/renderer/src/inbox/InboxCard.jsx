@@ -27,10 +27,25 @@ const CARD =
   "transition-[color,background-color,border-color,padding-right] duration-[140ms] " +
   "hover:border-card-line-hover hover:pr-0";
 
+/* Il bordo si ritira insieme al pallino, e non e' un dettaglio estetico: e' la
+   ragione per cui titolo e scadenza non erano allineati (trovato l'11/09/2026).
+
+   Il pallino a riposo e' `w-0`, ma il bordo stava nello stile in linea
+   (`border: 2.2px solid …`) e con `box-sizing: border-box` i due bordi
+   occupano comunque **4px** a larghezza zero. `opacity-0` lo rende invisibile,
+   non inesistente: il titolo partiva 4px piu' a destra della scadenza, che gli
+   sta sotto ma fuori dalla riga del pallino e quindi non riceveva la stessa
+   spinta. Quattro pixel non si notano da soli; si notano come due righe che non
+   cominciano nello stesso punto.
+
+   Quindi la larghezza del bordo diventa una classe che vive in hover come tutto
+   il resto, e in linea resta il solo colore — che e' l'unica cosa che il
+   componente non puo' sapere in anticipo. A riposo il pallino occupa zero
+   davvero, e le due righe partono allineate. */
 const CHECK =
-  "w-0 h-[13px] mt-0.5 mr-0 rounded-full shrink-0 opacity-0 overflow-hidden " +
-  "transition-[width,opacity,margin-right] duration-[140ms] " +
-  "group-hover:w-[13px] group-hover:opacity-100 group-hover:mr-2";
+  "w-0 h-[13px] mt-0.5 mr-0 rounded-full shrink-0 opacity-0 overflow-hidden border-0 " +
+  "transition-[width,opacity,margin-right,border-width] duration-[140ms] " +
+  "group-hover:w-[13px] group-hover:opacity-100 group-hover:mr-2 group-hover:border-[2.2px]";
 
 /* `overflow-wrap: anywhere` e non `break-word`: servono entrambe le cose che
    fa in più. Un titolo scritto tutto attaccato (capita dalle sorgenti esterne,
@@ -68,7 +83,7 @@ export function InboxCard({
       className={`${CARD} ${className}`}
     >
       <div className="flex flex-nowrap items-start w-full">
-        <span className={CHECK} style={{ border: `2.2px solid ${priorityColor}` }} />
+        <span className={CHECK} style={{ borderColor: priorityColor }} />
         {editing ? (
           <TitleInput value={title} size={titleSize} onCommit={onCommit} />
         ) : (

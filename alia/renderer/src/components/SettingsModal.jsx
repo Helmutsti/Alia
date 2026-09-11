@@ -541,7 +541,7 @@ function Progetti() {
   const fasiDi = useCallback(
     (idProject) =>
       (milestones ?? [])
-        .filter((m) => m.idProject === idProject)
+        .filter((m) => m.projectId === idProject)
         .sort((a, b) => a.position - b.position),
     [milestones],
   );
@@ -599,10 +599,10 @@ function Progetti() {
                 dove finisce quella del progetto. */}
             <div className="flex flex-col gap-1 mt-1.5 ml-[54px]">
               {fasi.map((m) => (
-                <div key={m.idMilestone} className="flex items-center gap-2">
+                <div key={m.id} className="flex items-center gap-2">
                   <CampoTesto
                     valore={m.label}
-                    onCommit={(label) => alia.aggiornaMilestone(m.idMilestone, { label })}
+                    onCommit={(label) => alia.aggiornaMilestone(m.id, { label })}
                     aria-label="Nome della fase"
                     className={`${CAMPO} flex-1 min-w-0 h-7 text-[12.5px]`}
                   />
@@ -616,7 +616,7 @@ function Progetti() {
                   <span className="w-[56px] shrink-0" aria-hidden="true" />
                   <button
                     type="button"
-                    onClick={() => alia.eliminaMilestone(m.idMilestone)}
+                    onClick={() => alia.eliminaMilestone(m.id)}
                     aria-label={`Elimina la fase ${m.label}`}
                     className={GHOST_ICO}
                   >

@@ -325,7 +325,18 @@ export function useBoardDrag({
             reorder(id, patch, info.beforeId);
           } else {
             capture();
-            onAnteprima?.({ id, groupId: info.groupId, beforeId: info.beforeId });
+            /* `altezza` e' quella della card presa in mano, misurata alla
+               partenza. Serve a chi disegna il varco: nella Lista le righe sono
+               tutte alte uguale e una costante basta, ma le card del Kanban no
+               — una con la scadenza e' piu' alta di una senza, e un varco di
+               altezza inventata farebbe scattare le card sotto al rilascio
+               invece di lasciarle dove il varco le aveva messe. */
+            onAnteprima?.({
+              id,
+              groupId: info.groupId,
+              beforeId: info.beforeId,
+              altezza: rect.height,
+            });
           }
         }
       };

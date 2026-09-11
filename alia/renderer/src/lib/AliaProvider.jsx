@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { bridge, core, hasCore } from "./aliaClient.js";
-import { normalizeProject, normalizeState, normalizeTask } from "./tasks.js";
+import { normalizeMilestone,
+  normalizeProject, normalizeState, normalizeTask } from "./tasks.js";
 
 /* Lo stato dei dati, condiviso da tutta la schermata.
 
@@ -60,7 +61,7 @@ export function AliaProvider({ children, dataset = null }) {
         tasks: tasks.map(normalizeTask),
         states: states.map(normalizeState),
         projects: projects.map(normalizeProject),
-        milestones,
+        milestones: milestones.map(normalizeMilestone),
       });
       setStato("pronto");
       setErrore(null);

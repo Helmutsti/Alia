@@ -161,7 +161,18 @@ export function sortTasks(tasks, key, dir) {
 }
 
 /* — raggruppamento — Solo chiavi: ogni task finisce in uno e un solo gruppo, e
-   nessuna sparisce. I gruppi vuoti non si disegnano. */
+   nessuna sparisce.
+
+   I gruppi vuoti non si disegnano — **tranne quando sono luoghi**, e la
+   distinzione e' tutta qui (trovata l'11/09/2026, con un bug in mano).
+
+   Raggruppando per scadenza, priorita' o stato il gruppo e' un **risultato**:
+   "In ritardo" senza task in ritardo e' una riga che dice il nulla, e disegnarla
+   sarebbe rumore. Raggruppando per progetto no: li' il gruppo e' un **posto** —
+   ci si rilascia dentro trascinando, e ci si scrive dentro dal campo in fondo.
+   Un posto vuoto resta un posto, e farlo sparire vuol dire togliere l'unico
+   modo di rimetterci qualcosa: svuoti un progetto e non puoi piu' trascinarci
+   niente, perche' il bersaglio e' sparito insieme all'ultima task. */
 export const GROUP_KEYS = [
   { id: "nessuno", label: "Nessuno" },
   { id: "progetto", label: "Progetto" },
@@ -201,7 +212,13 @@ const ETICHETTA_SCADENZA = {
   senza: "Senza scadenza",
 };
 
-export function groupTasks(tasks, group, { projects = [], states = [] } = {}) {
+/**
+ * @param {object} [opzioni]
+ * @param {boolean} [opzioni.luoghi]  tieni anche i gruppi vuoti che sono un
+ *   posto dove rilasciare e dove scrivere (solo il raggruppamento per progetto:
+ *   e' il solo in cui il gruppo identifica un valore assegnabile).
+ */
+export function groupTasks(tasks, group, { projects = [], states = [], luoghi = false } = {}) {
   if (group === "nessuno") return [{ id: "tutte", label: null, items: tasks }];
 
   const per = new Map();
@@ -218,10 +235,14 @@ export function groupTasks(tasks, group, { projects = [], states = [] } = {}) {
     scadenza: ["ritardo", "oggi", "settimana", "dopo", "senza"],
   }[group] ?? [...per.keys()];
 
+  /* Il solo raggruppamento in cui un gruppo vuoto va tenuto: vedi la nota
+     sopra. Sugli altri `per.has` fa il suo lavoro di sempre. */
+  const tieni = luoghi && group === "progetto" ? () => true : (k) => per.has(k);
+
   return ordine
-    .filter((k) => per.has(k))
+    .filter(tieni)
     .map((k) => {
-      const items = per.get(k);
+      const items = per.get(k) ?? [];
       if (group === "progetto") {
         const p = projects.find((x) => x.id === k);
         return { id: k, label: p ? p.name : "Senza progetto", dot: p ? p.color : null, dashed: !p, items };

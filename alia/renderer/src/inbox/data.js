@@ -105,12 +105,16 @@ const RIGHE = [
 /* Le fasi dei progetti, per l'anteprima. Servono da quando esiste la sezione
    Progetti delle Impostazioni: senza, quella schermata si vedrebbe sempre vuota
    sotto ogni progetto, e non si potrebbe giudicare il rientro delle fasi. */
+/* Gia' nella forma normalizzata (`normalizeMilestone`), come il resto di questo
+   file: il dataset di anteprima **sostituisce** il provider, non lo precede, e
+   consegnare righe grezze qui vorrebbe dire farle arrivare ai componenti senza
+   il giro che le sistema. */
 const FASI = [
-  { idMilestone: "ms-casa-1", idProject: "casa", label: "Manutenzione", position: 0 },
-  { idMilestone: "ms-casa-2", idProject: "casa", label: "Bollette", position: 1 },
-  { idMilestone: "ms-lavoro-1", idProject: "lavoro", label: "Analisi", position: 0 },
-  { idMilestone: "ms-lavoro-2", idProject: "lavoro", label: "Consegna", position: 1 },
-  { idMilestone: "ms-salute-1", idProject: "salute", label: "Visite", position: 0 },
+  { id: "ms-casa-1", projectId: "casa", label: "Manutenzione", position: 0 },
+  { id: "ms-casa-2", projectId: "casa", label: "Bollette", position: 1 },
+  { id: "ms-lavoro-1", projectId: "lavoro", label: "Analisi", position: 0 },
+  { id: "ms-lavoro-2", projectId: "lavoro", label: "Consegna", position: 1 },
+  { id: "ms-salute-1", projectId: "salute", label: "Visite", position: 0 },
 ];
 
 export function demoDataset() {

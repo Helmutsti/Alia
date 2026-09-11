@@ -150,7 +150,7 @@ export function TaskComposer({ titoloIniziale = "", idProgetto = null, inbox = t
   /* Le fasi del progetto scelto, per suggerirle dopo lo slash. Si leggono dal
      provider, che le ha già caricate insieme al resto. */
   const fasiDelProgetto = useMemo(
-    () => (progetto ? (alia.milestones ?? []).filter((m) => m.idProject === progetto.id) : []),
+    () => (progetto ? (alia.milestones ?? []).filter((m) => m.projectId === progetto.id) : []),
     [alia.milestones, progetto],
   );
 
@@ -174,8 +174,11 @@ export function TaskComposer({ titoloIniziale = "", idProgetto = null, inbox = t
     if (token.tipo === "progetto") return cerca(alia.projects ?? [], "name").map((p) => ({ id: p.id, testo: p.name, colore: p.color }));
     if (token.tipo === "milestone") {
       const suo = risolviProgetto(token.progetto, alia.projects ?? []);
-      const fasi = suo ? (alia.milestones ?? []).filter((m) => m.idProject === suo.id) : [];
-      return cerca(fasi, "name").map((m) => ({ id: m.id, testo: m.name }));
+      const fasi = suo ? (alia.milestones ?? []).filter((m) => m.projectId === suo.id) : [];
+      /* `label`, non `name`: una fase non ha mai avuto un `name`, ne' grezza ne'
+         normalizzata, quindi questa riga cercava dentro un campo inesistente e
+         proponeva voci senza testo. */
+      return cerca(fasi, "label").map((m) => ({ id: m.id, testo: m.label }));
     }
     return cerca(tagEsistenti.map((t) => ({ label: t })), "label").map((t) => ({ id: t.label, testo: t.label }));
   }, [token, alia.projects, alia.milestones, tagEsistenti]);
@@ -195,7 +198,7 @@ export function TaskComposer({ titoloIniziale = "", idProgetto = null, inbox = t
     if (token.tipo === "milestone") {
       const suo = risolviProgetto(token.progetto, alia.projects ?? []);
       if (!suo) return `Nessun progetto si chiama «${token.progetto}».`;
-      return (alia.milestones ?? []).some((m) => m.idProject === suo.id)
+      return (alia.milestones ?? []).some((m) => m.projectId === suo.id)
         ? `Nessuna fase di ${suo.name} si chiama «${token.parte}».`
         : `${suo.name} non ha fasi. Si aggiungono dalle Impostazioni → Progetti.`;
     }
@@ -240,7 +243,7 @@ export function TaskComposer({ titoloIniziale = "", idProgetto = null, inbox = t
         if (trovato) {
           setProgetto(trovato);
           setOrigine((prec) => ({ ...prec, progetto: "testo" }));
-          const fasi = (alia.milestones ?? []).filter((m) => m.idProject === trovato.id);
+          const fasi = (alia.milestones ?? []).filter((m) => m.projectId === trovato.id);
           setMilestone(letto.milestone ? risolviMilestone(letto.milestone, fasi) : null);
         }
       } else {

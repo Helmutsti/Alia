@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAlia } from "../lib/AliaProvider.jsx";
 import { useTrappolaFuoco } from "../lib/fuoco.js";
 import { PRIORITIES, dueLabel, priorityOf } from "../lib/tasks.js";
+import { oraDelPreset, presetPromemoria } from "../lib/promemoria.js";
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from "../inbox/Dropdown.jsx";
 /* Le icone vengono da icons.jsx, non da Lucide: il progetto le trascrive dagli
    artboard perche` i tracciati di Lucide non coincidono (vedi la nota in testa
@@ -64,16 +65,6 @@ const ORIGINI = {
      inventare un'icona che il diff con l'artboard non potrebbe verificare. */
   discord: { label: "da Discord", Icon: null },
 };
-
-/* I preset del promemoria dell'artboard sono relativi alla scadenza, quindi
-   senza `dueAt` non hanno un istante a cui riferirsi: in quel caso restano
-   spenti e resta la data personalizzata. */
-const PRESET_PROMEMORIA = [
-  { id: "due", label: "Alla scadenza", offsetMin: 0 },
-  { id: "1h", label: "1 ora prima", offsetMin: -60 },
-  { id: "1d", label: "Il giorno prima", offsetMin: -1440 },
-  { id: "none", label: "Nessuno", offsetMin: null },
-];
 
 const MESI = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
 const due = (n) => String(n).padStart(2, "0");
@@ -216,7 +207,7 @@ export function TaskDetailModal({ task, onClose }) {
   );
   const idProgetto = task?.project?.id;
   const milestoneDelProgetto = useMemo(
-    () => milestones.filter((m) => m.projectId === idProgetto || m.idProject === idProgetto),
+    () => milestones.filter((m) => m.projectId === idProgetto),
     [milestones, idProgetto],
   );
 
@@ -276,13 +267,15 @@ export function TaskDetailModal({ task, onClose }) {
     chiudiMenu();
   };
 
+  /* "Adesso" si ferma all'apertura della tendina, e non si ricalcola a ogni
+     ridisegno: le voci dicono un'ora, e un "Stasera" che sparisce da solo
+     mentre lo stai guardando (perche' nel frattempo sono scoccate le 18) e' un
+     menu che si muove sotto le mani. */
+  const adessoDelMenu = useMemo(() => new Date(), [menu]);
+
   const impostaPromemoria = (preset) => {
     chiudiMenu();
-    if (preset.offsetMin === null) return aggiorna({ reminderAt: null });
-    if (!task.dueAt) return undefined;
-    const base = new Date(task.dueAt);
-    base.setMinutes(base.getMinutes() + preset.offsetMin);
-    return aggiorna({ reminderAt: base.toISOString() });
+    return aggiorna({ reminderAt: preset.quando ? preset.quando.toISOString() : null });
   };
 
   const aggiungiSub = async (e) => {
@@ -513,21 +506,30 @@ export function TaskDetailModal({ task, onClose }) {
                   <span className="flex-1">Sposta in Output</span>
                   <span className="text-[10px] text-content/40">non attivo</span>
                 </DropdownItem>
-                <DropdownSeparator />
-                {/* Entrata e uscita dal triage. E l'unico posto, oltre alla
-                    conferma sulle card origine, da cui si governa `isInbox`:
-                    serve anche il ritorno, altrimenti un task smistato per
-                    sbaglio non potrebbe piu rientrare nella colonna. */}
-                <DropdownItem
-                  onClick={() => {
-                    chiudiMenu();
-                    alia.smista(task.id, !task.inbox);
-                  }}
-                >
-                  <span className="flex-1">
-                    {task.inbox ? "Togli dal triage" : "Rimetti da smistare"}
-                  </span>
-                </DropdownItem>
+                {/* **Solo il ritorno** (11/09/2026). Era un interruttore nei due
+                    versi; "Togli dal triage" se n'e' andato perche' era un
+                    doppione: uscire dal triage lo fanno gia' due gesti mirati —
+                    trascinare la card nel pannello contenuto e confermare
+                    l'origine — e sono loro il modo in cui si smista, con il
+                    posto dove va scelto nello stesso movimento. Una voce di
+                    menu che fa la stessa cosa senza dire dove finisce il task
+                    era la terza strada, ed era la piu' cieca.
+
+                    Rientrare invece non ha nessun altro gesto, e serve: un task
+                    smistato per sbaglio deve poter tornare nella colonna. */}
+                {task.inbox ? null : (
+                  <>
+                    <DropdownSeparator />
+                    <DropdownItem
+                      onClick={() => {
+                        chiudiMenu();
+                        alia.smista(task.id, true);
+                      }}
+                    >
+                      <span className="flex-1">Rimetti da smistare</span>
+                    </DropdownItem>
+                  </>
+                )}
                 <DropdownSeparator />
                 <DropdownItem
                   onClick={() => {
@@ -1032,20 +1034,24 @@ export function TaskDetailModal({ task, onClose }) {
               </button>
               <Dropdown open={menu === "reminder"} onClose={chiudiMenu} width={230} placement="top">
                 <DropdownLabel>Promemoria</DropdownLabel>
-                {PRESET_PROMEMORIA.map((p) => (
-                  <DropdownItem
-                    key={p.id}
-                    disabled={p.offsetMin !== null && !task.dueAt}
-                    onClick={() => impostaPromemoria(p)}
-                  >
-                    <span className="flex-1">{p.label}</span>
-                  </DropdownItem>
+                {/* Due blocchi: il promemoria contato da adesso, che c'e'
+                    sempre, e gli ancoraggi al task, che compaiono solo se il
+                    task ha delle date. Il filo fra i due lo mette il cambio di
+                    `gruppo`, cosi' il disegno non deve sapere quali gruppi
+                    esistano ne' quando — lo decide `presetPromemoria`. */}
+                {presetPromemoria(adessoDelMenu, task).map((p, i, voci) => (
+                  <Fragment key={p.id}>
+                    {i > 0 && voci[i - 1].gruppo !== p.gruppo ? <DropdownSeparator /> : null}
+                    <DropdownItem onClick={() => impostaPromemoria(p)}>
+                      <span className="flex-1">{p.label}</span>
+                      {/* L'istante, in piccolo: la voce dice quando a parole,
+                          questo dice a che ora. */}
+                      <span className="text-[10px] text-content/40">
+                        {oraDelPreset(p.quando, adessoDelMenu)}
+                      </span>
+                    </DropdownItem>
+                  </Fragment>
                 ))}
-                {!task.dueAt ? (
-                  <div className="px-2 pb-1 text-[10.5px] leading-[1.4] text-content/45">
-                    I preset sono relativi alla scadenza: senza scadenza resta la data personalizzata.
-                  </div>
-                ) : null}
                 <DropdownSeparator />
                 <div className="px-2 pb-2">
                   <div className="text-[10px] text-content/55 mb-1">Data e ora personalizzata</div>
