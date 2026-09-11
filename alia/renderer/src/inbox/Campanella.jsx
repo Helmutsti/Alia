@@ -107,6 +107,13 @@ export function Campanella({ onApriTask, className = "" }) {
     };
   }, [aperta]);
 
+  const svuota = async () => {
+    if (!hasCore) return;
+    await core.svuotaNotifiche();
+    setNotifiche([]);
+    setNonLette(0);
+  };
+
   const apri = async () => {
     const prossimo = !aperta;
     setAperta(prossimo);
@@ -156,7 +163,8 @@ export function Campanella({ onApriTask, className = "" }) {
               arrivano dalle fonti collegate.
             </p>
           ) : (
-            notifiche.map((n) => {
+            <>
+              {notifiche.map((n) => {
               const apribile = !!n.idTask && !n.taskCancellata && onApriTask;
               const Icona = n.tipo === "origine" ? MailBox : Alarm;
               return (
@@ -194,8 +202,26 @@ export function Campanella({ onApriTask, className = "" }) {
                     <span className="w-[6px] h-[6px] rounded-full bg-accent shrink-0 mt-[7px]" />
                   ) : null}
                 </button>
-              );
-            })
+                );
+              })}
+
+            {/* Svuotare, in fondo e non in cima: e' l'ultima cosa che si fa,
+                dopo aver letto. In cima sarebbe il primo bottone sotto il dito
+                di chi apre la campanella per vedere cosa e' successo, ed e'
+                l'unico irreversibile. */}
+            <div className="border-t border-divider mt-1 pt-1 px-1">
+              <button
+                type="button"
+                onClick={svuota}
+                className={
+                  "w-full text-left px-2 py-1.5 rounded-md border-0 bg-transparent cursor-pointer " +
+                  "text-mini text-content/50 hover:text-content hover:bg-[color-mix(in_srgb,var(--color-content)_6%,transparent)]"
+                }
+              >
+                Svuota il registro
+              </button>
+            </div>
+            </>
           )}
         </div>
       ) : null}

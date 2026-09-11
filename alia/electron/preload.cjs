@@ -41,6 +41,7 @@ const ALIA_OPERATIONS = [
   "listNotifiche",
   "creaNotifica",
   "segnaNotificheLette",
+  "svuotaNotifiche",
   "removeSettings",
   "listTaskComments",
   "addTaskComment",

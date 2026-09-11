@@ -96,11 +96,31 @@ const OTTICA = 5;
    voluto, e' un'icona centrata sulla riga, non un secondo blocco. */
 const HEADER_LINE = 17;
 
+/* La fascia della barra del titolo, da quando la barra di Windows e' nascosta e
+   la prima riga della schermata prende il suo posto (11/09/2026).
+
+   Quaranta pixel, ed e' lo stesso numero dichiarato a `titleBarOverlay` in
+   electron/main.js: **deve** esserlo. Li' dentro Windows disegna i suoi tre
+   bottoni, centrati verticalmente nella fascia; qui dentro sta la nostra riga,
+   centrata nello stesso modo. Due numeri diversi vorrebbero dire "Inbox" e la
+   campanella su una linea, riduci-ingrandisci-chiudi su un'altra — e siccome
+   sono a pochi pixel di distanza, lo sfasamento si vede subito.
+
+   E' anche lo spazio guadagnato: prima la cornice di Windows si prendeva 31px
+   sopra la riga, che adesso sono aria della schermata. */
+const BARRA_H = 40;
+
 export const FRAME = {
   pad: FRAME_PAD,
-  headerTop: FRAME_PAD - OTTICA,
+  /* Centrata nella fascia, non appesa al bordo: e' cosi' che si allinea ai
+     bottoni di sistema. La compensazione ottica resta, perche' quello che deve
+     stare in mezzo e' il **contorno visibile** del testo, non il suo riquadro. */
+  headerTop: Math.round((BARRA_H - HEADER_LINE) / 2) - OTTICA + 3,
   headerH: HEADER_LINE,
-  colTop: FRAME_PAD - OTTICA + HEADER_LINE + FRAME_PAD,
+  /* Le colonne cominciano sotto tutta la fascia, non sotto il testo: la barra
+     del titolo e' una banda, e il contenuto di una finestra non entra nella sua
+     barra. Da qui i due margini di respiro che prima non c'erano. */
+  colTop: BARRA_H + FRAME_PAD,
 };
 
 const PAD_X = FRAME.pad;

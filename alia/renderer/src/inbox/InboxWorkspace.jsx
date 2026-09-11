@@ -17,6 +17,7 @@ import {
 import { usePreferenza } from "../lib/preferenze.js";
 import { bridge } from "../lib/aliaClient.js";
 import { Campanella } from "./Campanella.jsx";
+import { NON_TRASCINA, TRASCINA, useBarraTitolo } from "../lib/barraTitolo.js";
 import {
   DISPONIBILITA_PREDEFINITA,
   eDisponibilita,
@@ -106,6 +107,9 @@ export function InboxWorkspace({ startFull = false }) {
      decisione e' della vista, l'effetto e' del quadro. */
   const [vista, setVista] = useState("lista");
   const m = useInboxMorph(20, startFull, vista === "gantt");
+  /* Quanto spazio si prendono i bottoni della finestra, che adesso stanno
+     **dentro** la nostra prima riga (vedi lib/barraTitolo.js). */
+  const barra = useBarraTitolo();
   const boardRef = useRef(null);
   const alia = useAlia();
 
@@ -534,7 +538,16 @@ export function InboxWorkspace({ startFull = false }) {
           fascia era ciò che la spingeva otto pixel troppo in basso. */}
       <div
         className="absolute flex items-center gap-2.5 z-[7]"
-        style={{ left: FRAME.pad, right: FRAME.pad, top: FRAME.headerTop }}
+        /* Da qui si trascina la finestra: e' la striscia che prima era la barra
+           del titolo, e deve continuare a comportarsi come tale. Tutto quello
+           che dentro si clicca dice `NON_TRASCINA`, se no il clic finisce al
+           gestore delle finestre invece che al bottone. */
+        style={{
+          ...TRASCINA,
+          left: FRAME.pad + barra.sinistra,
+          right: FRAME.pad + barra.destra,
+          top: FRAME.headerTop,
+        }}
       >
         {/* La scritta "Inbox" e' il comando che chiude e riapre la colonna.
 
@@ -552,6 +565,7 @@ export function InboxWorkspace({ startFull = false }) {
           onClick={m.alternaCollasso}
           disabled={!m.puoCollassare}
           aria-expanded={!m.chiusa}
+          style={NON_TRASCINA}
           title={m.puoCollassare ? (m.chiusa ? "Mostra la colonna Inbox" : "Nascondi la colonna Inbox") : undefined}
           className={
             "p-0 border-0 bg-transparent text-mini tracking-[0.14em] uppercase text-accent " +
@@ -581,7 +595,7 @@ export function InboxWorkspace({ startFull = false }) {
           successo viene prima di come si configura. */}
       <div
         className="absolute flex items-center gap-1.5 z-[7]"
-        style={{ top: FRAME.headerTop, right: FRAME.pad - 5 }}
+        style={{ ...NON_TRASCINA, top: FRAME.headerTop, right: FRAME.pad - 5 + barra.destra }}
       >
         <Campanella onApriTask={setDetailTask} />
         <button

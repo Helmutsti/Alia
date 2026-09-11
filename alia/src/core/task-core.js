@@ -1345,10 +1345,16 @@ export function removeTaskComment(database, idTaskComment) {
    confrontato con quelli che esistono ora, prima di usarlo. */
 /* ── Le notifiche: quello che Alia ti ha detto ─────────────────────────────
 
-   Tre operazioni e nessuna cancellazione: un registro di cose accadute non si
-   corregge, al massimo si segna come letto. Cresce, e va bene che cresca —
-   una riga per sveglia e' qualche decina di byte al giorno; il giorno in cui
-   qualcuno ne avra' centomila, sara' perche' Alia gli e' servita per anni. */
+   Quattro operazioni. Tre sono ovvie — scrivere, leggere, segnare come letto —
+   la quarta e' **svuotare**, e vale la pena dire perche' c'e'.
+
+   Una riga non si cancella mai da sola: un registro di cose accadute non si
+   corregge, e cresce di qualche decina di byte al giorno. Ma il registro e' di
+   chi lo legge, non nostro: dopo una settimana di sveglie smaltite quelle
+   trenta righe non dicono piu' niente a nessuno, e non poterle buttare
+   vorrebbe dire trasformare una comodita' in un archivio da sfogliare.
+   Svuotare e' un gesto dichiarato e completo — non "cancella le lette", che
+   lascerebbe un elenco a meta' e la domanda su cosa sia sparito. */
 
 export function creaNotifica(database, input = {}) {
   const tipo = input.tipo === "origine" ? "origine" : "promemoria";
@@ -1422,6 +1428,17 @@ export function segnaNotificheLette(database, idNotifiche = null) {
     const { changes } = database
       .prepare("UPDATE t_notifica SET lettaAt = ? WHERE lettaAt IS NULL")
       .run(adesso);
+    return { esito: "applicato", quante: changes };
+  });
+}
+
+/* Via tutto. Nessun filtro sulle lette: chi svuota sta dicendo "non mi serve
+   piu' niente di questo", e lasciargli dentro le non lette vorrebbe dire non
+   aver svuotato. Torna quante ne sono sparite, che e' l'unica cosa che chi ha
+   premuto puo' voler sapere. */
+export function svuotaNotifiche(database) {
+  return runInTransaction(database, () => {
+    const { changes } = database.prepare("DELETE FROM t_notifica").run();
     return { esito: "applicato", quante: changes };
   });
 }

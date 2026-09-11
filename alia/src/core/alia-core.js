@@ -24,6 +24,7 @@ import {
   getSetting,
   listNotifiche,
   segnaNotificheLette,
+  svuotaNotifiche,
   getTask,
   getTaskHistory,
   addTaskComment,
@@ -104,6 +105,7 @@ export const ALIA_OPERATIONS = [
   "listNotifiche",
   "creaNotifica",
   "segnaNotificheLette",
+  "svuotaNotifiche",
   "listTaskComments",
   "addTaskComment",
   "removeTaskComment",
@@ -126,6 +128,7 @@ export function createAliaCore({ databasePath }) {
     listNotifiche: (opzioni) => listNotifiche(database, opzioni),
     creaNotifica: (input) => creaNotifica(database, input),
     segnaNotificheLette: (idNotifiche) => segnaNotificheLette(database, idNotifiche),
+    svuotaNotifiche: () => svuotaNotifiche(database),
     getSetting: (chiave, ripiego) => getSetting(database, chiave, ripiego),
     listSettings: (prefisso) => listSettings(database, prefisso),
 

@@ -35,6 +35,7 @@ import {
   listTaskTags,
   listNotifiche,
   listTags,
+  svuotaNotifiche,
   creaNotifica,
   segnaNotificheLette,
   removeTaskComment,
@@ -1110,4 +1111,17 @@ test("il registro non segue i cambi di nome della task", () => {
   const [n] = listNotifiche(database).notifiche;
   assert.equal(n.titolo, "Pagare la bolletta", "il registro dice quello che aveva detto");
   assert.equal(n.titoloTask, "Pagare la bolletta del gas", "e sa anche come si chiama adesso");
+});
+
+test("svuotare il registro lo svuota davvero, lette e non lette", () => {
+  const database = nuovoDatabase();
+  creaNotifica(database, { tipo: "promemoria", titolo: "Una" });
+  creaNotifica(database, { tipo: "origine", titolo: "Due" });
+  segnaNotificheLette(database, null);
+  creaNotifica(database, { tipo: "promemoria", titolo: "Tre, non letta" });
+
+  assert.equal(svuotaNotifiche(database).quante, 3, "anche la non letta");
+  assert.deepEqual(listNotifiche(database), { notifiche: [], nonLette: 0 });
+  /* Svuotare un registro gia' vuoto non e' un errore: e' zero righe tolte. */
+  assert.equal(svuotaNotifiche(database).quante, 0);
 });

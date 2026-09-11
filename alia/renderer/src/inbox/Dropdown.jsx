@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check } from "../components/icons.jsx";
 
 /* Menu a discesa della testata contenuto — da DEF_Content.
@@ -9,23 +10,100 @@ import { Check } from "../components/icons.jsx";
    spunta a destra.
 
    Il filtro è l'unico a scelta multipla: resta aperto dopo il click, perché
-   accendere due filtri di fila non deve costare due aperture. */
+   accendere due filtri di fila non deve costare due aperture.
 
-const PANEL = "absolute z-20 p-1.5 rounded-lg border border-divider bg-surface shadow-elev-lg";
+   ── Il pannello vive attaccato al `body` (11/09/2026) ──────────────────────
+
+   Prima era un figlio del comando che lo apre, posizionato in assoluto dentro
+   di lui. Semplice, e sbagliato per una ragione che si è vista solo con i dati
+   veri: **il pannello contenuto ritaglia** (`overflow-hidden`, e deve farlo —
+   contiene elenchi che scorrono), quindi un menu più alto dello spazio rimasto
+   veniva tagliato invece di scorrere. Con ventisei progetti il menu misurava
+   860px in una finestra da 800: gli ultimi dieci progetti non erano
+   raggiungibili in nessun modo.
+
+   Lo stesso ritaglio si mangiava l'ombra sul lato sinistro quando il pannello
+   comincia al bordo della finestra — cioè nel Gantt, dove la colonna Inbox è
+   chiusa — e il menu sembrava incollato al bordo.
+
+   Adesso il pannello è un figlio di `body` (portale) posizionato in `fixed`
+   sulle coordinate del comando, e da lì:
+
+     · non lo ritaglia più nessuno;
+     · si tiene dentro la finestra da solo, e se non ci sta **scorre** invece
+       di sparire;
+     · l'ombra si vede su tutti e quattro i lati.
+
+   Resta un segnaposto invisibile nell'albero vero: serve a misurare il comando
+   (è suo fratello) e a sapere se un clic è caduto "dentro" il menu o fuori —
+   che con il pannello su `body` non si può più dedurre dalla parentela. */
+
+const PANEL = "fixed z-[80] p-1.5 rounded-lg border border-divider bg-surface shadow-elev-lg";
 const ITEM =
   "flex items-center gap-[9px] px-[9px] py-2 w-full text-left rounded-sm border-none bg-transparent " +
   "cursor-pointer text-[12.5px] hover:bg-[color-mix(in_srgb,var(--color-accent)_14%,transparent)]";
 
-/* `placement`: i menu della testata contenuto si aprono in basso, quelli del
-   piede del dettaglio task in alto — lì sotto non c'è spazio, e l'artboard li
-   disegna sopra il pulsante (`bottom: calc(100% + 6px)`). */
+/* Quanto il pannello sta staccato dal comando, e dai bordi della finestra. Il
+   primo viene dagli artboard (6); il secondo è respiro, non misura di
+   disegno. */
+const STACCO = 6;
+const MARGINE = 10;
+
 export function Dropdown({ open, onClose, align = "left", placement = "bottom", width, children }) {
-  const ref = useRef(null);
+  const segnaposto = useRef(null);
+  const pannello = useRef(null);
+  const [posa, setPosa] = useState(null);
+
+  /* La posa si calcola **dopo** che il pannello è nel DOM: serve la sua
+     altezza vera per decidere se ci sta sotto il comando o se deve scorrere, e
+     prima di disegnarlo quell'altezza non esiste. Il primo fotogramma esce a
+     `visibility: hidden`, quindi non si vede saltare. */
+  useLayoutEffect(() => {
+    if (!open) {
+      setPosa(null);
+      return undefined;
+    }
+
+    const misura = () => {
+      const comando = segnaposto.current?.parentElement;
+      const el = pannello.current;
+      if (!comando || !el) return;
+      const c = comando.getBoundingClientRect();
+      const altezzaNaturale = el.scrollHeight;
+      const larghezza = width ?? el.offsetWidth;
+
+      const sopra = placement === "top";
+      const spazio = sopra ? c.top - STACCO - MARGINE : window.innerHeight - c.bottom - STACCO - MARGINE;
+      const altezza = Math.min(altezzaNaturale, Math.max(120, spazio));
+
+      const top = sopra ? c.top - STACCO - altezza : c.bottom + STACCO;
+      const sinistraGrezza = align === "right" ? c.right - larghezza : c.left;
+      const left = Math.max(
+        MARGINE,
+        Math.min(sinistraGrezza, window.innerWidth - larghezza - MARGINE),
+      );
+
+      setPosa({ top, left, maxHeight: altezza });
+    };
+
+    misura();
+    window.addEventListener("resize", misura);
+    /* Anche allo scorrimento: il comando può muoversi sotto il menu (la
+       testata sta in una regione che scorre), e un menu che resta indietro è
+       peggio di un menu chiuso. */
+    window.addEventListener("scroll", misura, true);
+    return () => {
+      window.removeEventListener("resize", misura);
+      window.removeEventListener("scroll", misura, true);
+    };
+  }, [open, align, placement, width]);
 
   useEffect(() => {
     if (!open) return undefined;
     const fuori = (e) => {
-      if (!ref.current?.parentElement?.contains(e.target)) onClose();
+      const dentroPannello = pannello.current?.contains(e.target);
+      const dentroComando = segnaposto.current?.parentElement?.contains(e.target);
+      if (!dentroPannello && !dentroComando) onClose();
     };
     const esc = (e) => {
       if (e.key === "Escape") onClose();
@@ -40,19 +118,31 @@ export function Dropdown({ open, onClose, align = "left", placement = "bottom", 
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  /* Il segnaposto resta sempre nell'albero, anche a menu chiuso: è da lui che
+     si trova il comando, e cercarlo solo all'apertura vorrebbe dire non averlo
+     quando serve. Non occupa spazio. */
   return (
-    <div
-      ref={ref}
-      role="menu"
-      className={
-        `${PANEL} ${align === "right" ? "right-0" : "left-0"} ` +
-        (placement === "top" ? "bottom-[38px]" : "top-[38px]")
-      }
-      style={{ width }}
-    >
-      {children}
-    </div>
+    <span ref={segnaposto} className="hidden" aria-hidden="true">
+      {open
+        ? createPortal(
+            <div
+              ref={pannello}
+              role="menu"
+              className={`${PANEL} overflow-y-auto`}
+              style={{
+                width,
+                top: posa?.top ?? 0,
+                left: posa?.left ?? 0,
+                maxHeight: posa?.maxHeight,
+                visibility: posa ? "visible" : "hidden",
+              }}
+            >
+              {children}
+            </div>,
+            document.body,
+          )
+        : null}
+    </span>
   );
 }
 

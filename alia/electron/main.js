@@ -254,6 +254,35 @@ function createWindow() {
     minHeight: 640,
     backgroundColor: "#17191a",
     autoHideMenuBar: true,
+    /* La barra del titolo sparisce, **i suoi bottoni no** (11/09/2026).
+
+       `hidden` toglie la striscia di Windows e lascia la finestra cominciare a
+       zero: la prima riga della schermata — "Inbox", la campanella,
+       l'ingranaggio — diventa la barra, e si guadagnano i 31px che prima erano
+       una cornice vuota sopra di lei.
+
+       `titleBarOverlay` e' la ragione per cui non si e' scelto `frame: false`:
+       riduci, ingrandisci e chiudi restano **quelli di sistema**, disegnati
+       sopra la nostra striscia. Con loro restano gli Snap Layouts che compaiono
+       passandoci sopra, il doppio clic che massimizza e il menu con Alt+Spazio
+       — comportamenti che un utente Windows si aspetta senza pensarci e che
+       rifatti a mano sarebbero, nel migliore dei casi, quasi uguali.
+
+       I due colori sono i token del tema (`--color-bg` e `--color-content`)
+       scritti a mano: qui non c'e' CSS, e questo e' l'unico posto in cui un
+       valore del tema va ricopiato. Se cambiano la' vanno cambiati anche qui —
+       non c'e' modo di dedurli, e un fondo che non combacia si vede come una
+       striscia piu' chiara in cima alla finestra.
+
+       Su macOS `titleBarOverlay` viene ignorato e `hidden` mette i tre pallini
+       in alto a sinistra, sopra il contenuto: lo spazio glielo lascia il
+       renderer (vedi lib/barraTitolo.js). */
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#0a0a0a",
+      symbolColor: "#e5e5e5",
+      height: 40,
+    },
     icon: join(__dirname, "..", "build", "icon.ico"),
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
