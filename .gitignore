@@ -1,0 +1,11 @@
+# La radice tiene due progetti (alia/, api/), ognuno col suo .gitignore. Qui
+# stanno solo le cose che non appartengono a nessuno dei due: gli scarti degli
+# attrezzi che girano sull'intero repository.
+node_modules/
+
+# Scarti della verifica a schermo: schermate, log della console e istantanee
+# del DOM che gli strumenti del browser lasciano dove sono stati lanciati.
+# Servono durante una sessione e non dopo.
+.playwright-mcp/
+*-screenshot.png
+icona-opzioni.png
