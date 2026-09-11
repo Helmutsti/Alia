@@ -49,6 +49,7 @@ function paginaPerMisura(svg, misura) {
   const html = `<!doctype html><meta charset="utf-8">
     <style>
       html, body { margin: 0; padding: 0; background: transparent; }
+      /* Ancorato in alto a sinistra: e' l'angolo da cui si ritaglia. */
       svg { display: block; width: ${misura}px; height: ${misura}px; }
     </style>
     ${svg}`;
@@ -57,12 +58,23 @@ function paginaPerMisura(svg, misura) {
   return percorso;
 }
 
-/* **Una finestra sola, ridimensionata.**
+/* **Una finestra sola, sempre 256, e si ritaglia.**
  *
- * Prima ne apriva e distruggeva una per misura, ed e' il motivo per cui la
- * prima immagine usciva e la seconda no: distrutta la finestra offscreen, la
- * successiva non carica piu' — `ERR_FAILED`, senza altra spiegazione. Riusarla
- * evita il problema e in piu' e' piu' svelta.
+ * Due cose imparate a spese dell'icona, e vale la pena scriverle:
+ *
+ * 1. Aprire e distruggere una finestra per misura non funziona: distrutta la
+ *    prima finestra offscreen, la successiva non carica — `ERR_FAILED`, senza
+ *    altra spiegazione. Quindi se ne riusa una.
+ *
+ * 2. **Windows impone una dimensione minima alla finestra.** Chiedendo
+ *    `setContentSize(16, 16)` si ottiene una finestra ben piu' grande, e la
+ *    cattura esce 32x39: ne' quadrata ne' della misura chiesta. Infilata in un
+ *    `.ico` come se fosse 16x16, Windows la stira — ed e' esattamente l'icona
+ *    schiacciata che si vedeva nella barra.
+ *
+ *    Il rimedio e' non chiedere mai una finestra piccola: la tela resta 256, il
+ *    disegno dentro la pagina si rimpicciolisce, e si **ritaglia** l'angolo in
+ *    alto a sinistra. Il ritaglio non ha minimi.
  */
 function creaFinestra() {
   return new BrowserWindow({
@@ -80,14 +92,25 @@ function creaFinestra() {
 }
 
 async function rendi(finestra, svg, misura) {
-  finestra.setContentSize(misura, misura);
   await finestra.loadFile(paginaPerMisura(svg, misura));
   /* Un giro di disegno prima di catturare: `loadFile` torna quando il documento
      è pronto, non quando è stato dipinto. */
   await new Promise((r) => setTimeout(r, 150));
 
-  const immagine = await finestra.webContents.capturePage();
-  return immagine.toPNG();
+  const immagine = await finestra.webContents.capturePage({ x: 0, y: 0, width: misura, height: misura });
+  const png = immagine.toPNG();
+
+  /* Si controlla che sia davvero quadrata e della misura giusta, e si spacca se
+     non lo e'. E' il controllo che mancava: senza, un'immagine sbagliata entra
+     nel `.ico` dichiarata come se fosse giusta, e il difetto si scopre solo
+     guardando la barra delle applicazioni giorni dopo. Le dimensioni vere
+     stanno nell'header IHDR del PNG, dal byte 16. */
+  const largo = png.readUInt32BE(16);
+  const alto = png.readUInt32BE(20);
+  if (largo !== misura || alto !== misura) {
+    throw new Error(`la cattura a ${misura}px e' uscita ${largo}x${alto}`);
+  }
+  return png;
 }
 
 /* Un `.ico` è una direttoria seguita dalle immagini. Dal Vista in poi le
