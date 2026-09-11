@@ -823,7 +823,6 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
       title={t.title}
       due={campiCard.scadenza ? dueLabel(t.dueAt) : ""}
       scaduta={eInRitardo(t)}
-      prioritaFissa={campiCard.priorita}
       meta={metaCard(t, campiCard, escludiKanban)}
       priorityColor={t.priorityColor}
     />
@@ -1321,7 +1320,19 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
              colonne sono alte quanto la porta, quindi senza padding il filo del
              bersaglio veniva tagliato sopra e sotto, e a sinistra sulla prima
              colonna. A destra ci pensano gia' i 12 di `pr-3`. */
-          className="flex-1 min-h-0 flex gap-3.5 overflow-x-auto pr-3 pl-[3px] -ml-[3px] py-[3px]"
+          /* **Lo stacco fra colonne si misura da card a card, non da colonna a
+             colonna** (11/09/2026). Il `gap` da solo non dice quanto si vede:
+             fra due card ci stanno il gap piu' l'imbottitura delle due colonne
+             che le contengono. Con `gap-3.5` e le colonne a 6 facevano 26, e
+             andavano bene; portando l'imbottitura a 8 — per staccare il filo
+             del bersaglio dalle card — sono diventati 30 senza che nessuno
+             avesse toccato il gap, ed e' li' che le colonne hanno cominciato a
+             sembrare lontane.
+
+             Quindi il gap scende a 8 e il conto torna a 24: **meno di prima**,
+             e con l'aria che serviva al filo. Cambiando l'imbottitura, questo
+             numero va ricontato. */
+          className="flex-1 min-h-0 flex gap-2 overflow-x-auto pr-3 pl-[3px] -ml-[3px] py-[3px]"
         >
           {colonneDaDisegnare.map((col) => (
             <div
@@ -1347,16 +1358,28 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
                  fino a 600px in un tabellone con due colonne la trasformerebbe
                  in una riga lunga con un titolo perso in mezzo.
 
-                 **248 e non 220** (11/09/2026), e il numero non e' scelto a
-                 occhio: 248 meno i 16 di imbottitura fa 232, cioe' esattamente
-                 la card della colonna Inbox. Le due erano a 232 e 204, e finche'
-                 le card dicevano titolo e scadenza la differenza non si vedeva;
-                 da quando possono dire progetto, fase, tag e il resto, i 28px
-                 in meno si pagano tutti — un titolo che va a capo una volta in
-                 piu', i tag che scendono di riga. Adesso la card e' la stessa
-                 **anche in larghezza**, non solo nel componente: quello che sta
-                 in una sta nell'altra, e non c'e' un posto in cui e' piu'
-                 stretta senza una ragione.
+                 **272 e non 220** (11/09/2026), in due passi e con una
+                 correzione in mezzo che vale la pena ricordare.
+
+                 Il primo passo fu 248, scelto per far combaciare la card del
+                 Kanban (232, tolti i 16 d'imbottitura) con quella della colonna
+                 Inbox. La ragione era buona, il fatto no: **la card dell'Inbox
+                 non ha una larghezza sola**. Nella vista divisa sta in 232, nella
+                 Full Inbox in 278, perche' la colonna cresce con il movimento. Non
+                 c'era nessun numero unico da rispettare — c'erano due numeri, e
+                 ne avevo guardato uno.
+
+                 Quindi 272, che fa una card di 256: **in mezzo alle due**, e
+                 scelto per quello che ci deve stare dentro. Da quando le card
+                 possono dire progetto, fase, tag, sotto-task e il resto (vedi
+                 Impostazioni → Aspetto), la larghezza non e' piu' una
+                 proporzione ma una capienza: a 232 un titolo di media lunghezza
+                 andava a capo e i tag scendevano di riga: a 256 stanno.
+
+                 Il costo resta quello di sempre e resta accettato: le colonne
+                 non si allargano a riempire, quindi con poche colonne avanza del
+                 vuoto a destra. E' vuoto, non spreco — e adesso e' un po' meno,
+                 perche' ogni colonna si prende 24px in piu'.
 
                  Costo accettato: con poche colonne resta del vuoto a destra. E'
                  vuoto, non spreco — lo spazio non gli serviva. */
@@ -1365,7 +1388,7 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
                    c'erano: le due viste sono la stessa scatola in due
                    geometrie, e il filo del bersaglio dev'essere staccato dalle
                    card quanto lo e' dalle righe. */
-                "flex-[0_0_248px] flex flex-col rounded-xl p-2 " +
+                "flex-[0_0_272px] flex flex-col rounded-xl p-2 " +
                 TRANSIZIONE_BERSAGLIO +
                 /* La colonna sotto il puntatore si accende, con lo stesso filo
                    dei gruppi della Lista. Il bersaglio lo dice `anteprima`, che

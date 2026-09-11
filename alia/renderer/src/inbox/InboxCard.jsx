@@ -16,17 +16,37 @@ import { Alarm, NoteLines, Subtasks } from "../components/icons.jsx";
    card scompariva dentro la colonna. Ora la card sta un livello sopra
    (`bg-elevated`) e ha una linea propria; l'hover la schiarisce restando
    neutra, invece di passare all'accento come nell'artboard. */
-/* Il padding destro si ritira in hover (13px -> 0) insieme all'apertura del
-   pallino: entrando, il pallino spinge il titolo a destra di 21px (13 di
-   larghezza piu 8 di margine), e senza restituire spazio sul lato opposto il
-   testo rifluirebbe a meta animazione. Stessa durata del pallino (140ms) per
-   leggerlo come un gesto solo, non due. `transition-colors` non basta piu:
-   serve elencare anche padding-right, altrimenti il ritiro sarebbe uno scatto. */
+/* In hover il titolo guadagna 13px a destra, tanti quanti il padding della
+   card: entrando, il pallino lo spinge a destra di 21 (13 di larghezza piu' 8
+   di margine), e senza restituire spazio sul lato opposto il testo rifluirebbe
+   a meta' animazione. Stessa durata del pallino (140ms) per leggerlo come un
+   gesto solo, non due.
+
+   **Il compenso sta sulla riga del titolo, non sulla card** (corretto
+   l'11/09/2026). Prima era `hover:pr-0` sul contenitore, e finche' sotto il
+   titolo c'era solo la scadenza — corta e allineata a sinistra — non si vedeva
+   la differenza. Da quando la card puo' avere il progetto, i tag e la riga
+   meta, quel ritiro li portava **tutti** contro il bordo destro ogni volta che
+   ci si passava sopra: il movimento sembrava rotto perche' faceva muovere sei
+   righe per servirne una.
+
+   Un margine negativo e non il padding, perche' la card deve tenere il suo:
+   e' il titolo che sfonda di 13 sulla sua riga, non il contenitore che si
+   svuota. */
 const CARD =
-  "group flex flex-col gap-1.5 pl-[13px] pr-[13px] py-3 rounded-lg border-[1.5px] border-card-line " +
+  "group flex flex-col gap-1.5 px-[13px] py-3 rounded-lg border-[1.5px] border-card-line " +
   "bg-elevated cursor-grab touch-none " +
-  "transition-[color,background-color,border-color,padding-right] duration-[140ms] " +
-  "hover:border-card-line-hover hover:pr-0";
+  "transition-[color,background-color,border-color] duration-[140ms] " +
+  "hover:border-card-line-hover";
+
+/* Niente `w-full`, ed e' la ragione per cui il compenso funziona: con la
+   larghezza fissata al 100% il margine negativo non allarga niente — il bordo
+   destro resta dov'e' e i 13px non tornano al titolo. In un contenitore a
+   colonna i figli si stirano gia' da soli, quindi a riposo la riga e' larga
+   uguale; in hover il margine negativo la lascia sfondare di 13. */
+const RIGA_TITOLO =
+  "flex flex-nowrap items-start mr-0 " +
+  "transition-[margin-right] duration-[140ms] group-hover:-mr-[13px]";
 
 /* Il bordo si ritira insieme al pallino, e non e' un dettaglio estetico: e' la
    ragione per cui titolo e scadenza non erano allineati (trovato l'11/09/2026).
@@ -197,10 +217,6 @@ export function InboxCard({
   /* Assente = card essenziale, cioe' quella di sempre. Vedi la nota sopra:
      quello che c'e' dentro lo decide chi chiama, non la card. */
   meta = null,
-  /* Il pallino della priorita' sempre acceso. E' una prop sua e non una
-     conseguenza di `meta` perche' e' un interruttore come gli altri: si puo'
-     volere il pallino fisso e nient'altro, o tutto il resto senza il pallino. */
-  prioritaFissa = false,
   /* La scadenza passata si accende del rosso della priorita' urgente. Lo dice
      chi chiama perche' e' lui a sapere la data vera: qui arriva gia' scritta
      ("in ritardo", "domani"), e da una parola non si ricava un confronto. */
@@ -213,19 +229,16 @@ export function InboxCard({
       style={{ opacity: dragging ? 0.35 : 1 }}
       className={`${CARD} ${className}`}
     >
-      <div className="flex flex-nowrap items-start w-full">
-        {/* Acceso fisso, il pallino dice la priorita' a colpo d'occhio; spento,
-            resta il gesto dell'artboard — a riposo occupa zero, in hover si
-            apre spingendo il titolo. Un dato che si vede solo passandoci sopra
-            non e' "mostrato", ed e' per questo che si puo' chiedere fisso. */}
-        {prioritaFissa ? (
-          <span
-            className="w-[13px] h-[13px] mt-0.5 mr-2 shrink-0 rounded-full"
-            style={{ border: `2.2px solid ${priorityColor}` }}
-          />
-        ) : (
-          <span className={CHECK} style={{ borderColor: priorityColor }} />
-        )}
+      <div className={RIGA_TITOLO}>
+        {/* **Il pallino si apre in hover e basta, ovunque** (direttiva
+            dell'11/09/2026). Per un giro e' stato possibile tenerlo acceso
+            fisso, come uno dei campi scegliibili; non lo e' piu', e non perche'
+            l'interruttore fosse spento male — perche' non deve esistere. Il
+            pallino e' il gesto distintivo della card: a riposo occupa zero e la
+            card resta una riga di testo pulita, passandoci sopra si apre e
+            spinge il titolo. Renderlo fisso lo trasformava in un bollino
+            colorato su ogni card, che e' un'altra cosa. */}
+        <span className={CHECK} style={{ borderColor: priorityColor }} />
         {editing ? (
           <TitleInput value={title} size={titleSize} onCommit={onCommit} />
         ) : (

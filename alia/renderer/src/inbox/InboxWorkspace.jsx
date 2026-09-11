@@ -721,7 +721,6 @@ export function InboxWorkspace({ startFull = false }) {
                  aiuta a decidere dove mandarla. */
               due={campiCard.scadenza ? dueLabel(task.dueAt) : ""}
               scaduta={eInRitardo(task)}
-              prioritaFissa={campiCard.priorita}
               /* Niente da escludere: la colonna del triage non e' raggruppata
                  per niente, quindi non dice niente del task che la card
                  rischi di ripetere. E' il contrario del Kanban. */

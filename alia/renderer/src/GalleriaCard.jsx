@@ -183,7 +183,6 @@ export function GalleriaCard() {
                   title={task.title}
                   due={dueLabel(task.dueAt)}
                   scaduta={eInRitardo(task)}
-                  prioritaFissa
                   meta={metaCard(task, PRESET_CARD.completa)}
                   priorityColor={task.priorityColor}
                 />

@@ -31,11 +31,11 @@ export const PRIORITIES = [
    (le Impostazioni) e i due punti che disegnano card (la colonna Inbox e il
    Kanban). */
 export const CAMPI_CARD = [
-  {
-    id: "priorita",
-    label: "Priorità",
-    nota: "Il pallino colorato sempre acceso, invece che solo passandoci sopra.",
-  },
+  /* La priorita' non e' qui, e non e' una dimenticanza: il pallino si apre al
+     passaggio del mouse e **in nessun caso resta acceso** (direttiva
+     dell'11/09/2026). Per un giro e' stato un campo come gli altri; toglierlo
+     dall'elenco e' il modo di dire che la scelta non c'e', invece di lasciare
+     un interruttore che promette qualcosa che non deve succedere. */
   { id: "progetto", label: "Progetto e fase", nota: "Dove vive la task." },
   { id: "tag", label: "Tag", nota: "Le etichette scritte a mano. Le più care in larghezza." },
   { id: "sottotask", label: "Sotto-task", nota: "Quanti ne sono chiusi sul totale." },
@@ -65,16 +65,18 @@ export const DENSITA_CARD = [
   { id: "personalizzata", label: "Personalizzata", nota: "Scegli campo per campo, qui sotto." },
 ];
 
-/* Un insieme di campi vale se e' un oggetto di booleani con chiavi che
-   esistono ancora. Serve perche' `t_setting` e' chiave-valore: dentro puo'
-   esserci un campo tolto da una versione precedente (vedi `usePreferenza`). */
+/* Un insieme di campi vale se e' un oggetto di booleani. **Le chiavi che non
+   riconosciamo non lo invalidano**: un campo tolto da una versione successiva
+   — com'e' appena successo alla priorita' — vive ancora nelle preferenze
+   salvate di chi aveva configurato le card, e buttare via tutto l'insieme per
+   una chiave di troppo vorrebbe dire azzerare la configurazione di qualcuno
+   per una nostra decisione. Le chiavi sconosciute si scartano dopo, in
+   `risolviCampiCard`, dove non fanno danno. */
 export const eCampiCard = (v) =>
   !!v &&
   typeof v === "object" &&
   !Array.isArray(v) &&
-  Object.entries(v).every(
-    ([k, on]) => typeof on === "boolean" && CAMPI_CARD.some((c) => c.id === k),
-  );
+  Object.values(v).every((on) => typeof on === "boolean");
 
 /* Da quale preselezione si sta guardando + cosa si e' scelto a mano → gli
    interruttori veri. Un campo assente vale spento: e' cosi' che un campo
@@ -91,7 +93,12 @@ export const eCampiCard = (v) =>
    la stessa regola di `usePreferenza`, un gradino piu' su. */
 export function risolviCampiCard(densita, personalizzati) {
   if (densita !== "personalizzata") return PRESET_CARD[densita] ?? PRESET_CARD.essenziale;
-  return personalizzati ? { ...SPENTI, ...personalizzati } : { ...PRESET_CARD.essenziale };
+  if (!personalizzati) return { ...PRESET_CARD.essenziale };
+  /* Solo i campi che esistono ancora: vedi la nota su `eCampiCard`. */
+  const noti = Object.fromEntries(
+    Object.entries(personalizzati).filter(([k]) => CAMPI_CARD.some((c) => c.id === k)),
+  );
+  return { ...SPENTI, ...noti };
 }
 
 /* Quale preselezione descrive questo insieme, se ce n'e' una. Serve alle
