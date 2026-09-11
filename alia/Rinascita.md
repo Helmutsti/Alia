@@ -1648,6 +1648,65 @@ tolto); e se l'origine trascinata debba sparire subito dalla colonna
 una finestra e non un magazzino, la seconda è più onesta — ma su rete lenta si
 vede il ritardo.
 
+### 18. Archiviare: uno stato o un flag? (chiesto l'11/09/2026)
+
+**La domanda.** Oggi archiviare è uno **stato** — la voce "Archivia" del menu dei tre
+pallini chiama `alia.cambiaStato(task, Archiviato)` (`TaskDetailModal.jsx:497`), e
+`Archiviato` è uno stato di chiusura secondaria fra quelli di fabbrica
+(`database.js:164`). La domanda è se sia il posto giusto, o se archiviare sia invece un
+**flag** ortogonale allo stato, come `isInbox` e `deletedAt`.
+
+**Il residuo che va guardato per primo: `archivedAt` esiste già, e non lo scrive
+nessuno.** La colonna è nello schema, è nell'elenco letto da `getTask`
+(`task-core.js:574`), ed è citata nel commento di `scriviStato` — *"`completedAt` e
+`archivedAt` seguono lo stato"* — ma l'`UPDATE` lì sotto scrive solo `completedAt`.
+`listTasks` non la seleziona nemmeno, quindi il renderer non l'ha mai vista. Cioè: la
+mezza risposta "flag" è già nel modello, morta, mentre il comportamento vive nello
+stato. Qualunque cosa si decida, questa incoerenza va chiusa — o la colonna si riempie,
+o si toglie con il commento che la promette.
+
+**Cosa oggi non si riesce a dire.** Lo stato è uno solo per task, quindi archiviare
+*sostituisce* l'informazione precedente invece di aggiungersi:
+
+- una task **Fatta** e poi archiviata smette di risultare fatta: `idState` diventa
+  `Archiviato` e `completedAt` resta lì da solo, senza più uno stato che lo spieghi.
+  E la distinzione conta proprio dove serve — i conti di fine mese, "quante ne ho
+  chiuse", che § Flussi ("Migrazione") dice già di fare su `idState` e non su
+  `isCompleted`;
+- una task **In corso** che si vuole togliere di mezzo senza dichiararla finita non ha
+  dove andare: archiviarla la conta come conclusa, perché `Archiviato` è
+  `isEndState`, e con la cascata questo può anche chiudere il padre.
+
+Sono i due casi che fanno pensare al flag: "a che punto è" e "la voglio ancora vedere"
+sono due domande diverse, e oggi rispondono allo stesso campo.
+
+**Cosa c'è dall'altra parte.** La fila degli stati è stata irrigidita apposta per
+ospitare le *chiusure secondarie* — migrato, archiviato, annullato (§ Database, "Entità
+t_state") — quindi il flag duplicherebbe un concetto che il modello ha già e si è
+pagato. E un flag non è gratis: vuole un filtro suo (oggi gli archiviati spariscono
+dietro **"Mostra completate"**, che è la stessa leva delle fatte — vedi sotto), una
+regola nel Kanban (una task archiviata resta nella colonna del suo stato? o esce dal
+tabellone?), una posizione nella cascata, e una voce nelle Impostazioni.
+
+**Da dove è nata la domanda.** Provando il trascinamento nel Kanban: lasciando una card
+su **Archiviato** (o Migrato, o Fatto) la card sparisce dal tabellone, perché lo stato è
+`isEndState`, il trigger mette `isCompleted` e `filterTasks` nasconde le chiuse finché
+non si accende "Mostra completate" (`contentQuery.js:114`). Il dato è corretto e il
+gesto ha funzionato, ma a schermo è indistinguibile da una task persa. Anche restando
+sugli stati, **quel momento va disegnato**.
+
+**La mia preferenza: flag**, con `archivedAt` come dato e `Archiviato` che smette di
+essere uno stato di fabbrica. Archiviare non è un punto del percorso, è una decisione
+sulla *scrivania*: la stessa famiglia di `isInbox`, che infatti è già un flag e non uno
+stato per la stessa ragione (§ Flussi, "La scrivania e il lavoro"). Con il flag una task
+resta "Fatta e archiviata" o "In corso e archiviata", che è quello che si vuole dire, e
+il filtro diventa suo — "Mostra archiviate", separato da "Mostra completate".
+
+**Da decidere prima di muovere una riga:** cosa succede ai database esistenti che hanno
+già task nello stato `Archiviato` (una migrazione che le porta sul flag deve inventare
+lo stato da cui venivano, e non può — probabilmente le lascia dove sono e converte solo
+il futuro), e se il flag debba togliere la task dal Kanban o lasciarla nella sua colonna.
+
 ### Piccoli
 
 - **Il periodico confronta un numero, non il contenuto** — il giro chiede
