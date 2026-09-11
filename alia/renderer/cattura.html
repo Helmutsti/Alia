@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alia — nuova task</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* La finestra e' trasparente (vedi electron/cattura.js), ma il tema dipinge
+       il fondo scuro sul body: senza questo, la finestrella e' un rettangolo
+       nero con dentro una card — cioe' esattamente la cornice che non doveva
+       avere. Qui il fondo se ne va e resta la sola card, con la sua ombra, che
+       galleggia sopra il programma che si stava usando. */
+    html, body { background: transparent !important; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/cattura.jsx"></script>
+</body>
+</html>

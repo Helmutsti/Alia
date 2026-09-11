@@ -1332,8 +1332,9 @@ dello zoom, poi ‹ Oggi › per muoversi, poi il selettore vista. Come nel Cale
 riga 2 non c'è — qui l'ordine è il tempo e il raggruppamento è il progetto, per
 costruzione, e una riga di comandi spenti direbbe il contrario.
 
-**Quattro scale, dall'ora al mese**, e le lenti ci si muovono dentro un gradino alla
-volta (`vista.gantt` se le ricorda; la finestra no, riparte da oggi). L'ora c'è
+**Otto scale, dall'ora al trimestre**, e le lenti ci si muovono dentro un gradino
+alla volta — ogni gradino sta fra il mezzo e i due terzi del precedente, perché uno
+zoom che triplica fa scavalcare sempre la misura giusta (`vista.gantt` se le ricorda; la finestra no, riparte da oggi). L'ora c'è
 perché una giornata è un orizzonte come gli altri. Due regole che valgono la pena:
 
 - lo zoom tiene fermo un **perno**, e il perno è *adesso* quando adesso è in scena —
@@ -1344,7 +1345,7 @@ perché una giornata è un orizzonte come gli altri. Due regole che valgono la p
   ancora venire — un Gantt si guarda in avanti.
 
 Si vede esattamente quello che ci sta, e il resto si raggiunge con le frecce, che
-spostano di **mezza finestra**: niente scorrimento orizzontale, perché con due modi
+spostano di **un quarto** di finestra: niente scorrimento orizzontale, perché con due modi
 di muoversi nel tempo nessuno dei due è *il* modo.
 
 ### I gesti del Gantt — 11/09/2026
@@ -1393,6 +1394,57 @@ linea del tempo larga un terzo di schermo non è una linea del tempo. Non è un 
 stato del movimento — è il collasso che già esiste, tenuto fermo da fuori
 (`useInboxMorph(…, bloccata)`), e siccome a colonna chiusa sparisce anche la maniglia,
 la Full Inbox diventa irraggiungibile da sé. Decisione dichiaratamente rivedibile.
+
+### Notifiche e cattura veloce — 11/09/2026
+
+Due cose che Alia non aveva e che un'app di promemoria deve avere: **suonare** e
+**farsi scrivere dentro da fuori**.
+
+**Le sveglie.** `electron/promemoria.js`, nel processo principale e non nel renderer,
+perché una sveglia deve suonare anche a finestra chiusa. Un giro ogni trenta secondi
+guarda l'orologio; non un `setTimeout` per promemoria, che andrebbe rifatto a ogni
+modifica, non sopravvive alla sospensione del computer e sopra i 24,8 giorni non si
+può nemmeno impostare.
+
+Il conto di cosa ha già suonato è un **segnalibro** in `t_setting`
+(`promemoria.ultimoControllo`), non un elenco di cose fatte: non cresce mai,
+sopravvive al riavvio senza segnare niente sulle task, e soprattutto **resta indietro
+quando l'app è chiusa** — riaprendo dopo due giorni le sveglie di quei due giorni
+suonano in ritardo, dicendo per quando erano. È la decisione presa; il suo limite è
+un giorno, oltre il quale un promemoria non è più un promemoria ma una task in
+ritardo, e quello lo dice già l'elenco. Al primo avvio in assoluto il segnalibro non
+c'è e si parte da adesso: svegliare tutto lo storico sarebbe una raffica senza senso.
+
+Su Windows serve un `app.setAppUserModelId` (`it.mepinformatica.alia`), se no i toast
+arrivano a nome di "electron.app.Electron" quando ci arrivano.
+
+**L'icona vicino all'orologio.** Chiudere la finestra non chiude più Alia: nasconde.
+Si esce dal menu dell'icona. È la condizione perché le sveglie suonino e perché la
+scorciatoia risponda sempre — ma se la creazione dell'icona fallisce si torna al
+comportamento di prima (la X chiude davvero), perché un programma vivo e
+irraggiungibile è peggio di un programma chiuso.
+
+**La cattura veloce.** `CommandOrControl+Alt+K`, globale, apre una finestrella senza
+cornice sopra qualunque programma (`electron/cattura.js` + `renderer/cattura.html`).
+Dentro c'è **la stessa `TaskComposer`** della finestra grande, con l'interruttore
+`nudo` che le toglie velo e sovrapposizione: due composer da tenere allineati
+sarebbero il modo più rapido di farne divergere uno. La finestra è trasparente e la
+card è la finestra — il bordo fa da maniglia, perché senza cornice non si sposterebbe.
+Si nasconde quando perde il fuoco o con Esc, e non si distrugge mai: ricrearla a ogni
+scorciatoia vorrebbe dire mezzo secondo di finestra bianca su un gesto che deve essere
+immediato.
+
+Una task nata lì arriva in inbox — è esattamente ciò per cui l'inbox esiste — e la
+finestra grande lo viene a sapere da un colpetto sulla spalla (`alia:ricarica`), come
+già faceva per le origini: l'ha scritta un altro renderer, quindi questo non ne sa
+niente finché non glielo si dice.
+
+Il segnaposto del campo cambia con il posto: *Aggiungi un task* dentro l'app,
+*Aggiungi un task in Alia* nella finestrella — lì compare sopra un altro programma, e
+chi la vede deve capire in due parole di che finestra si tratta. Nella stessa
+correzione la sintassi rapida (`@progetto #tag !1 /2h`) è uscita dal segnaposto: si
+legge ogni volta che il campo è vuoto, ed era rumore proprio sul gesto che deve
+essere rapido.
 
 ### Sintassi rapida nel composer — ripresa l'11/09/2026
 

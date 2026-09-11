@@ -259,10 +259,17 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
     [scalaGantt, setScalaGantt, colonneGantt],
   );
 
+  /* Quanto sposta una freccia: **un quarto di finestra**, non mezza.
+
+     Con mezza finestra ogni clic era una paginata — tre quarti di quello che si
+     stava guardando usciva di scena, e per seguire una barra bisognava
+     ritrovarla ogni volta. Un quarto lascia in scena i tre quarti di prima, che
+     e' quanto serve perche' l'occhio non debba ricominciare: si scorre, non si
+     salta. Chi vuole andare lontano tiene premuto, o cambia scala. */
   const passoGantt = useCallback(
     (verso) => {
       const scala = SCALE_GANTT.find((sc) => sc.id === scalaGantt) ?? SCALE_GANTT[3];
-      const colonne = Math.max(1, Math.floor(colonneGantt / 2));
+      const colonne = Math.max(1, Math.round(colonneGantt / 4));
       setAncoraGantt(
         (prec) => new Date(prec.getTime() + verso * colonne * scala.minuti * 60_000),
       );

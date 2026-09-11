@@ -85,7 +85,27 @@ const PROMEMORIA = [
   { id: "nessuno", label: "Nessuno", quando: () => null },
 ];
 
-export function TaskComposer({ titoloIniziale = "", idProgetto = null, inbox = true, onChiudi }) {
+/* `nudo`: il composer senza il velo e senza la sovrapposizione, cioe' **la sola
+   card**. Serve alla finestrella di cattura (Ctrl+Alt+K), dove non c'e' niente
+   sotto da velare — la finestra e' la card, e il velo diventerebbe un
+   rettangolo scuro con gli angoli vivi intorno agli angoli tondi.
+
+   Un interruttore e non un secondo componente: quello che cambia e' dove sta,
+   non cosa fa, e due composer da tenere allineati sarebbero il modo piu' rapido
+   di farne divergere uno. */
+export function TaskComposer({
+  titoloIniziale = "",
+  idProgetto = null,
+  inbox = true,
+  nudo = false,
+  /* Il segnaposto del campo. E' una prop e non una costante perche' la
+     finestrella di cattura ha una cosa in piu' da dire: li' il composer compare
+     **sopra un altro programma**, e chi lo vede deve capire in due parole di
+     che finestra si tratta. Dentro Alia non serve — si e' gia' dentro Alia. */
+  segnaposto = "Aggiungi un task",
+  aiutoScorciatoia = `${SCORCIATOIA_COMPOSER} da ogni schermata`,
+  onChiudi,
+}) {
   const alia = useAlia();
   const { projects } = alia;
 
@@ -342,7 +362,12 @@ export function TaskComposer({ titoloIniziale = "", idProgetto = null, inbox = t
     if (esito?.esito === "applicato" && esito.idTask) {
       for (const t of tag) await alia.aggiungiTag(esito.idTask, t);
     }
-    onChiudi();
+    /* Chi chiude sa **se e' nata una task**. Dentro la finestra grande non
+       cambia niente — il provider ricarica da se' dopo ogni scrittura — ma la
+       cattura veloce vive in un'altra finestra, e la differenza fra "ho scritto
+       una task" e "ho lasciato perdere" e' la differenza fra avvisare la
+       finestra grande e non disturbarla. */
+    onChiudi(true);
   }, [alia, inbox, inCorso, milestone, nota, onChiudi, priorita, progetto, promemoria, promemoriaMs, scadenza, tag, titolo]);
 
   const vociMenu = useMemo(() => {
@@ -454,8 +479,12 @@ export function TaskComposer({ titoloIniziale = "", idProgetto = null, inbox = t
 
   return (
     <div
-      onClick={onChiudi}
-      className="absolute inset-0 z-[93] box-border grid justify-items-center items-start p-6 bg-[color-mix(in_srgb,#0a0b0b_62%,transparent)]"
+      onClick={nudo ? undefined : onChiudi}
+      className={
+        nudo
+          ? "w-full box-border grid justify-items-center items-start"
+          : "absolute inset-0 z-[93] box-border grid justify-items-center items-start p-6 bg-[color-mix(in_srgb,#0a0b0b_62%,transparent)]"
+      }
     >
       <div
         ref={rifCard}
@@ -471,7 +500,16 @@ export function TaskComposer({ titoloIniziale = "", idProgetto = null, inbox = t
               ref={rifTitolo}
               type="text"
               value={titolo}
-              placeholder="Cosa c'è da fare?  @progetto  #tag  !1  /2h"
+              /* La sintassi rapida non sta piu' nel segnaposto.
+
+                 `@progetto #tag !1 /2h` era un promemoria utile la prima volta
+                 e rumore tutte le altre: un segnaposto si legge quando il campo
+                 e' vuoto, cioe' **ogni volta che si apre il composer**, e
+                 quattro simboli da decifrare al posto di una domanda semplice
+                 rendono piu' lento proprio il gesto che dev'essere rapido. La
+                 sintassi resta scritta nelle Impostazioni, e soprattutto
+                 continua a suggerirsi da sola mentre si scrive. */
+              placeholder={segnaposto}
               aria-label="Titolo della task"
               /* Il cursore si segue a ogni gesto che lo muove: i suggerimenti
                  guardano indietro **dal cursore**, non dalla fine del testo, e
@@ -692,8 +730,14 @@ export function TaskComposer({ titoloIniziale = "", idProgetto = null, inbox = t
           <span>Esc per chiudere</span>
           {/* La terza voce c'è anche nell'artboard, che però ci scrive `⌘K` —
               da noi quella apre il campo rapido, e questa è la sua sorella
-              maggiore. */}
-          <span className="ml-auto">{SCORCIATOIA_COMPOSER} da ogni schermata</span>
+              maggiore.
+
+              Nella finestrella sganciata dice l'altra scorciatoia, quella
+              globale: lì "da ogni schermata" sarebbe una mezza verità detta
+              proprio dove serve l'altra metà — quella finestra si apre **da
+              qualunque programma**, ed è la sola cosa che spiega perché è
+              comparsa sopra quello che si stava facendo. */}
+          <span className="ml-auto">{aiutoScorciatoia}</span>
         </div>
       </div>
     </div>

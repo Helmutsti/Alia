@@ -90,6 +90,16 @@ export function AliaProvider({ children, dataset = null }) {
     return bridge.onOrigini(() => carica());
   }, [carica, dataset]);
 
+  /* Lo stesso colpetto sulla spalla, da un'altra parte: una task nata nella
+     **finestrella di cattura** e' stata scritta da un altro renderer, quindi
+     questo non ne sa niente finche' non glielo si dice. Senza, la task
+     comparirebbe solo alla prossima cosa che fa ricaricare — cioe' sembrerebbe
+     non essere stata creata. */
+  useEffect(() => {
+    if (dataset || !hasCore || typeof bridge?.onRicarica !== "function") return undefined;
+    return bridge.onRicarica(() => carica());
+  }, [carica, dataset]);
+
   /* `chiamata` è una funzione che riceve le decisioni e restituisce l'esito:
      conservarla come chiusura è ciò che permette di rigiocarla identica dopo
      la risposta dell'utente, senza dover ricostruire gli argomenti. */

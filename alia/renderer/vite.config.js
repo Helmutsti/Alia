@@ -34,6 +34,10 @@ export default defineConfig({
            browser perché non tocca il core (vedi src/preview.jsx). */
         main: resolve(__dirname, "index.html"),
         preview: resolve(__dirname, "preview.html"),
+        /* cattura.html e' la finestrella della scorciatoia globale: una
+           finestra sua, quindi una pagina sua. Non e' una schermata dell'app —
+           e' un gesto che compare sopra qualunque programma e sparisce. */
+        cattura: resolve(__dirname, "cattura.html"),
       },
     },
   },

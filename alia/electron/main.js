@@ -1,9 +1,11 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, Menu, Tray } from "electron";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { appendFileSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { ALIA_OPERATIONS, createAliaCore } from "../src/core/alia-core.js";
 import { creaConfluenzaAlia } from "./confluenza.js";
+import { creaPromemoria } from "./promemoria.js";
+import { creaCattura } from "./cattura.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +30,18 @@ const DEV_SERVER_URL = process.env.ELECTRON_RENDERER_URL;
    `ALIA_DATA` resta per chi vuole spostarli davvero — una chiavetta, un disco
    condiviso, una prova con dati finti — e in quel caso e' una scelta fatta
    apposta, non un posto che ci si ritrova addosso. */
+/* Il nome con cui Windows conosce Alia.
+
+   Serve alle **notifiche**: senza, i toast arrivano a nome di "electron.app.
+   Electron" quando ci arrivano, perche' Windows li attribuisce a un'identita'
+   che non e' quella dell'applicazione. Una stringa in stile dominio rovesciato
+   e' la convenzione; deve restare uguale fra una versione e l'altra, se no le
+   notifiche vecchie e le nuove sembrano di due programmi diversi.
+
+   Sulle altre piattaforme non fa niente e non da' fastidio. */
+const ID_APP = "it.mepinformatica.alia";
+app.setAppUserModelId(ID_APP);
+
 const CARTELLA_DATI = process.env.ALIA_DATA ?? app.getPath("userData");
 /* Sempre, non solo quando si sposta: Electron la creerebbe da se', ma solo
    quando e' pronto — e il log ci scrive dentro prima. */
@@ -126,6 +140,84 @@ function registraHandlerConfluenza() {
   }
 }
 
+/* La scorciatoia globale di cattura.
+
+   `CommandOrControl+Alt+K` e non qualcosa di piu' corto: una scorciatoia
+   globale la sente **tutto il sistema**, quindi ruba il tasto a qualunque
+   programma sia in primo piano. Tre modificatori sono la cortesia minima verso
+   gli altri programmi, e la K e' la stessa del composer dentro l'app
+   (Ctrl+Maiusc+K), cosi' e' una cosa sola da ricordare.
+
+   Se un altro programma se l'e' gia' presa, `register` risponde `false` e non
+   succede niente: si scrive nel log invece di lasciar credere che funzioni. Il
+   giorno in cui sara' configurabile, questa costante diventera' una
+   preferenza. */
+const SCORCIATOIA_CATTURA = "CommandOrControl+Alt+K";
+
+let finestraPrincipale = null;
+let tray = null;
+let promemoria = null;
+let cattura = null;
+/* `true` solo quando si sta uscendo davvero (dal menu dell'icona): serve a
+   distinguere "chiudi la finestra" da "chiudi Alia", che da quando c'e'
+   l'icona vicino all'orologio sono due cose diverse. */
+let inUscita = false;
+
+function mostraFinestra() {
+  if (!finestraPrincipale || finestraPrincipale.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (finestraPrincipale.isMinimized()) finestraPrincipale.restore();
+  finestraPrincipale.show();
+  finestraPrincipale.focus();
+}
+
+/* Cliccando una notifica si va **su quella task**: la finestra torna davanti e
+   il renderer riceve l'id. Se la finestra non c'e' piu' (chiusa nell'icona), si
+   ricrea e il messaggio parte a caricamento finito — altrimenti si parlerebbe a
+   una pagina che non e' ancora nata. */
+function apriTask(idTask) {
+  mostraFinestra();
+  const manda = () => finestraPrincipale?.webContents.send("alia:apri-task", idTask);
+  if (finestraPrincipale?.webContents.isLoading()) {
+    finestraPrincipale.webContents.once("did-finish-load", manda);
+  } else {
+    manda();
+  }
+}
+
+function creaTray() {
+  if (tray) return;
+  try {
+    tray = new Tray(join(__dirname, "..", "build", "icon.ico"));
+    tray.setToolTip("Alia");
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: "Apri Alia", click: mostraFinestra },
+        { label: `Nuova task  (${SCORCIATOIA_CATTURA.replace("CommandOrControl", "Ctrl")})`, click: () => cattura?.mostra() },
+        { type: "separator" },
+        {
+          label: "Esci",
+          click: () => {
+            inUscita = true;
+            app.quit();
+          },
+        },
+      ]),
+    );
+    /* Il clic singolo apre: e' quello che fa ogni icona vicino all'orologio, e
+       il menu resta sul destro. */
+    tray.on("click", mostraFinestra);
+  } catch (err) {
+    /* Senza icona si resta senza icona, non senza applicazione. Ma allora
+       chiudere la finestra deve tornare a chiudere l'app, se no Alia
+       resterebbe viva e irraggiungibile — un processo fantasma. */
+    debugLog("tray: creazione fallita:", err.message);
+    tray = null;
+  }
+}
+
 function createWindow() {
   const window = new BrowserWindow({
     width: 1280,
@@ -151,6 +243,25 @@ function createWindow() {
   });
   window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
     debugLog("[renderer] did-fail-load:", String(errorCode), errorDescription, validatedURL);
+  });
+
+  finestraPrincipale = window;
+
+  /* **Chiudere la finestra non chiude Alia** (11/09/2026): le sveglie devono
+     suonare anche a finestra chiusa, e la scorciatoia di cattura deve
+     rispondere sempre. La X nasconde; si esce dal menu dell'icona vicino
+     all'orologio.
+
+     Senza icona (creazione fallita) si torna al comportamento di prima e la X
+     chiude davvero: un programma vivo senza nessun modo di raggiungerlo e'
+     peggio di un programma chiuso. */
+  window.on("close", (e) => {
+    if (inUscita || !tray) return;
+    e.preventDefault();
+    window.hide();
+  });
+  window.on("closed", () => {
+    if (finestraPrincipale === window) finestraPrincipale = null;
   });
 
   debugLog("createWindow called, DEV_SERVER_URL =", DEV_SERVER_URL ?? "(none)");
@@ -186,15 +297,62 @@ app.whenReady().then(() => {
     debugLog("confluenza: avvio fallito:", err.message, err.stack ?? "");
   }
 
+  creaTray();
+
+  cattura = creaCattura({
+    preload: join(__dirname, "preload.cjs"),
+    devServerUrl: DEV_SERVER_URL,
+    indiceDist: join(__dirname, "..", "renderer", "dist", "cattura.html"),
+    log: debugLog,
+  });
+
+  /* La cattura chiude la sua finestrella e avvisa quella grande: una task
+     appena scritta deve comparire senza che nessuno ricarichi niente. */
+  ipcMain.handle("cattura:fatto", (_event, { creata = false } = {}) => {
+    cattura?.nascondi();
+    if (creata) finestraPrincipale?.webContents.send("alia:ricarica");
+    return true;
+  });
+
+  const registrata = globalShortcut.register(SCORCIATOIA_CATTURA, () => cattura?.mostra());
+  debugLog(
+    registrata
+      ? `scorciatoia ${SCORCIATOIA_CATTURA} registrata`
+      : `scorciatoia ${SCORCIATOIA_CATTURA} NON registrata: se l'e' presa un altro programma`,
+  );
+
+  promemoria = creaPromemoria({ core, log: debugLog, onApriTask: apriTask });
+  promemoria.avvia();
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    else mostraFinestra();
   });
 });
 
+/* **Non si esce piu' quando si chiude l'ultima finestra.** Da quando c'e'
+   l'icona vicino all'orologio, nessuna finestra aperta vuol dire "sto lavorando
+   ad altro", non "ho finito": le sveglie continuano e la scorciatoia risponde.
+
+   Senza icona (creazione fallita) vale la regola di prima, se no resterebbe un
+   processo vivo e irraggiungibile. */
 app.on("window-all-closed", () => {
-  /* Prima lo scarico, poi il database: fermarlo dopo vorrebbe dire lasciargli
-     la possibilità di scrivere su un core appena chiuso. */
+  if (tray && !inUscita) return;
+  if (process.platform !== "darwin") app.quit();
+});
+
+/* Lo smontaggio sta qui e non piu' in `window-all-closed`: quello adesso puo'
+   scattare mentre l'applicazione e' ancora viva, e fermare il database perche'
+   qualcuno ha chiuso una finestra sarebbe il modo piu' rapido di rompere tutto
+   quello che viene dopo.
+
+   Prima lo scarico, poi il database: fermarlo dopo vorrebbe dire lasciargli la
+   possibilità di scrivere su un core appena chiuso. */
+app.on("before-quit", () => {
+  inUscita = true;
+  globalShortcut.unregisterAll();
+  if (promemoria) promemoria.ferma();
+  if (cattura) cattura.chiudi();
   if (confluenza) confluenza.stop();
   if (core) core.close();
-  if (process.platform !== "darwin") app.quit();
 });

@@ -57,8 +57,8 @@ import { ChevronDown } from "../components/icons.jsx";
    Non c'e' scorrimento orizzontale, ed e' una scelta: con due modi di muoversi
    nel tempo — la barra di scorrimento e le frecce — nessuno dei due e' il modo,
    e la finestra non ha mai una posizione che si possa dire. Le frecce spostano
-   di mezza finestra, cosi' qualcosa di quello che si stava guardando resta in
-   scena e l'occhio non deve ricominciare da capo. */
+   di **un quarto** di finestra: tre quarti di quello che si stava guardando
+   restano in scena, e l'occhio non deve ricominciare da capo. */
 
 /* La scaletta dello zoom, dalla piu' fitta alla piu' larga: le lenti sono un
    indice qui dentro. `minuti` e' quanto dura una colonna, `larghezza` quanto e'

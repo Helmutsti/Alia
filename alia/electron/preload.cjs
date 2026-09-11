@@ -65,6 +65,39 @@ alia.onOrigini = (callback) => {
   return () => ipcRenderer.off("alia:origini", ascoltatore);
 };
 
+/* Gli altri due colpetti sulla spalla, della stessa famiglia di `onOrigini`.
+
+   `onRicarica`: qualcuno ha scritto nel database da **un'altra finestra** — la
+   cattura veloce — e questa deve rileggere. `onApriTask`: e' stata cliccata la
+   notifica di un promemoria, e porta con se' la task da aprire.
+
+   Stessa forma: tornano la funzione per disiscriversi, che e' quella che si
+   aspetta un `useEffect`. */
+alia.onRicarica = (callback) => {
+  const ascoltatore = () => callback();
+  ipcRenderer.on("alia:ricarica", ascoltatore);
+  return () => ipcRenderer.off("alia:ricarica", ascoltatore);
+};
+
+alia.onApriTask = (callback) => {
+  const ascoltatore = (_evento, idTask) => callback(idTask);
+  ipcRenderer.on("alia:apri-task", ascoltatore);
+  return () => ipcRenderer.off("alia:apri-task", ascoltatore);
+};
+
+/* La finestrella di cattura, e solo lei, ha bisogno di due cose che nessun
+   altro usa: sapere quando viene riaperta (per ripulirsi) e dire che ha
+   finito. Sta in un oggetto suo per la stessa ragione della confluenza: non
+   sono domande al core. */
+contextBridge.exposeInMainWorld("cattura", {
+  suApri: (callback) => {
+    const ascoltatore = () => callback();
+    ipcRenderer.on("cattura:apri", ascoltatore);
+    return () => ipcRenderer.off("cattura:apri", ascoltatore);
+  },
+  fatto: (creata) => ipcRenderer.invoke("cattura:fatto", { creata }),
+});
+
 /* La confluenza: un oggetto suo, non una voce di `alia`. Il ponte `alia` e' il
    core — domande al database, tutte con una risposta. La confluenza e' un
    servizio esterno che puo' non esserci, e le sue chiamate restituiscono un
