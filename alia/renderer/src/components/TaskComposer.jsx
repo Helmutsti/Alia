@@ -156,10 +156,18 @@ export function TaskComposer({
   }, []);
 
   /* I tag già usati si chiedono all'apertura, non si tengono nel provider: sono
-     un dato che serve qui e in nessun altro posto della schermata. */
+     un dato che serve qui e in nessun altro posto della schermata.
+
+     `leggiTuttiITag` e non `leggiTag`: quello vuole l'id di un task e torna i
+     tag **di quello**, e chiamarlo senza argomenti — com'era scritto qui —
+     mandava a SQLite un parametro vuoto. L'errore c'era, finiva nel log a ogni
+     apertura del composer, e non si vedeva: il `catch` lo ingoiava e i
+     suggerimenti restavano vuoti come se nessun tag fosse mai stato usato. Il
+     `catch` resta, perché un suggerimento che non arriva non è una cosa da
+     mostrare in mezzo alla scrittura — ma ora non ha più niente da ingoiare. */
   useEffect(() => {
     let vivo = true;
-    alia.leggiTag?.().then((righe) => {
+    alia.leggiTuttiITag?.().then((righe) => {
       if (vivo) setTagEsistenti(righe?.map((r) => r.label) ?? []);
     }).catch(() => {});
     return () => {

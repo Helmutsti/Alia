@@ -319,6 +319,11 @@ export function AliaProvider({ children, dataset = null }) {
          come le altre. Il dettaglio del task le chiama a finestra aperta, per
          non tenere in memoria dati che servono a un task per volta. */
       leggiTag: (id) => core.listTaskTags(id),
+      /* I tag di **tutti** i task, per chi suggerisce. Il nome dice che sono
+         tutti perche' il composer aveva chiamato `leggiTag()` senza id
+         credendo che valesse per entrambi: un nome che si legge in due modi
+         invita a sbagliarlo, e SQLite rifiutava il parametro mancante. */
+      leggiTuttiITag: () => core.listTags(),
       leggiCommenti: (id) => core.listTaskComments(id),
       leggiStorico: (id) => core.getTaskHistory(id),
       aggiungiTag: (id, label) => esegui(() => core.addTaskTag(id, label)),
