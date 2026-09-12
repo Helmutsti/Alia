@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Alarm, NoteLines, Subtasks } from "../components/icons.jsx";
+import { Alarm, Check, NoteLines, Subtasks } from "../components/icons.jsx";
 
 /* Card minima dell'Inbox — trascritta da `.sp-card` / `.sp-check` di
    DEF_Inbox min. È la forma usata dalla colonna Small Inbox, dalle righe
@@ -67,6 +67,41 @@ const CHECK =
   "w-0 h-[13px] mt-0.5 mr-0 rounded-full shrink-0 opacity-0 overflow-hidden border-0 " +
   "transition-[width,opacity,margin-right,border-width] duration-[140ms] " +
   "group-hover:w-[13px] group-hover:opacity-100 group-hover:mr-2 group-hover:border-[2.2px]";
+
+/* ── e da oggi il cerchietto si preme (12/09/2026) ──────────────────────────
+
+   Si chiamava CHECK dal primo giorno — e' trascritto da `.sp-check` di
+   DEF_Inbox min — ma era un `<span>` senza gesto: il nome prometteva una
+   spunta e quello che c'era era un bollino. Adesso e' un bottone, e chiuderla
+   e' un clic invece di aprire la scheda e cercare il menu dello stato.
+
+   **Un `<button>` e non uno `<span>` con `onClick`**, e non per l'accessibilita'
+   soltanto. Il motore del trascinamento si tira indietro da solo su
+   `input,textarea,button` (vedi `dragKit.start`): rendendolo un bottone, il
+   pointerdown sul pallino non prende in mano la card e non apre il dettaglio al
+   rilascio, senza che il motore debba imparare un'eccezione nuova.
+
+   `p-0 bg-transparent` perche' il reset non azzera l'imbottitura dei bottoni, e
+   il cerchietto e' 13px in tutto: tre pixel d'imbottitura lo farebbero il doppio.
+
+   La geometria resta quella di CHECK — si apre in hover e a riposo occupa zero
+   — **anche da fatta**, e la direttiva dell'11/09 e' il motivo: il pallino non
+   resta acceso in nessun caso. Il segno a riposo che la task e' chiusa e' il
+   titolo sbarrato, che costa zero pixel; il cerchietto e' il gesto per
+   disfarla, e un gesto si va a cercare. */
+const CHECK_BOTTONE = "p-0 cursor-pointer grid place-items-center";
+
+/* Il fondo sta **fuori** da CHECK_BOTTONE, e in un ternario invece che in due
+   classi accostate. `bg-transparent` e `bg-content/45` sono la stessa proprieta'
+   e in Tailwind fra due utility che si contendono una proprieta' vince l'ordine
+   del foglio generato, non l'ordine in cui si scrivono nell'attributo: messe
+   insieme, quale delle due si vede non lo decide questo file. */
+const CHECK_APERTA = "bg-transparent hover:bg-content/12";
+
+/* Piena e spenta: piena perche' una spunta dentro un contorno a 13px non si
+   legge, spenta perche' l'accento in questa schermata vuol dire "selezionata" e
+   sono due cose diverse. E' lo stesso grigio del chip di chiusura. */
+const CHECK_FATTA = "bg-content/45 text-bg border-content/45";
 
 /* `overflow-wrap: anywhere` e non `break-word`: servono entrambe le cose che
    fa in più. Un titolo scritto tutto attaccato (capita dalle sorgenti esterne,
@@ -221,6 +256,14 @@ export function InboxCard({
      chi chiama perche' e' lui a sapere la data vera: qui arriva gia' scritta
      ("in ritardo", "domani"), e da una parola non si ricava un confronto. */
   scaduta = false,
+  /* Chiusa. La card non lo sapeva affatto: mostrava titolo e scadenza di una
+     task finita esattamente come di una da fare, e l'unico posto in cui la
+     differenza si vedeva era la colonna del Kanban in cui la card finiva —
+     cioe' solo raggruppando per stato. */
+  done = false,
+  /* Assente = cerchietto decorativo, com'e' sempre stato. La galleria delle
+     anteprime non ha un core dietro e non deve fingere di averlo. */
+  onToggleDone,
 }) {
   return (
     <div
@@ -238,7 +281,24 @@ export function InboxCard({
             card resta una riga di testo pulita, passandoci sopra si apre e
             spinge il titolo. Renderlo fisso lo trasformava in un bollino
             colorato su ogni card, che e' un'altra cosa. */}
-        <span className={CHECK} style={{ borderColor: priorityColor }} />
+        {onToggleDone ? (
+          <button
+            type="button"
+            aria-pressed={done}
+            aria-label={done ? "Riapri la task" : "Completa la task"}
+            title={done ? "Riapri la task" : "Completa la task"}
+            onClick={onToggleDone}
+            className={`${CHECK} ${CHECK_BOTTONE} ${done ? CHECK_FATTA : CHECK_APERTA}`}
+            /* Il colore della priorita' solo da aperta: chiusa, che fosse
+               urgente non e' piu' una cosa da fare e il contorno rosso
+               chiederebbe di correre dietro a qualcosa di gia' finito. */
+            style={done ? undefined : { borderColor: priorityColor }}
+          >
+            {done ? <Check size={8} sw={3.2} /> : null}
+          </button>
+        ) : (
+          <span className={CHECK} style={{ borderColor: priorityColor }} />
+        )}
         {editing ? (
           <TitleInput value={title} size={titleSize} onCommit={onCommit} />
         ) : (
@@ -246,7 +306,13 @@ export function InboxCard({
             data-title={onTitleClick ? "1" : undefined}
             title={onTitleClick ? "Clicca per rinominare" : undefined}
             onClick={onTitleClick}
-            className={`${TITLE} ${titleSize} ${onTitleClick ? "cursor-text" : ""}`}
+            className={
+              `${TITLE} ${titleSize} ${onTitleClick ? "cursor-text" : ""} ` +
+              /* Il segno a riposo che la task e' chiusa, e l'unico: il
+                 cerchietto a riposo non c'e'. Stessa resa della riga della
+                 Lista, che lo fa da sempre. */
+              (done ? "line-through text-content/50" : "")
+            }
           >
             {title}
           </span>

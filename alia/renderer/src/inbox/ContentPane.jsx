@@ -931,6 +931,8 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
       scaduta={eInRitardo(t)}
       meta={metaCard(t, campiCard, escludiKanban)}
       priorityColor={t.priorityColor}
+      done={t.done}
+      onToggleDone={() => alia.completa(t.id, !t.done)}
     />
   );
 
@@ -1437,6 +1439,9 @@ export function ContentPane({ padSinistra = 18, transizionePad, refRilascioKanba
                       onPointerDown={
                         !inSelezione && onRowPointerDown ? (e) => onRowPointerDown(t.id, e) : undefined
                       }
+                      /* Fuori dalla selezione, perche' li' il cerchietto e' gia'
+                         la spunta della selezione e non puo' dire due cose. */
+                      onToggleDone={inSelezione ? undefined : () => alia.completa(t.id, !t.done)}
                     />
                   ),
                 )}

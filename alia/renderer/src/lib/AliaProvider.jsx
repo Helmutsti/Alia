@@ -289,6 +289,32 @@ export function AliaProvider({ children, dataset = null }) {
       creaTask: (input) => esegui((decisioni) => core.createTask(input, decisioni)),
       aggiornaTask: (id, patch) => esegui(() => core.updateTask(id, patch)),
       cambiaStato: (id, idState) => esegui((decisioni) => core.setTaskState(id, idState, decisioni)),
+      /* Il cerchietto di card e row, che chiude e riapre con un gesto solo.
+
+         Non e' una mutazione nuova: e' `cambiaStato` con lo stato gia' scelto.
+         Sta qui e non nei punti di chiamata perche' la scelta e' sempre la
+         stessa e dev'essere fatta una volta — con quattro copie, prima o poi
+         una sceglie un altro stato e lo stesso pallino vuol dire due cose
+         diverse secondo la vista in cui lo si preme.
+
+         Quale stato: il **primo** di chiusura, che con `ORDER BY stepOrder` e'
+         quello subito dopo gli aperti, cioe' il "fatto" nel senso ovvio; per
+         riaprire, quello di partenza. Gli altri stati finali — annullato,
+         migrato — restano cose che si dicono di proposito dal menu, non cose
+         in cui si inciampa cliccando un pallino.
+
+         Tutto il resto lo fa gia' `setTaskState`: la cascata sui sotto-task, la
+         risalita al padre, e le conferme che `esegui` negozia da se'. Riaprire
+         una task dentro un albero chiuso chiedera' cosa fare degli antenati,
+         come lo chiede da qualunque altra parte.
+
+         Senza stati configurati non si fa niente invece di indovinare — `null`,
+         come gia' risponde `esegui` con un dataset di anteprima. */
+      completa: (id, fatto = true) => {
+        const stato = fatto ? derivati.statiChiusura[0] : derivati.statoIniziale;
+        if (!stato) return null;
+        return esegui((decisioni) => core.setTaskState(id, stato.id, decisioni));
+      },
       assegnaProgetto: (id, idProject, idMilestone) =>
         esegui(() => core.setTaskProject(id, idProject, idMilestone)),
       /* Smistare: mette o toglie un task dal triage, senza toccare progetto,

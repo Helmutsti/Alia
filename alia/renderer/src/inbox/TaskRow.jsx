@@ -62,6 +62,10 @@ export function TaskRow({
   selezionabile = false,
   selezionata = false,
   onSeleziona,
+  /* Chiudere e riaprire dal cerchietto. Assente = cerchietto decorativo, come
+     prima. In selezione non arriva: dentro la modalita' la riga fa una cosa
+     sola, e il cerchietto e' gia' preso dalla spunta della selezione. */
+  onToggleDone,
 }) {
   const [menuAperto, setMenuAperto] = useState(false);
   const interattivo = typeof onChangeState === "function" && states.length > 0;
@@ -98,6 +102,14 @@ export function TaskRow({
       onKeyDown={
         selezionabile || apribile
           ? (e) => {
+              /* Solo se il tasto e' arrivato **alla riga**. Dentro ci sono
+                 comandi che hanno il loro Invio — il cerchietto, il chip di
+                 stato — e senza questa guardia premerli col tasto faceva
+                 partire anche l'apertura della scheda: il bottone si attivava e
+                 il keydown continuava a salire. Il clic quella guardia ce
+                 l'aveva gia' (`stopPropagation` sul chip, `<button>` per il
+                 cerchietto); la tastiera no. */
+              if (e.target !== e.currentTarget) return;
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 if (selezionabile) onSeleziona?.();
@@ -122,6 +134,41 @@ export function TaskRow({
         <span className="shrink-0 mt-[3px] w-3 h-3 rounded-full grid place-items-center bg-accent text-bg">
           <Check size={9} sw={3} />
         </span>
+      ) : onToggleDone && !selezionabile ? (
+        /* **Un `<button>` e non uno `<span>` con `onClick`.** Oltre a essere
+           quello che e' — un comando, raggiungibile col tasto — e' anche cio'
+           che lo tiene fuori dal trascinamento: `dragKit.start` si tira
+           indietro da solo su `input,textarea,button`, quindi premere il
+           pallino non prende in mano la riga e non ne apre la scheda al
+           rilascio. Il motore non impara nessuna eccezione nuova.
+
+           `stopPropagation` lo stesso, e non e' ridondante: quando la riga non
+           e' trascinabile l'apertura non passa dal motore ma da un `onClick`
+           suo, e quello il clic se lo prenderebbe salendo. */
+        <button
+          type="button"
+          aria-pressed={task.done}
+          aria-label={task.done ? "Riapri la task" : "Completa la task"}
+          title={task.done ? "Riapri la task" : "Completa la task"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleDone();
+          }}
+          className={
+            "shrink-0 mt-[3px] w-3 h-3 p-0 rounded-full grid place-items-center cursor-pointer " +
+            /* Piena e spenta da fatta: una spunta dentro un contorno di 12px
+               non si legge, e l'accento qui vuol dire "selezionata". Da aperta
+               resta il contorno della priorita' e il passaggio del mouse la
+               vela appena — un invito al gesto che non sposta niente, che in un
+               elenco di righe allineate e' tutto il punto. */
+            (task.done
+              ? "bg-content/45 text-bg"
+              : "bg-transparent hover:bg-content/12")
+          }
+          style={task.done ? undefined : { border: `2.2px solid ${task.priorityColor}` }}
+        >
+          {task.done ? <Check size={8} sw={3.2} /> : null}
+        </button>
       ) : (
         <span
           className="shrink-0 mt-[3px] w-3 h-3 rounded-full"

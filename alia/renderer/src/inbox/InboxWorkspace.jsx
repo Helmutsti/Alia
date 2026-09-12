@@ -820,6 +820,16 @@ export function InboxWorkspace({ startFull = false }) {
               onTitleClick={() => setEditingTask(task.id)}
               onCommit={(v) => commitTitle(task.id, v)}
               onPointerDown={(e) => start(task.id, e)}
+              /* Chiudere una task **senza smistarla**: capita, ed e' la risposta
+                 giusta a meta' di quello che finisce nel triage — arriva una
+                 cosa che e' gia' stata fatta, o che bastava leggere. Prima
+                 l'unica strada era darle un progetto per poterla poi chiudere
+                 altrove, cioe' archiviare per finta roba che andava solo via.
+
+                 `daSmistare` toglie le chiuse (`!t.done`), quindi la card
+                 sparisce dalla colonna appena si preme: il gesto si vede. */
+              done={task.done}
+              onToggleDone={() => alia.completa(task.id, !task.done)}
             />
           ))}
           {/* Il campo della nuova task. Non e' piu' legato alla Full Inbox come
