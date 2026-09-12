@@ -4,6 +4,23 @@ name: Release
 # delle sorgenti). Il rilascio riguarda solo l'app, quindi ogni job lavora
 # dentro `alia/` — senza questo, `npm ci` cercherebbe un package.json nella
 # radice, dove non c'e'.
+#
+# ── Cosa e' cambiato, e perche' (12/09/2026) ────────────────────────────────
+#
+# Prima di qui usciva **un tarball npm**, e chi voleva Alia se la installava con
+# `npm install -g`. Uno script di postinstall, sulla macchina di chi installava,
+# copiava Electron e lo ribrandizzava a mano: rinominava l'eseguibile, gli
+# infilava l'icona dentro, creava il collegamento. Funzionava solo su Windows —
+# su macOS quello script usciva alla prima riga — e comunque pretendeva che chi
+# scaricava avesse Node installato e aspettasse che si scaricassero 300 MB di
+# Electron.
+#
+# Adesso escono **gli installer, gia' pronti**, costruiti qui da electron-builder.
+# Chi scarica non ha bisogno di niente: apre il .dmg o il Setup.exe.
+#
+# Il ribrandizzare a mano e' sparito insieme al postinstall: rinomina,
+# Info.plist, icone .icns e .ico dall'unica PNG, firma — lo fa builder, e lo fa
+# uguale sulle due piattaforme.
 
 on:
   release:
@@ -13,15 +30,32 @@ permissions:
   contents: write
 
 jobs:
-  verify-macos:
-    # Il pacchetto npm pubblicato è lo stesso per ogni piattaforma (Electron
-    # viene scaricato per l'OS corretto al momento dell'installazione, non è
-    # incluso nel tarball): qui verifichiamo solo che core e build funzionino
-    # anche su macOS prima di rilasciare, non produciamo un artifact separato.
-    runs-on: macos-latest
+  installer:
+    # **Ogni piattaforma si costruisce sulla sua**, e non e' pigrizia: un .dmg
+    # si puo' creare solo su macOS (servono strumenti di sistema), e l'installer
+    # NSIS vuole Windows. Un solo job non potrebbe produrre entrambi.
+    strategy:
+      # Se salta il Mac si vuole comunque vedere l'esito di Windows, invece di
+      # trovarlo cancellato a meta'.
+      fail-fast: false
+      matrix:
+        include:
+          - so: macos-latest
+            nome: macOS
+            comando: dist:mac
+            # Il Mac ne fa due: Apple Silicon e Intel.
+            artefatti: dist/*.dmg
+          - so: windows-latest
+            nome: Windows
+            comando: dist:win
+            artefatti: dist/*.exe
+
+    name: ${{ matrix.nome }}
+    runs-on: ${{ matrix.so }}
     defaults:
       run:
         working-directory: alia
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -34,36 +68,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # I test girano su tutte e due le piattaforme e non piu' su una sola: il
+      # core parla con il filesystem e con SQLite, e sono esattamente le cose
+      # che si comportano diversamente di la'.
       - name: Run tests
         run: npm test
 
-      - name: Build renderer
-        run: npm run build:renderer
+      - name: Check syntax
+        run: npm run check
 
-  package:
-    needs: verify-macos
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: alia
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "24.16"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-
-      - name: Build renderer
-        run: npm run build:renderer
-
+      # La versione la comanda il tag della release, non quello che e' rimasto
+      # scritto in package.json: e' anche il numero che finisce nel nome del
+      # file e dentro il bundle.
       - name: Set package version from release tag
         shell: bash
         env:
@@ -72,13 +88,17 @@ jobs:
           version="${RELEASE_TAG#v}"
           npm version "$version" --no-git-tag-version --allow-same-version
 
-      - name: Pack npm tarball
+      # `--publish never`: electron-builder sa pubblicare da se' su GitHub, ma
+      # deciderlo da un'altra parte vorrebbe dire due meccanismi che caricano
+      # file sulla stessa release. Costruisce e basta; a caricare ci pensa il
+      # passo dopo, che e' quello che c'era gia'.
+      - name: Build installer
         shell: bash
-        run: npm pack
+        run: npm run ${{ matrix.comando }} -- --publish never
 
-      - name: Upload tarball to the release
+      - name: Upload installer to the release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$RELEASE_TAG" alia-*.tgz --clobber
+        run: gh release upload "$RELEASE_TAG" ${{ matrix.artefatti }} --clobber

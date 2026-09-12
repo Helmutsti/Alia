@@ -39,7 +39,20 @@
 
      A 16px il gradiente sparisce comunque e conta solo il colore medio: a
      quella misura le tre si somigliano molto più di quanto non facciano a 256,
-     ed è il motivo per cui la scelta si fa guardando la grande. -->
+     ed è il motivo per cui la scelta si fa guardando la grande.
+     ── ATTENZIONE: i due azzurri stanno anche altrove ────────────────────────
+
+     Da quando macOS ha un'icona sua (`Alia.icon`, il documento di Icon
+     Composer), il gradiente e' dichiarato **due volte**: qui, e in
+     `Alia.icon/icon.json` sotto `fill-specializations`. Non e' una svista ed e'
+     difficile da evitare: qui il fondo e' disegnato dentro l'immagine, la'
+     e' un dato che il sistema puo' ridipingere per il tema scuro — ed e' tutto
+     il punto di quel formato.
+
+     Conseguenza pratica: **ritoccando questi colori vanno ritoccati anche la'**,
+     se no Windows e macOS mostrano due azzurri diversi e non se ne accorge
+     nessuno finche' non si guardano vicini. Questo file serve al `.ico` di
+     Windows; quello serve all'icona di macOS. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
   <defs>
     <linearGradient id="fondo" x1="0" y1="0" x2="1" y2="1">

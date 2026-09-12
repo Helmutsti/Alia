@@ -273,7 +273,26 @@ function apriTask(idTask) {
 function creaTray() {
   if (tray) return;
   try {
-    tray = new Tray(join(__dirname, "..", "build", "icon.ico"));
+    /* **Una PNG e non piu' un `.ico`** (12/09/2026). Il `.ico` e' un formato
+       di Windows e su macOS `Tray` non lo legge: la creazione falliva sempre,
+       si finiva nel ramo qui sotto, e Alia girava senza icona accanto
+       all'orologio — con la conseguenza, scritta in `window-all-closed`, che
+       la preferenza sulla X non poteva nemmeno essere applicata. Le PNG le
+       leggono tutte e due i sistemi, e la `@2x` accanto la sceglie Electron da
+       se' sugli schermi a densita' doppia.
+
+       **E sono due immagini diverse, non la stessa ridotta.** Nella barra dei
+       menu di macOS la convenzione e' un'immagine *template*: nera su
+       trasparente, che il sistema ricolora da se' — scura su barra chiara,
+       chiara su barra scura, invertita mentre il menu e' aperto. Dandogli
+       l'icona a colori si ottiene un francobollo azzurro in mezzo a glifi
+       monocromi, che e' come si vedeva. Nella barra di Windows vale l'opposto:
+       li' le icone sono a colori, e un glifo nero su fondo scuro sparirebbe.
+
+       Il suffisso `Template` nel nome non e' una convenzione nostra: e' quella
+       da cui Electron e AppKit capiscono che l'immagine va trattata cosi'. */
+    const iconaBarra = process.platform === "darwin" ? "trayTemplate.png" : "tray.png";
+    tray = new Tray(join(__dirname, "..", "assets", iconaBarra));
     tray.setToolTip("Alia");
     tray.setContextMenu(
       Menu.buildFromTemplate([
@@ -341,7 +360,11 @@ function createWindow() {
       symbolColor: "#e5e5e5",
       height: 40,
     },
-    icon: join(__dirname, "..", "build", "icon.ico"),
+    /* Serve **solo in sviluppo**: nel pacchetto l'icona della finestra la da'
+       il bundle (su macOS) o le risorse dell'eseguibile (su Windows), e questa
+       riga non la si vede proprio. Punta in `assets/` e non in `build/` perche'
+       `build/` e' la dispensa di electron-builder e non entra nell'app. */
+    icon: join(__dirname, "..", "assets", "icon.png"),
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -412,6 +435,26 @@ app.whenReady().then(() => {
      riga di guardia, perche' il prezzo di sbagliarsi si paga sui dati. */
   if (!istanzaUnica) return;
   debugLog("app ready, dati in", CARTELLA_DATI);
+
+  /* **L'icona del Dock, e solo in sviluppo.**
+
+     Lanciando da sorgente Alia gira *dentro* il bundle di Electron, e nel Dock
+     compare l'icona di Electron: un cerchio quasi nero. Non e' un tema scuro
+     che scurisce la nostra — le icone del Dock su macOS non cambiano col tema,
+     e infatti non esistono una versione chiara e una scura — e' proprio
+     un'altra icona, quella di un altro programma.
+
+     Nel pacchetto questa riga non serve e non gira: li' l'icona la dichiara
+     `Info.plist` e la disegna il bundle, che electron-builder costruisce a
+     partire da `build/icon.png`. `app.isPackaged` distingue i due casi, e
+     chiamarla anche da impacchettati sarebbe un modo per rimpiazzare a mano
+     un'icona gia' giusta.
+
+     Solo macOS: il Dock e' suo. Su Windows l'icona della barra delle
+     applicazioni in sviluppo viene dall'opzione `icon` della finestra. */
+  if (process.platform === "darwin" && !app.isPackaged) {
+    app.dock?.setIcon(join(__dirname, "..", "assets", "icon.png"));
+  }
   core = createAliaCore({
     databasePath: join(CARTELLA_DATI, "scheduler.sqlite"),
   });

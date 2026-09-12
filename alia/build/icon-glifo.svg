@@ -1,0 +1,24 @@
+<!-- Il solo glifo, su fondo trasparente — il livello da dare a Icon Composer.
+
+     Icon Composer modella un'icona come **un fondo più dei livelli sopra**, e
+     il fondo lo dichiara lui (un colore o un gradiente), non lo si disegna. È
+     proprio quella separazione che permette a macOS di cambiare il fondo per il
+     tema scuro tenendo il disegno: misurato su Claude, dove le immagini sono le
+     stesse per tutte e tre le apparenze e a cambiare è solo il fondo.
+
+     La nostra `icon.svg` invece cuoce insieme quadrato e freccia, ed è il
+     motivo per cui in modalità scura restava un quadrato nero: macOS spegneva
+     il fondo e teneva il glifo, che è bianco.
+
+     Geometria copiata da `icon.svg` senza toccarla — il tracciato, lo spessore
+     21.7, gli estremi tondi. Manca solo il `<rect>` del fondo. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <path
+    d="M 80.6 167.9 L 173.6 91.5 L 173.6 150.3"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="21.7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

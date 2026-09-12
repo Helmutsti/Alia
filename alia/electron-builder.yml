@@ -1,0 +1,119 @@
+# Come Alia diventa un programma installabile.
+#
+# Un file YAML e non la sezione "build" dentro package.json, per una ragione
+# sola: qui i commenti si possono scrivere, in JSON no. Metà di quello che c'è
+# sotto è una decisione che fra sei mesi nessuno ricostruirebbe dal valore.
+
+appId: com.helmutsti.alia
+productName: Alia
+copyright: Alia
+
+directories:
+  # `build/` non finisce nell'app: è la dispensa di electron-builder, che da
+  # `build/icon.png` ricava .icns e .ico da sé. Le immagini che l'app legge
+  # mentre gira stanno in `assets/`, che infatti è nell'elenco qui sotto.
+  buildResources: build
+  output: dist
+
+# Un elenco di cosa **entra**, non di cosa si esclude. Il comportamento di
+# fabbrica è il contrario — prende tutto e toglie quello che riconosce — e con
+# un repository che contiene anche i sorgenti del renderer, i test e gli script
+# di build vorrebbe dire spedirli tutti e accorgersene dalla dimensione.
+#
+# `renderer/dist` e non `renderer/src`: dentro il pacchetto va il **costruito**.
+# È anche il motivo per cui react, react-dom e lucide-react sono passati fra le
+# devDependencies: Vite li impacchetta dentro il bundle del renderer, quindi a
+# runtime non esiste nessuno che faccia `import "react"`.
+files:
+  - electron/**
+  - src/**
+  - assets/**
+  - renderer/dist/**
+  - package.json
+
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  category: public.app-category.productivity
+
+  # ── L'icona, e perché non è più un .icns ──────────────────────────────────
+  #
+  # Da macOS 26 un'icona non è più una pila di bitmap: è un **fondo dichiarato**
+  # più i livelli del disegno sopra, e il sistema può cambiare il fondo secondo
+  # l'aspetto scelto tenendo il disegno. Il file che lo descrive è `Alia.icon`,
+  # scritto con Icon Composer (dentro Xcode).
+  #
+  # Perché conta: con lo "Stile icone e widget" su Scuro, macOS spegne lo sfondo
+  # di ogni icona vecchio stile e tiene solo il disegno. Per Alia, che ha il
+  # colore **nel fondo** e il glifo bianco, voleva dire perdere l'azzurro e
+  # ritrovarsi la freccia su nero. Dentro `Alia.icon` la variante scura è
+  # dichiarata (`fill-specializations`, voce con `appearance: dark`): un azzurro
+  # più profondo invece di nessun colore.
+  #
+  # electron-builder riconosce l'estensione `.icon`, lo compila con `actool`
+  # (serve Xcode 26+), scrive `Assets.car` nel bundle e imposta
+  # `CFBundleIconName`. Da qui in poi non c'è niente da fare a mano.
+  icon: build/Alia.icon
+  # Il nome del file dentro l'immagine, e quindi quello che si trascina in
+  # Applicazioni.
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+  # ── Niente Developer ID, e cosa comporta ──────────────────────────────────
+  #
+  # `identity: null` spegne la firma vera. Non è una dimenticanza: senza un
+  # account sviluppatore Apple (99 $/anno) non c'è niente con cui firmare, e
+  # lasciare che electron-builder cerchi un certificato che non c'è fa fallire
+  # la build invece di produrre un pacchetto non firmato.
+  #
+  # Conseguenza da sapere e da scrivere nelle note di rilascio: il .dmg scaricato
+  # prende l'attributo di quarantena, e al primo avvio macOS dice che "non può
+  # verificare che sia privo di malware". Si apre con tasto destro → Apri, una
+  # volta sola. Non è un errore, è Gatekeeper che fa il suo lavoro.
+  #
+  # Quando il certificato ci sarà: si toglie questa riga, si mette
+  # `notarize: true`, e si danno ad Apple le credenziali via variabili
+  # d'ambiente (APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID). Il resto
+  # di questo file non cambia.
+  identity: null
+  notarize: false
+
+# Con `identity: null` electron-builder salta la firma, e quello che resta sul
+# bundle e' la firma che il linker aveva messo sull'eseguibile di Electron — non
+# piu' valida, perche' nel frattempo builder ha riscritto Info.plist e rinominato
+# tutto. Su Apple Silicon vorrebbe dire un'app che non parte. Questo gancio ci
+# mette una firma ad-hoc vera e la verifica; il perche' per esteso sta nello
+# script.
+afterPack: scripts/firma-adhoc.js
+
+dmg:
+  # Le due icone affiancate con la freccia in mezzo: è il gesto che ogni utente
+  # macOS conosce, e lasciarlo al caso significa una finestra in cui non si
+  # capisce cosa fare.
+  contents:
+    - x: 140
+      y: 180
+      type: file
+    - x: 400
+      y: 180
+      type: link
+      path: /Applications
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  # Installazione **per utente**, come fa Discord: niente richiesta di diritti
+  # di amministratore, che è la finestra davanti alla quale metà delle persone
+  # si ferma. Il prezzo è che Alia si installa per chi la installa e non per
+  # tutti quelli che usano il computer, ed è il compromesso giusto per un
+  # programma personale.
+  perMachine: false
+  # Un installer con le sue schermate invece di uno che parte e basta: si vede
+  # dove finisce il programma e si può cambiare idea.
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

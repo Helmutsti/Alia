@@ -1,0 +1,44 @@
+<!-- L'icona per la barra dei menu di macOS — un'immagine *template*.
+
+     Non è una variante stilistica dell'icona: è quello che macOS pretende
+     lassù. Un'immagine template è **nera su trasparente**, e il sistema la
+     ricolora da sé — scura su barra chiara, chiara su barra scura, invertita
+     quando il menu è aperto. Dandogli il quadrato blu si ottiene un francobollo
+     colorato in mezzo a glifi monocromi, che è esattamente come si vedeva.
+
+     Il nome del file che ne esce finisce per `Template`, e non è una scelta di
+     gusto: è la convenzione da cui Electron e AppKit capiscono che l'immagine
+     va trattata così. `assets/trayTemplate.png`.
+
+     ── Come mai i numeri sono gli stessi di icon.svg ──────────────────────────
+
+     Perché sono gli stessi, copiati senza toccarli: la `d` del tracciato e lo
+     spessore 21.7 vengono da lì tali e quali. Se la geometria del glifo cambia,
+     si ricopiano quelle due righe e basta — non c'è niente da ricalcolare.
+
+     Quello che cambia è solo l'inquadratura, e sta tutta nel `transform`:
+
+       · `translate(-69.75, -80.65)` porta all'origine l'angolo alto-sinistro
+         del glifo **compreso lo spessore del tratto**. Il tracciato va da
+         (80.6, 91.5) a (173.6, 167.9), e il tratto sporge di metà spessore
+         (10.85) da ogni lato;
+       · `scale(0.12206)` è 14 / 114.7, cioè "il glifo largo 114.7 diventi largo
+         14". Scala anche il tratto, che è quello che si vuole: 21.7 → 2.65;
+       · `translate(1, 2.013)` lo centra nei 16: 1 di margine ai lati, e
+         (16 − 11.97) / 2 sopra e sotto, perché il glifo è più largo che alto.
+
+     Sedici e non ventidue: 16pt è la misura dei glifi della barra, e i 14 di
+     disegno dentro i 16 sono il margine ottico che tiene l'icona staccata dalle
+     vicine. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <g transform="translate(1, 2.013) scale(0.12206) translate(-69.75, -80.65)">
+    <path
+      d="M 80.6 167.9 L 173.6 91.5 L 173.6 150.3"
+      fill="none"
+      stroke="#000000"
+      stroke-width="21.7"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+</svg>

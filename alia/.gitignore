@@ -9,6 +9,8 @@ electron/debug.log
 *.sqlite-wal
 *.sqlite-journal
 .playwright-mcp/
-dist-app/
+# L'uscita di electron-builder: .dmg, Setup.exe, e i bundle smontati da cui
+# vengono. Centinaia di MB per rilascio, e si rigenerano con `npm run dist`.
+dist/
 *.tgz
 .scratch-*

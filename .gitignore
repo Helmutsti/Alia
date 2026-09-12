@@ -9,3 +9,6 @@ node_modules/
 .playwright-mcp/
 *-screenshot.png
 icona-opzioni.png
+
+# Le briciole del Finder, che non sono di nessun progetto.
+.DS_Store
